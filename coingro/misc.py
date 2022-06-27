@@ -58,7 +58,8 @@ def shorten_date(_date: str) -> str:
     return new_date
 
 
-def file_dump_json(filename: Path, data: Any, is_zip: bool = False, log: bool = True) -> None:
+def file_dump_json(filename: Path, data: Any, is_zip: bool = False, log: bool = True,
+                    pretty_print: bool = False) -> None:
     """
     Dump JSON data into a file
     :param filename: file to create
@@ -74,12 +75,20 @@ def file_dump_json(filename: Path, data: Any, is_zip: bool = False, log: bool = 
             logger.info(f'dumping json to "{filename}"')
 
         with gzip.open(filename, 'w') as fpz:
-            rapidjson.dump(data, fpz, default=str, number_mode=rapidjson.NM_NATIVE)
+            if pretty_print:
+                rapidjson.dump(data, fpz, default=str, number_mode=rapidjson.NM_NATIVE,
+                                write_mode=rapidjson.WM_PRETTY)
+            else:
+                rapidjson.dump(data, fpz, default=str, number_mode=rapidjson.NM_NATIVE)
     else:
         if log:
             logger.info(f'dumping json to "{filename}"')
         with open(filename, 'w') as fp:
-            rapidjson.dump(data, fp, default=str, number_mode=rapidjson.NM_NATIVE)
+            if pretty_print:
+                rapidjson.dump(data, fp, default=str, number_mode=rapidjson.NM_NATIVE,
+                                write_mode=rapidjson.WM_PRETTY)
+            else:
+                rapidjson.dump(data, fp, default=str, number_mode=rapidjson.NM_NATIVE)
 
     logger.debug(f'done json to "{filename}"')
 

@@ -1,0 +1,6 @@
+Gtk-Message: 23:58:29.526: Failed to load module "canberra-gtk-module"
+Gtk-Message: 23:58:29.579: Failed to load module "canberra-gtk-module"
+ATTENTION: default value of option mesa_glthread overridden by environment.
+ATTENTION: default value of option mesa_glthread overridden by environment.
+ATTENTION: default value of option mesa_glthread overridden by environment.
+Missing chrome or resource URL: resource://gre/modules/UpdateListener.jsm

@@ -1,5 +1,6 @@
 # Freqtrade rules
 config*.json
+!tests/config_test_comments.json
 *.sqlite
 *.sqlite-shm
 *.sqlite-wal
