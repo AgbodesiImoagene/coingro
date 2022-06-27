@@ -1,0 +1,28 @@
+rewrite top level __init__.py
+# remove hyperopt, edge and backtest args
+get bot id environment variable # done
+add log file to volume
+add id to all database entries # added to db names
+modify database to include table that maps host address to bot id
+check api permisions from exchange
+rename config save constant # done
+figure out how to persist config over container restarts: append bot id to save file name and store in shared config volume
+initialise benchmark strategy bots
+move hardcoded time in wallets.update to constants
+separate dry run and live persistence models to stay in the same database # rather include dry run in model
+check to see if strategy dir and strategy need to be included in validation schema # done
+ensure fiat and quote are enforced in config validation # done
+search project for strategy path # done
+
+fixes to strategy configuration - add pairlists and trading modes to strategy overides (might mean making pairlists a top level config param)
+add alembic migrations to coingro (master?)
+change default config folder
+retry db connection
+add reset config endpoint
+add api permission validation to config validation
+add start balance to update config endpoint
+add settings config validation
+add alert to rpc status for api expiration and deletion
+include functionality to reversibly encrypt api keys in saved config
+check that saved configs are stored in volume_dir
+add connect args to database config
