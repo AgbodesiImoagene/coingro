@@ -7,10 +7,12 @@ from unittest.mock import MagicMock
 
 import pytest
 
+from coingro.exceptions import TemporaryError
 from coingro.misc import (decimals_per_coin, deep_merge_dicts, file_dump_json, file_load_json,
-                            format_ms_time, pair_to_filename, parse_db_uri_for_logging, plural,
-                            render_template, render_template_with_fallback, round_coin_value,
-                            safe_value_fallback, safe_value_fallback2, shorten_date)
+                          format_ms_time, pair_to_filename, parse_db_uri_for_logging, plural,
+                          render_template, render_template_with_fallback, retrier, round_coin_value,
+                          safe_value_fallback, safe_value_fallback2, shorten_date)
+from tests.conftest import log_has_re, num_log_has_re
 
 
 def test_decimals_per_coin():
@@ -219,3 +221,35 @@ def test_deep_merge_dicts():
 
     res2['first']['rows']['test'] = 'asdf'
     assert deep_merge_dicts(a, deepcopy(b), allow_null_overrides=False) == res2
+
+
+def test_retrier(caplog):
+    @retrier
+    def test_funct_a():
+        pass
+    test_funct_a()
+    assert num_log_has_re((r'test_funct_a\(\) returned exception: ".*". '
+                           r'Retrying still for \d* times.'), caplog) == 0
+    caplog.clear()
+
+    @retrier(sleep_time=1)
+    def test_funct_b():
+        raise TemporaryError('Test error')
+
+    with pytest.raises(TemporaryError):
+        test_funct_b()
+    assert num_log_has_re((r'test_funct_b\(\) returned exception: ".*". '
+                           r'Retrying still for \d* times.'), caplog) == 5
+    assert log_has_re(r'test_funct_b\(\) returned exception: ".*". Giving up.', caplog)
+    caplog.clear()
+
+    @retrier(retries=4, sleep_time=1)
+    def test_funct_c():
+        raise TemporaryError('Test error')
+
+    with pytest.raises(TemporaryError):
+        test_funct_c()
+    assert num_log_has_re((r'test_funct_c\(\) returned exception: ".*". '
+                           r'Retrying still for \d* times.'), caplog) == 4
+    assert log_has_re(r'test_funct_c\(\) returned exception: ".*". Giving up.', caplog)
+    caplog.clear()

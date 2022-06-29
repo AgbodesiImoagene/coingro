@@ -6,21 +6,22 @@ import logging
 import traceback
 from datetime import datetime, time, timedelta, timezone
 from math import isclose
+from pathlib import Path
 from threading import Lock
 from typing import Any, Dict, List, Optional, Tuple
 
 from schedule import Scheduler
 
-from coingro import __id__, __version__, constants
+from coingro import __version__, constants
 from coingro.configuration import validate_config_consistency
 from coingro.constants import BuySell, LongShort
 from coingro.data.converter import order_book_to_dataframe
 from coingro.data.dataprovider import DataProvider
 from coingro.edge import Edge
 from coingro.enums import (ExitCheckTuple, ExitType, RPCMessageType, RunMode, SignalDirection,
-                             State, TradingMode)
+                           State, TradingMode)
 from coingro.exceptions import (DependencyException, ExchangeError, InsufficientFundsError,
-                                  InvalidOrderException, PricingError)
+                                InvalidOrderException, PricingError)
 from coingro.exchange import timeframe_to_minutes, timeframe_to_seconds
 from coingro.exchange.exchange import timeframe_to_next_date
 from coingro.misc import file_dump_json, safe_value_fallback, safe_value_fallback2
@@ -66,7 +67,7 @@ class CoingroBot(LoggingMixin):
         # Check config consistency here since strategies can set certain options
         validate_config_consistency(config)
 
-        file_dump_json(constants.DEFAULT_CONFIG_SAVE, tempconf, pretty_print=True, nan=True);
+        file_dump_json(Path(constants.DEFAULT_CONFIG_SAVE), tempconf, pretty_print=True, nan=True)
 
         self.exchange = ExchangeResolver.load_exchange(self.config['exchange']['name'], self.config)
 

@@ -51,6 +51,9 @@ DEFAULT_TRADES_COLUMNS = ['timestamp', 'id', 'type', 'side', 'price', 'amount', 
 TRADING_MODES = ['spot', 'margin', 'futures']
 MARGIN_MODES = ['cross', 'isolated', '']
 
+RETRY_COUNT = 5
+RETRY_TIME = 24
+
 LAST_BT_RESULT_FN = '.last_result.json'
 CGHYPT_FILEVERSION = 'cghypt_fileversion'
 
@@ -93,6 +96,10 @@ SUPPORTED_FIAT = [
     "USD", "BTC", "ETH", "XRP", "LTC", "BCH"
 ]
 
+SUPPORTED_STAKE_CURRENCIES = [
+    "BTC", "ETH", "USDT", "USDC", "BUSD"
+]
+
 MINIMAL_CONFIG = {
     "stake_currency": "",
     "dry_run": True,
@@ -113,7 +120,7 @@ CONF_SCHEMA = {
         'max_open_trades': {'type': ['integer', 'number'], 'minimum': -1},
         'new_pairs_days': {'type': 'integer', 'default': 30},
         'timeframe': {'type': 'string'},
-        'stake_currency': {'type': 'string'},
+        'stake_currency': {'type': 'string', 'enum': SUPPORTED_STAKE_CURRENCIES},
         'stake_amount': {
             'type': ['number', 'string'],
             'minimum': 0.0001,

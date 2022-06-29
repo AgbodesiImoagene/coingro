@@ -5,15 +5,18 @@ import gzip
 import logging
 import os
 import re
+import time
 from datetime import datetime
+from functools import wraps
 from pathlib import Path
-from typing import Any, Iterator, List
+from typing import Any, Callable, Iterator, List, Optional, TypeVar, cast, overload
 from typing.io import IO
 from urllib.parse import urlparse
 
 import rapidjson
 
-from coingro.constants import DECIMAL_PER_COIN_FALLBACK, DECIMALS_PER_COIN
+from coingro.constants import DECIMAL_PER_COIN_FALLBACK, DECIMALS_PER_COIN, RETRY_COUNT, RETRY_TIME
+from coingro.exceptions import RetryableOrderError, TemporaryError
 
 
 logger = logging.getLogger(__name__)
@@ -60,7 +63,7 @@ def shorten_date(_date: str) -> str:
 
 
 def file_dump_json(filename: Path, data: Any, is_zip: bool = False, log: bool = True,
-                    pretty_print: bool = False, nan: bool = False) -> None:
+                   pretty_print: bool = False, nan: bool = False) -> None:
     """
     Dump JSON data into a file
     :param filename: file to create
@@ -260,3 +263,44 @@ def parse_db_uri_for_logging(uri: str):
         return uri
     pwd = parsed_db_uri.netloc.split(':')[1].split('@')[0]
     return parsed_db_uri.geturl().replace(f':{pwd}@', ':*****@')
+
+
+F = TypeVar('F', bound=Callable[..., Any])
+
+
+# Type shenanigans
+@overload
+def retrier(_func: F) -> F:
+    ...
+
+
+@overload
+def retrier(*, retries=RETRY_COUNT, sleep_time: float = RETRY_TIME) -> Callable[[F], F]:
+    ...
+
+
+def retrier(_func: Optional[F] = None, *, retries: int = RETRY_COUNT,
+            sleep_time: float = RETRY_TIME):
+    def decorator(f: F) -> F:
+        @wraps(f)
+        def wrapper(*args, **kwargs):
+            count = kwargs.pop('count', retries)
+            try:
+                return f(*args, **kwargs)
+            except (TemporaryError, RetryableOrderError) as ex:
+                msg = f'{f.__name__}() returned exception: "{ex}". '
+                if count > 0:
+                    logger.warning(msg + f'Retrying still for {count} times.')
+                    count -= 1
+                    kwargs.update({'count': count})
+                    time.sleep(sleep_time)
+                    return wrapper(*args, **kwargs)
+                else:
+                    logger.warning(msg + 'Giving up.')
+                    raise ex
+        return cast(F, wrapper)
+    # Support both @retrier and @retrier(retries=2, sleep_time=5) syntax
+    if _func is None:
+        return decorator
+    else:
+        return decorator(_func)
