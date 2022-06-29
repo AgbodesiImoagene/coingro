@@ -10,14 +10,14 @@ import arrow
 import pytest
 
 from coingro.commands import (start_backtesting_show, start_convert_data, start_convert_trades,
-                                start_create_userdir, start_download_data, start_hyperopt_list,
-                                start_hyperopt_show, start_install_ui, start_list_data,
-                                start_list_exchanges, start_list_markets, start_list_strategies,
-                                start_list_timeframes, start_new_strategy, start_show_trades,
-                                start_test_pairlist, start_trading, start_webserver)
+                              start_create_userdir, start_download_data, start_hyperopt_list,
+                              start_hyperopt_show, start_install_ui, start_list_data,
+                              start_list_exchanges, start_list_markets, start_list_strategies,
+                              start_list_timeframes, start_new_strategy, start_show_trades,
+                              start_test_pairlist, start_trading, start_webserver)
 from coingro.commands.db_commands import start_convert_db
 from coingro.commands.deploy_commands import (clean_ui_subdir, download_and_install_ui,
-                                                get_ui_download_url, read_ui_version)
+                                              get_ui_download_url, read_ui_version)
 from coingro.configuration import setup_utils_configuration
 from coingro.enums import RunMode
 from coingro.exceptions import OperationalException
@@ -1232,8 +1232,8 @@ def test_hyperopt_list(mocker, capsys, caplog, saved_hyperopt_results, tmpdir):
     log_has("CSV file created: test_file.csv", caplog)
     assert csv_file.is_file()
     line = csv_file.read_text()
-    assert ('Best,1,2,-1.25%,-1.2222,-0.00125625,,-2.51,"3,930.0 m",0.43662' in line
-            or "Best,1,2,-1.25%,-1.2222,-0.00125625,,-2.51,2 days 17:30:00,0.43662" in line)
+    assert ('Best,1,2,-1.25%,-1.2222,-0.00125625,BTC,-2.51,"3,930.0 m",0.43662' in line
+            or "Best,1,2,-1.25%,-1.2222,-0.00125625,BTC,-2.51,2 days 17:30:00,0.43662" in line)
     csv_file.unlink()
 
 

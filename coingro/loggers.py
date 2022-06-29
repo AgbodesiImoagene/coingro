@@ -4,6 +4,7 @@ from logging import Formatter
 from logging.handlers import BufferingHandler, RotatingFileHandler, SysLogHandler
 from typing import Any, Dict
 
+from coingro.constants import USERPATH_LOGS
 from coingro.exceptions import OperationalException
 
 
@@ -117,6 +118,9 @@ def setup_logging(config: Dict[str, Any]) -> None:
             handler_jd.setFormatter(Formatter('%(name)s - %(levelname)s - %(message)s'))
             logging.root.addHandler(handler_jd)
         else:
+            import coingro
+            if logfile == 'default' or coingro.__env__ == 'docker':
+                logfile = f'{config["user_data_dir"]}/{USERPATH_LOGS}/{coingro.__id__}.log'
             handler_rf = get_existing_handlers(RotatingFileHandler)
             if handler_rf:
                 logging.root.removeHandler(handler_rf)

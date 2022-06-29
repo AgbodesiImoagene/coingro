@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from coingro.commands.cli_options import AVAILABLE_CLI_OPTIONS
-from coingro.constants import DEFAULT_CONFIG, DEFAULT_CONFIG_SAVE
+from coingro.constants import DEFAULT_CONFIG, DEFAULT_CONFIG_SAVE, USERPATH_CONFIG
 
 
 ARGS_COMMON = ["verbosity", "logfile", "version", "config", "datadir", "user_data_dir"]
@@ -144,33 +144,29 @@ class Arguments:
         if ('config' in parsed_arg and parsed_arg.config is None):
             conf_required = ('command' in parsed_arg and parsed_arg.command in NO_CONF_REQURIED)
 
-            # Allow for restart from last cfg on docker using a volume
-            import coingro
-            if coingro.__env__ == 'docker':
-                cfgfile = Path.cwd() / DEFAULT_CONFIG_SAVE
-                if cfgfile.is_file():
-                    parsed_arg.config = [DEFAULT_CONFIG_SAVE]
-                    return parsed_arg
-
             if 'user_data_dir' in parsed_arg and parsed_arg.user_data_dir is not None:
                 user_dir = parsed_arg.user_data_dir
             else:
                 # Default case
                 user_dir = 'user_data'
-                # Try loading from "user_data/config.json"
-            cfgfile = Path(user_dir) / DEFAULT_CONFIG
+
+            # Allow for restart from last cfg on docker using a volume
+            import coingro
+            if coingro.__env__ == 'docker':
+                cfgfile = Path(user_dir) / USERPATH_CONFIG / DEFAULT_CONFIG_SAVE
+                if cfgfile.is_file():
+                    parsed_arg.config = [str(cfgfile)]
+                    return parsed_arg
+
+            # Try loading from "user_data/config/config.json"
+            cfgfile = Path(user_dir) / USERPATH_CONFIG / DEFAULT_CONFIG
             if cfgfile.is_file():
                 parsed_arg.config = [str(cfgfile)]
             else:
-                # Else use "config/config.json".
-                cfgfile = Path('config') / DEFAULT_CONFIG
-                if cfgfile.is_file():
-                    parsed_arg.config = [str(cfgfile)]
-                else:
-                    # Else use "config.json".
-                    cfgfile = Path.cwd() / DEFAULT_CONFIG
-                    if cfgfile.is_file() or not conf_required:
-                        parsed_arg.config = [DEFAULT_CONFIG]
+                # Else use "config.json".
+                cfgfile = Path.cwd() / DEFAULT_CONFIG
+                if cfgfile.is_file() or not conf_required:
+                    parsed_arg.config = [DEFAULT_CONFIG]
 
         return parsed_arg
 
@@ -199,15 +195,15 @@ class Arguments:
         self._build_args(optionlist=['version'], parser=self.parser)
 
         from coingro.commands import (start_analysis_entries_exits, start_backtesting,
-                                        start_backtesting_show, start_convert_data,
-                                        start_convert_db, start_convert_trades,
-                                        start_create_userdir, start_download_data, start_edge,
-                                        start_hyperopt, start_hyperopt_list, start_hyperopt_show,
-                                        start_install_ui, start_list_data, start_list_exchanges,
-                                        start_list_markets, start_list_strategies,
-                                        start_list_timeframes, start_new_config, start_new_strategy,
-                                        start_plot_dataframe, start_plot_profit, start_show_trades,
-                                        start_test_pairlist, start_trading, start_webserver)
+                                      start_backtesting_show, start_convert_data, start_convert_db,
+                                      start_convert_trades, start_create_userdir,
+                                      start_download_data, start_edge, start_hyperopt,
+                                      start_hyperopt_list, start_hyperopt_show, start_install_ui,
+                                      start_list_data, start_list_exchanges, start_list_markets,
+                                      start_list_strategies, start_list_timeframes,
+                                      start_new_config, start_new_strategy, start_plot_dataframe,
+                                      start_plot_profit, start_show_trades, start_test_pairlist,
+                                      start_trading, start_webserver)
 
         subparsers = self.parser.add_subparsers(dest='command',
                                                 # Use custom message when no subhandler is added

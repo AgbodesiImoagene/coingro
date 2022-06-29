@@ -34,7 +34,7 @@ def chown_user_directory(directory: Path) -> None:
         try:
             import subprocess
             subprocess.check_output(
-                ['sudo', 'chown', '-R', 'cguser:', str(directory.resolve())])
+                ['sudo', 'chown', '-R', 'cguser:', str(directory.resolve())])  # nosec
         except Exception:
             logger.warning(f"Could not chown {directory}")
 
@@ -49,7 +49,7 @@ def create_userdata_dir(directory: str, create_dir: bool = False) -> Path:
     :param create_dir: Create directory if it does not exist.
     :return: Path object containing the directory
     """
-    sub_dirs = ["backtest_results", "data", "hyperopts", "hyperopt_results", "logs",
+    sub_dirs = ["backtest_results", "config", "data", "hyperopts", "hyperopt_results", "logs",
                 "notebooks", "plot", "strategies", ]
     folder = Path(directory)
     chown_user_directory(folder)

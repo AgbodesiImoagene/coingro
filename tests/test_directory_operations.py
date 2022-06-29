@@ -1,5 +1,4 @@
 # pragma pylint: disable=missing-docstring, protected-access, invalid-name
-import os
 from pathlib import Path
 from unittest.mock import MagicMock
 
@@ -7,7 +6,7 @@ import pytest
 
 import coingro
 from coingro.configuration.directory_operations import (chown_user_directory, copy_sample_files,
-                                                          create_datadir, create_userdata_dir)
+                                                        create_datadir, create_userdata_dir)
 from coingro.exceptions import OperationalException
 from tests.conftest import log_has, log_has_re
 
@@ -26,7 +25,7 @@ def test_create_userdata_dir(mocker, default_conf, caplog) -> None:
     md = mocker.patch.object(Path, 'mkdir', MagicMock())
 
     x = create_userdata_dir('/tmp/bar', create_dir=True)
-    assert md.call_count == 9
+    assert md.call_count == 10
     assert md.call_args[1]['parents'] is False
     assert log_has(f'Created user-data directory: {Path("/tmp/bar")}', caplog)
     assert isinstance(x, Path)

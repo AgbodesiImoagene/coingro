@@ -10,7 +10,7 @@ from coingro.enums import CandleType
 
 
 DEFAULT_CONFIG = 'config.json'
-DEFAULT_CONFIG_SAVE = f'config/{__id__}_config.json'
+DEFAULT_CONFIG_SAVE = f'{__id__}_config.json'
 DEFAULT_EXCHANGE = 'bittrex'
 PROCESS_THROTTLE_SECS = 5  # sec
 HYPEROPT_EPOCH = 100  # epochs
@@ -60,6 +60,8 @@ CGHYPT_FILEVERSION = 'cghypt_fileversion'
 USERPATH_HYPEROPTS = 'hyperopts'
 USERPATH_STRATEGIES = 'strategies'
 USERPATH_NOTEBOOKS = 'notebooks'
+USERPATH_CONFIG = 'config'
+USERPATH_LOGS = 'logs'
 
 TELEGRAM_SETTING_OPTIONS = ['on', 'off', 'silent']
 WEBHOOK_FORMAT_OPTIONS = ['form', 'json', 'raw']
@@ -88,6 +90,8 @@ USER_DATA_FILES = {
     'strategy_analysis_example.ipynb': USERPATH_NOTEBOOKS,
 }
 
+DB_ENGINE_OPTIONS = ['mysql', 'postgresql', 'sqlite']
+
 SUPPORTED_FIAT = [
     "AUD", "BRL", "CAD", "CHF", "CLP", "CNY", "CZK", "DKK",
     "EUR", "GBP", "HKD", "HUF", "IDR", "ILS", "INR", "JPY",
@@ -101,7 +105,7 @@ SUPPORTED_STAKE_CURRENCIES = [
 ]
 
 MINIMAL_CONFIG = {
-    "stake_currency": "",
+    "stake_currency": "BTC",
     "dry_run": True,
     "exchange": {
         "name": "",
@@ -404,6 +408,29 @@ CONF_SCHEMA = {
             },
             'required': ['enabled', 'listen_ip_address', 'listen_port', 'username', 'password']
         },
+        'database': {
+            'type': 'object',
+            'properties': {
+                'engine': {'type': 'string', 'enum': DB_ENGINE_OPTIONS},
+                'username': {'type': 'string'},
+                'password': {'type': 'string'},
+                'hostname': {
+                    'anyOf': [
+                        {'format': 'hostname'},
+                        {'format': 'ipv4'},
+                        {'format': 'ipv6'},
+                    ]
+                },
+                'port': {
+                    'type': 'integer',
+                    'minimum': 1024,
+                    'maximum': 65535
+                },
+                'database_name': {'type': 'string'},
+                'file_path': {'type': 'string'}
+            },
+            'required': ['dbms']
+        },
         'db_url': {'type': 'string'},
         'export': {'type': 'string', 'enum': EXPORT_OPTIONS, 'default': 'trades'},
         'disableparamexport': {'type': 'boolean'},
@@ -513,6 +540,7 @@ SCHEMA_BACKTEST_REQUIRED = [
     'dataformat_ohlcv',
     'dataformat_trades',
 ]
+
 SCHEMA_BACKTEST_REQUIRED_FINAL = SCHEMA_BACKTEST_REQUIRED + [
     'stoploss',
     'minimal_roi',

@@ -14,12 +14,12 @@ from coingro.commands import Arguments
 from coingro.configuration import Configuration, check_exchange, validate_config_consistency
 from coingro.configuration.config_validation import validate_config_schema
 from coingro.configuration.deprecated_settings import (check_conflicting_settings,
-                                                         process_deprecated_setting,
-                                                         process_removed_setting,
-                                                         process_temporary_deprecated_settings)
+                                                       process_deprecated_setting,
+                                                       process_removed_setting,
+                                                       process_temporary_deprecated_settings)
 from coingro.configuration.environment_vars import flat_vars_to_nested_dict
 from coingro.configuration.load_config import (load_config_file, load_file, load_from_files,
-                                                 log_config_error_range)
+                                               log_config_error_range)
 from coingro.constants import DEFAULT_DB_DRYRUN_URL, DEFAULT_DB_PROD_URL, ENV_VAR_PREFIX
 from coingro.enums import RunMode
 from coingro.exceptions import OperationalException
@@ -745,6 +745,30 @@ def test_set_loggers_Filehandler(tmpdir):
     # reset handlers to not break pytest
     if logfile.exists:
         logfile.unlink()
+    logger.handlers = orig_handlers
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="does not run on windows")
+def test_set_loggers_Filehandler_default():
+    logger = logging.getLogger()
+    orig_handlers = logger.handlers
+    logger.handlers = []
+    logfile = 'default'
+    config = {'verbosity': 2,
+              'logfile': logfile,
+              'user_data_dir': 'user_data',
+              }
+
+    setup_logging_pre()
+    setup_logging(config)
+    assert len(logger.handlers) == 3
+    assert [x for x in logger.handlers if type(x) == logging.handlers.RotatingFileHandler]
+    assert [x for x in logger.handlers if type(x) == logging.StreamHandler]
+    assert [x for x in logger.handlers if type(x) == CGBufferingHandler]
+    # setting up logging again should NOT cause the loggers to be added a second time.
+    setup_logging(config)
+    assert len(logger.handlers) == 3
+    # reset handlers to not break pytest
     logger.handlers = orig_handlers
 
 

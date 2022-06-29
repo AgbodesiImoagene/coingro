@@ -1,5 +1,5 @@
 {
-    "stake_currency": "",
+    "stake_currency": "BTC",
     "dry_run": true,
     "exchange": {
         "name": "",

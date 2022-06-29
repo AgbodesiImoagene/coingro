@@ -50,18 +50,20 @@ repos:
     rev: "1.7.4"
     hooks:
       - id: bandit
+        args: [-c, "pyproject.toml"]
         exclude: |
             (?x)^(
                 tests/.*
             )$
+        additional_dependencies: [toml]
 
-  # - repo: local
-  #   hooks:
-  #     - id: pytest
-  #       name: tests
-  #       entry: pytest
-  #       args: [-x, --ff, --random-order, --cov=coingro, --cov-config=.coveragerc, tests/]
-  #       types: [python]
-  #       language: system
-  #       pass_filenames: false
-  #       always_run: true
+  - repo: local
+    hooks:
+      - id: pytest
+        name: tests
+        entry: pytest
+        args: [-x, --ff, --random-order, --cov=coingro, --cov-config=.coveragerc, tests/]
+        types: [python]
+        language: system
+        pass_filenames: false
+        always_run: true

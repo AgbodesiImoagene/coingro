@@ -50,7 +50,7 @@ AVAILABLE_CLI_OPTIONS = {
     ),
     "logfile": Arg(
         '--logfile',
-        help="Log to the file specified. Special values are: 'syslog', 'journald'. "
+        help="Log to the file specified. Special values are: 'syslog', 'journald', 'default'. "
              "See the documentation for more details.",
         metavar='FILE',
     ),
