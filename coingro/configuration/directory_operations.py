@@ -29,8 +29,8 @@ def chown_user_directory(directory: Path) -> None:
     Use Sudo to change permissions of the home-directory if necessary
     Only applies when running in docker!
     """
-    import os
-    if os.environ.get('CG_APP_ENV') == 'docker':
+    import coingro
+    if coingro.__env__ == 'docker':
         try:
             import subprocess
             subprocess.check_output(

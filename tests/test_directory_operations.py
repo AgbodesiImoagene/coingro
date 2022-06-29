@@ -5,6 +5,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
+import coingro
 from coingro.configuration.directory_operations import (chown_user_directory, copy_sample_files,
                                                           create_datadir, create_userdata_dir)
 from coingro.exceptions import OperationalException
@@ -44,10 +45,11 @@ def test_create_userdata_dir_and_chown(mocker, tmpdir, caplog) -> None:
     assert path.is_dir()
     assert (path / 'data').is_dir()
 
-    os.environ['CG_APP_ENV'] = 'docker'
+    old_env = coingro.__env__
+    coingro.__env__ = 'docker'
     chown_user_directory(path / 'data')
     assert sp_mock.call_count == 1
-    del os.environ['CG_APP_ENV']
+    coingro.__env__ = old_env
 
 
 def test_create_userdata_dir_exists(mocker, default_conf, caplog) -> None:

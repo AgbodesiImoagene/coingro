@@ -4,3 +4,17 @@ ATTENTION: default value of option mesa_glthread overridden by environment.
 ATTENTION: default value of option mesa_glthread overridden by environment.
 ATTENTION: default value of option mesa_glthread overridden by environment.
 Missing chrome or resource URL: resource://gre/modules/UpdateListener.jsm
+[2022-06-28T18:18:12Z ERROR mp4parse] Found 2 nul bytes in "\u{0}\u{0}"
+[2022-06-28T18:18:12Z ERROR mp4parse] Found 2 nul bytes in "\u{0}\u{0}"
+[2022-06-28T18:18:12Z ERROR mp4parse] Found 2 nul bytes in "\u{0}\u{0}"
+[2022-06-28T18:18:12Z ERROR mp4parse] Found 2 nul bytes in "\u{0}\u{0}"
+Gtk-Message: 03:13:46.721: Failed to load module "canberra-gtk-module"
+Gtk-Message: 03:13:47.087: Failed to load module "canberra-gtk-module"
+ATTENTION: default value of option mesa_glthread overridden by environment.
+ATTENTION: default value of option mesa_glthread overridden by environment.
+ATTENTION: default value of option mesa_glthread overridden by environment.
+Missing chrome or resource URL: resource://gre/modules/UpdateListener.jsm
+[2022-06-29T02:15:21Z ERROR mp4parse] Found 2 nul bytes in "\u{0}\u{0}"
+[2022-06-29T02:15:21Z ERROR mp4parse] Found 2 nul bytes in "\u{0}\u{0}"
+[2022-06-29T02:15:21Z ERROR mp4parse] Found 2 nul bytes in "\u{0}\u{0}"
+[2022-06-29T02:15:21Z ERROR mp4parse] Found 2 nul bytes in "\u{0}\u{0}"

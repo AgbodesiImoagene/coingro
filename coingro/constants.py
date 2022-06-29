@@ -5,10 +5,12 @@ bot constants
 """
 from typing import List, Literal, Tuple
 
+from coingro import __id__
 from coingro.enums import CandleType
 
 
 DEFAULT_CONFIG = 'config.json'
+DEFAULT_CONFIG_SAVE = f'config/{__id__}_config.json'
 DEFAULT_EXCHANGE = 'bittrex'
 PROCESS_THROTTLE_SECS = 5  # sec
 HYPEROPT_EPOCH = 100  # epochs

@@ -27,7 +27,7 @@ def test_parse_args_backtesting(mocker) -> None:
     Test that main() can start backtesting and also ensure we can pass some specific arguments
     further argument parsing is done in test_arguments.py
     """
-    mocker.patch.object(Path, "is_file", MagicMock(side_effect=[False, True]))
+    mocker.patch.object(Path, "is_file", MagicMock(side_effect=[False, False, True]))
     backtesting_mock = mocker.patch('coingro.commands.start_backtesting')
     backtesting_mock.__name__ = PropertyMock("start_backtesting")
     # it's sys.exit(0) at the end of backtesting
@@ -44,7 +44,7 @@ def test_parse_args_backtesting(mocker) -> None:
 
 
 def test_main_start_hyperopt(mocker) -> None:
-    mocker.patch.object(Path, 'is_file', MagicMock(side_effect=[False, True]))
+    mocker.patch.object(Path, "is_file", MagicMock(side_effect=[False, False, True]))
     hyperopt_mock = mocker.patch('coingro.commands.start_hyperopt', MagicMock())
     hyperopt_mock.__name__ = PropertyMock('start_hyperopt')
     # it's sys.exit(0) at the end of hyperopt

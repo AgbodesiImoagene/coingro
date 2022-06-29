@@ -26,3 +26,5 @@ add alert to rpc status for api expiration and deletion
 include functionality to reversibly encrypt api keys in saved config
 check that saved configs are stored in volume_dir
 add connect args to database config
+remember to mkdir config and strategies in dockerfile for volumes
+add extra endpoints

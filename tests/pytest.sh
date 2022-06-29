@@ -2,4 +2,4 @@
 
 echo "Running Unit tests"
 
-pytest --random-order --cov=coingro --cov-config=.coveragerc tests/
+pytest --random-order --ff -x --cov=coingro --cov-config=.coveragerc tests/

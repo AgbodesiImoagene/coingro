@@ -95,40 +95,40 @@ def test_api_not_found(botclient):
     assert rc.json() == {"detail": "Not Found"}
 
 
-def test_api_ui_fallback(botclient, mocker):
-    cgbot, client = botclient
+# def test_api_ui_fallback(botclient, mocker):
+#     cgbot, client = botclient
 
-    rc = client_get(client, "/favicon.ico")
-    assert rc.status_code == 200
+#     rc = client_get(client, "/favicon.ico")
+#     assert rc.status_code == 200
 
-    rc = client_get(client, "/fallback_file.html")
-    assert rc.status_code == 200
-    assert '`coingro install-ui`' in rc.text
+#     rc = client_get(client, "/fallback_file.html")
+#     assert rc.status_code == 200
+#     assert '`coingro install-ui`' in rc.text
 
-    # Forwarded to fallback_html or index.html (depending if it's installed or not)
-    rc = client_get(client, "/something")
-    assert rc.status_code == 200
+#     # Forwarded to fallback_html or index.html (depending if it's installed or not)
+#     rc = client_get(client, "/something")
+#     assert rc.status_code == 200
 
-    # Test directory traversal without mock
-    rc = client_get(client, '%2F%2F%2Fetc/passwd')
-    assert rc.status_code == 200
-    # Allow both fallback or real UI
-    assert '`coingro install-ui`' in rc.text or '<!DOCTYPE html>' in rc.text
+#     # Test directory traversal without mock
+#     rc = client_get(client, '%2F%2F%2Fetc/passwd')
+#     assert rc.status_code == 200
+#     # Allow both fallback or real UI
+#     assert '`coingro install-ui`' in rc.text or '<!DOCTYPE html>' in rc.text
 
-    mocker.patch.object(Path, 'is_file', MagicMock(side_effect=[True, False]))
-    rc = client_get(client, '%2F%2F%2Fetc/passwd')
-    assert rc.status_code == 200
+#     mocker.patch.object(Path, 'is_file', MagicMock(side_effect=[True, False]))
+#     rc = client_get(client, '%2F%2F%2Fetc/passwd')
+#     assert rc.status_code == 200
 
-    assert '`coingro install-ui`' in rc.text
+#     assert '`coingro install-ui`' in rc.text
 
 
-def test_api_ui_version(botclient, mocker):
-    cgbot, client = botclient
+# def test_api_ui_version(botclient, mocker):
+#     cgbot, client = botclient
 
-    mocker.patch('coingro.commands.deploy_commands.read_ui_version', return_value='0.1.2')
-    rc = client_get(client, "/ui_version")
-    assert rc.status_code == 200
-    assert rc.json()['version'] == '0.1.2'
+#     mocker.patch('coingro.commands.deploy_commands.read_ui_version', return_value='0.1.2')
+#     rc = client_get(client, "/ui_version")
+#     assert rc.status_code == 200
+#     assert rc.json()['version'] == '0.1.2'
 
 
 def test_api_auth():

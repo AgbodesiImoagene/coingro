@@ -34,6 +34,10 @@ class Worker:
         self._config = config
         self._init(False)
 
+        if not self._args:
+            self._args = {}
+        self._args["config_save"] = [constants.DEFAULT_CONFIG_SAVE]
+
         self.last_throttle_start_time: float = 0
         self._heartbeat_msg: float = 0
 

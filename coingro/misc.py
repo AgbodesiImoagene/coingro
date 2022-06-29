@@ -3,6 +3,7 @@ Various tool function for Coingro and scripts
 """
 import gzip
 import logging
+import os
 import re
 from datetime import datetime
 from pathlib import Path
@@ -59,7 +60,7 @@ def shorten_date(_date: str) -> str:
 
 
 def file_dump_json(filename: Path, data: Any, is_zip: bool = False, log: bool = True,
-                    pretty_print: bool = False) -> None:
+                    pretty_print: bool = False, nan: bool = False) -> None:
     """
     Dump JSON data into a file
     :param filename: file to create
@@ -67,6 +68,15 @@ def file_dump_json(filename: Path, data: Any, is_zip: bool = False, log: bool = 
     :param data: JSON Data to save
     :return:
     """
+    directory = os.path.dirname(filename)
+    if directory:
+        os.makedirs(directory, exist_ok=True)
+
+    wm, nm = rapidjson.WM_COMPACT, rapidjson.NM_NATIVE
+    if pretty_print:
+        wm = rapidjson.WM_PRETTY
+    if nan:
+        nm = rapidjson.NM_NAN
 
     if is_zip:
         if filename.suffix != '.gz':
@@ -75,20 +85,12 @@ def file_dump_json(filename: Path, data: Any, is_zip: bool = False, log: bool = 
             logger.info(f'dumping json to "{filename}"')
 
         with gzip.open(filename, 'w') as fpz:
-            if pretty_print:
-                rapidjson.dump(data, fpz, default=str, number_mode=rapidjson.NM_NATIVE,
-                                write_mode=rapidjson.WM_PRETTY)
-            else:
-                rapidjson.dump(data, fpz, default=str, number_mode=rapidjson.NM_NATIVE)
+            rapidjson.dump(data, fpz, default=str, number_mode=nm, write_mode=wm)
     else:
         if log:
             logger.info(f'dumping json to "{filename}"')
         with open(filename, 'w') as fp:
-            if pretty_print:
-                rapidjson.dump(data, fp, default=str, number_mode=rapidjson.NM_NATIVE,
-                                write_mode=rapidjson.WM_PRETTY)
-            else:
-                rapidjson.dump(data, fp, default=str, number_mode=rapidjson.NM_NATIVE)
+            rapidjson.dump(data, fp, default=str, number_mode=nm, write_mode=wm)
 
     logger.debug(f'done json to "{filename}"')
 

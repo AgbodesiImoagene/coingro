@@ -5,6 +5,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
+import coingro
 from coingro.commands import Arguments
 from coingro.commands.cli_options import check_int_nonzero, check_int_positive
 from tests.conftest import CURRENT_TEST_STRATEGY
@@ -20,9 +21,30 @@ def test_parse_args_none() -> None:
 
 
 def test_parse_args_defaults(mocker) -> None:
-    mocker.patch.object(Path, 'is_file', MagicMock(side_effect=[False, True]))
+    mocker.patch.object(Path, 'is_file', MagicMock(side_effect=[False, False, True]))
     args = Arguments(['trade']).get_parsed_arg()
     assert args['config'] == ['config.json']
+    assert args['strategy_path'] is None
+    assert args['datadir'] is None
+    assert args['verbosity'] == 0
+
+
+def test_parse_args_defaults_docker(mocker) -> None:
+    mocker.patch.object(Path, 'is_file', MagicMock(side_effect=[True]))
+    old_env = coingro.__env__
+    coingro.__env__ = 'docker'
+    args = Arguments(['trade']).get_parsed_arg()
+    assert args['config'] == [f'config/{coingro.__id__}_config.json']
+    assert args['strategy_path'] is None
+    assert args['datadir'] is None
+    assert args['verbosity'] == 0
+    coingro.__env__ = old_env
+
+
+def test_parse_args_defaults_config_dir(mocker) -> None:
+    mocker.patch.object(Path, 'is_file', MagicMock(side_effect=[False, True]))
+    args = Arguments(['trade']).get_parsed_arg()
+    assert args['config'] == ['config/config.json']
     assert args['strategy_path'] is None
     assert args['datadir'] is None
     assert args['verbosity'] == 0
@@ -234,7 +256,7 @@ def test_config_notrequired(mocker) -> None:
     assert pargs['config'] is None
 
     # When file exists:
-    mocker.patch.object(Path, 'is_file', MagicMock(side_effect=[False, True]))
+    mocker.patch.object(Path, 'is_file', MagicMock(side_effect=[False, False, True]))
     args = [
         'download-data',
     ]

@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from coingro.commands.cli_options import AVAILABLE_CLI_OPTIONS
-from coingro.constants import DEFAULT_CONFIG
+from coingro.constants import DEFAULT_CONFIG, DEFAULT_CONFIG_SAVE
 
 
 ARGS_COMMON = ["verbosity", "logfile", "version", "config", "datadir", "user_data_dir"]
@@ -144,6 +144,14 @@ class Arguments:
         if ('config' in parsed_arg and parsed_arg.config is None):
             conf_required = ('command' in parsed_arg and parsed_arg.command in NO_CONF_REQURIED)
 
+            # Allow for restart from last cfg on docker using a volume
+            import coingro
+            if coingro.__env__ == 'docker':
+                cfgfile = Path.cwd() / DEFAULT_CONFIG_SAVE
+                if cfgfile.is_file():
+                    parsed_arg.config = [DEFAULT_CONFIG_SAVE]
+                    return parsed_arg
+
             if 'user_data_dir' in parsed_arg and parsed_arg.user_data_dir is not None:
                 user_dir = parsed_arg.user_data_dir
             else:
@@ -154,10 +162,15 @@ class Arguments:
             if cfgfile.is_file():
                 parsed_arg.config = [str(cfgfile)]
             else:
-                # Else use "config.json".
-                cfgfile = Path.cwd() / DEFAULT_CONFIG
-                if cfgfile.is_file() or not conf_required:
-                    parsed_arg.config = [DEFAULT_CONFIG]
+                # Else use "config/config.json".
+                cfgfile = Path('config') / DEFAULT_CONFIG
+                if cfgfile.is_file():
+                    parsed_arg.config = [str(cfgfile)]
+                else:
+                    # Else use "config.json".
+                    cfgfile = Path.cwd() / DEFAULT_CONFIG
+                    if cfgfile.is_file() or not conf_required:
+                        parsed_arg.config = [DEFAULT_CONFIG]
 
         return parsed_arg
 

@@ -65,7 +65,10 @@ class Configuration:
         :return: Configuration dictionary
         """
         # Load all configs
-        config: Dict[str, Any] = load_from_files(self.args.get("config", []))
+        config_files = self.args.get('config_save', None)
+        if not config_files:
+            config_files = self.args.get("config", [])
+        config: Dict[str, Any] = load_from_files(config_files)
 
         # Load environment variables
         env_data = enironment_vars_to_dict()
