@@ -1,5 +1,5 @@
 """
-Various tool function for Coingro and scripts
+Various tool functions for Coingro and scripts
 """
 import gzip
 import logging
@@ -75,11 +75,8 @@ def file_dump_json(filename: Path, data: Any, is_zip: bool = False, log: bool = 
     if directory:
         os.makedirs(directory, exist_ok=True)
 
-    wm, nm = rapidjson.WM_COMPACT, rapidjson.NM_NATIVE
-    if pretty_print:
-        wm = rapidjson.WM_PRETTY
-    if nan:
-        nm = rapidjson.NM_NAN
+    wm = rapidjson.WM_PRETTY if pretty_print else rapidjson.WM_COMPACT
+    nm = rapidjson.NM_NAN if nan else rapidjson.NM_NATIVE
 
     if is_zip:
         if filename.suffix != '.gz':
@@ -88,12 +85,12 @@ def file_dump_json(filename: Path, data: Any, is_zip: bool = False, log: bool = 
             logger.info(f'dumping json to "{filename}"')
 
         with gzip.open(filename, 'w') as fpz:
-            rapidjson.dump(data, fpz, default=str, number_mode=nm, write_mode=wm)
+            rapidjson.dump(data, fpz, default=str, number_mode=nm, write_mode=wm, indent=4)
     else:
         if log:
             logger.info(f'dumping json to "{filename}"')
         with open(filename, 'w') as fp:
-            rapidjson.dump(data, fp, default=str, number_mode=nm, write_mode=wm)
+            rapidjson.dump(data, fp, default=str, number_mode=nm, write_mode=wm, indent=4)
 
     logger.debug(f'done json to "{filename}"')
 

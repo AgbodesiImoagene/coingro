@@ -12,6 +12,7 @@ from jsonschema import ValidationError
 
 from coingro.commands import Arguments
 from coingro.configuration import Configuration, check_exchange, validate_config_consistency
+from coingro.configuration.config_security import Encryption
 from coingro.configuration.config_validation import validate_config_schema
 from coingro.configuration.deprecated_settings import (check_conflicting_settings,
                                                        process_deprecated_setting,
@@ -20,7 +21,9 @@ from coingro.configuration.deprecated_settings import (check_conflicting_setting
 from coingro.configuration.environment_vars import flat_vars_to_nested_dict
 from coingro.configuration.load_config import (load_config_file, load_file, load_from_files,
                                                log_config_error_range)
-from coingro.constants import DEFAULT_DB_DRYRUN_URL, DEFAULT_DB_PROD_URL, ENV_VAR_PREFIX
+from coingro.configuration.save_config import save_to_config_file
+from coingro.constants import (DEFAULT_CONFIG_SAVE, DEFAULT_DB_DRYRUN_URL, DEFAULT_DB_PROD_URL,
+                               ENV_VAR_PREFIX)
 from coingro.enums import RunMode
 from coingro.exceptions import OperationalException
 from coingro.loggers import CGBufferingHandler, _set_loggers, setup_logging, setup_logging_pre
@@ -1546,3 +1549,81 @@ def test_flat_vars_to_nested_dict(caplog):
 
     assert log_has("Loading variable 'COINGRO__EXCHANGE__SOME_SETTING'", caplog)
     assert not log_has("Loading variable 'NOT_RELEVANT'", caplog)
+
+
+def test_save_config(default_conf, mocker, caplog):
+    message = "Config backup complete. "
+    config = deepcopy(default_conf)
+    dump_mock = mocker.patch("coingro.configuration.save_config.file_dump_json")
+
+    save_to_config_file(config)
+
+    assert dump_mock.call_count == 1
+    assert dump_mock.call_args.args[0] == Path(f'user_data/config/{DEFAULT_CONFIG_SAVE}')
+    assert log_has(message, caplog)
+
+    config['max_open_trades'] = float('inf')
+
+    save_to_config_file(config)
+
+    assert dump_mock.call_count == 2
+    assert dump_mock.call_args.args[1]['max_open_trades'] == -1
+    assert dump_mock.call_args.args[1]['db_url'] != config['db_url']
+
+
+@pytest.mark.parametrize("raw_string", [
+    ('Coingro'),
+    ('abcde_12345'),
+    ('secret_password'),
+    ('hsfbnvuh9483ytqvnsl'),
+])
+def test_encryption(raw_string):
+    encryption = Encryption()
+
+    ciphertext = encryption.encrypt(raw_string)
+    assert ciphertext != raw_string
+
+    plaintext = encryption.decrypt(ciphertext)
+    assert plaintext == raw_string
+
+
+def test_encryption_exception(default_conf):
+    config = deepcopy(default_conf)
+    with pytest.raises(OperationalException):
+        encryption = Encryption({'encryption': True})
+
+    with pytest.raises(OperationalException):
+        config['db_url'] = 0
+        encryption = Encryption(config)
+        encryption.get_encrypted_config()
+
+
+def test_config_encryption(default_conf):
+    encryption = Encryption(default_conf)
+
+    assert encryption.get_plain_config() == default_conf
+
+    encrypted_config = encryption.get_encrypted_config()
+
+    assert encrypted_config.get('encryption')
+    assert encrypted_config.get('salt')
+
+    assert encrypted_config['db_url'] != default_conf['db_url']
+    assert encrypted_config['exchange']['key'] != default_conf['exchange']['key']
+    assert encrypted_config['exchange']['secret'] != default_conf['exchange']['secret']
+    assert encrypted_config['minimal_roi'] == default_conf['minimal_roi']
+
+
+def test_config_decryption(default_conf):
+    encryption = Encryption(default_conf)
+
+    encrypted_config = encryption.get_encrypted_config()
+
+    encryption = Encryption(encrypted_config)
+
+    assert encryption.get_encrypted_config() == encrypted_config
+
+    decrypted_config = encryption.get_plain_config()
+    decrypted_config.pop('encryption')
+
+    assert decrypted_config == default_conf

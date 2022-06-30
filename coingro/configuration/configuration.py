@@ -9,6 +9,7 @@ from typing import Any, Callable, Dict, List, Optional
 
 from coingro import constants
 from coingro.configuration.check_exchange import check_exchange
+from coingro.configuration.config_security import Encryption
 from coingro.configuration.deprecated_settings import process_temporary_deprecated_settings
 from coingro.configuration.directory_operations import create_datadir, create_userdata_dir
 from coingro.configuration.environment_vars import enironment_vars_to_dict
@@ -69,6 +70,7 @@ class Configuration:
         if not config_files:
             config_files = self.args.get("config", [])
         config: Dict[str, Any] = load_from_files(config_files)
+        config = Encryption(config).get_plain_config()
 
         # Load environment variables
         env_data = enironment_vars_to_dict()
@@ -279,7 +281,7 @@ class Configuration:
 
         # Edge section:
         if 'stoploss_range' in self.args and self.args["stoploss_range"]:
-            txt_range = eval(self.args["stoploss_range"])
+            txt_range = eval(self.args["stoploss_range"])  # nosec
             config['edge'].update({'stoploss_range_min': txt_range[0]})
             config['edge'].update({'stoploss_range_max': txt_range[1]})
             config['edge'].update({'stoploss_range_step': txt_range[2]})

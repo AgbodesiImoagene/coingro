@@ -90,6 +90,20 @@ USER_DATA_FILES = {
     'strategy_analysis_example.ipynb': USERPATH_NOTEBOOKS,
 }
 
+PROTECTED_CREDENTIALS = {
+    'exchange': {
+        'key': None,
+        'secret': None,
+        'password': None,
+        'uid': None
+    },
+    'database': {
+        'username': None,
+        'password': None
+    },
+    'db_url': None
+}
+
 DB_ENGINE_OPTIONS = ['mysql', 'postgresql', 'sqlite']
 
 SUPPORTED_FIAT = [
@@ -432,6 +446,7 @@ CONF_SCHEMA = {
             'required': ['dbms']
         },
         'db_url': {'type': 'string'},
+        'encryption': {'type': 'boolean', 'default': False},
         'export': {'type': 'string', 'enum': EXPORT_OPTIONS, 'default': 'trades'},
         'disableparamexport': {'type': 'boolean'},
         'initial_state': {'type': 'string', 'enum': ['running', 'stopped']},
