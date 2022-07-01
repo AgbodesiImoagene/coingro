@@ -345,6 +345,35 @@ def test_strategy_override_use_exit_profit_only(caplog, default_conf):
     assert log_has("Override strategy 'exit_profit_only' with value in config file: True.", caplog)
 
 
+def test_strategy_override_trading_mode(caplog, default_conf):
+    caplog.set_level(logging.INFO)
+    default_conf.update({
+        'strategy': CURRENT_TEST_STRATEGY,
+        'trading_mode': 'margin',
+        'margin_mode': 'cross',
+    })
+    strategy = StrategyResolver.load_strategy(default_conf)
+
+    assert strategy.trading_mode == 'margin'
+    assert log_has(
+        "Override strategy 'trading_mode' with value in config file: margin.",
+        caplog)
+    assert strategy.margin_mode == 'cross'
+    assert log_has(
+        "Override strategy 'margin_mode' with value in config file: cross.",
+        caplog)
+
+
+def test_strategy_override_pairlists(caplog, default_conf):
+    caplog.set_level(logging.INFO)
+    strategy = StrategyResolver.load_strategy(default_conf)
+
+    assert strategy.pairlists == [{'method': 'StaticPairList'}]
+    assert log_has(
+        "Override strategy 'pairlists' with value in config file: [{'method': 'StaticPairList'}].",
+        caplog)
+
+
 @pytest.mark.filterwarnings("ignore:deprecated")
 def test_missing_implements(default_conf, caplog):
 

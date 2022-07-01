@@ -65,7 +65,7 @@ class CoingroBot(LoggingMixin):
         self.strategy: IStrategy = StrategyResolver.load_strategy(self.config)
 
         # Check config consistency here since strategies can set certain options
-        validate_config_consistency(config)
+        validate_config_consistency(self.config)
 
         save_to_config_file(tempconf)
 

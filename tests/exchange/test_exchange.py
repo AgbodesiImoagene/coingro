@@ -12,14 +12,15 @@ import pytest
 from pandas import DataFrame
 
 from coingro.enums import CandleType, MarginMode, TradingMode
-from coingro.exceptions import (DDosProtection, DependencyException, InvalidOrderException,
-                                  OperationalException, PricingError, TemporaryError)
+from coingro.exceptions import (AuthenticationError, DDosProtection, DependencyException,
+                                InvalidOrderException, OperationalException, PricingError,
+                                TemporaryError)
 from coingro.exchange import Binance, Bittrex, Exchange, Kraken
 from coingro.exchange.common import (API_FETCH_ORDER_RETRY_COUNT, API_RETRY_COUNT,
-                                       calculate_backoff, remove_credentials)
+                                     calculate_backoff, remove_credentials)
 from coingro.exchange.exchange import (date_minus_candles, market_is_active, timeframe_to_minutes,
-                                         timeframe_to_msecs, timeframe_to_next_date,
-                                         timeframe_to_prev_date, timeframe_to_seconds)
+                                       timeframe_to_msecs, timeframe_to_next_date,
+                                       timeframe_to_prev_date, timeframe_to_seconds)
 from coingro.resolvers.exchange_resolver import ExchangeResolver
 from tests.conftest import get_mock_coro, get_patched_exchange, log_has, log_has_re, num_log_has_re
 
@@ -44,7 +45,7 @@ def ccxt_exceptionhandlers(mocker, default_conf, api_mock, exchange_name,
         getattr(exchange, fun)(**kwargs)
     assert api_mock.__dict__[mock_ccxt_fun].call_count == retries
 
-    with pytest.raises(OperationalException):
+    with pytest.raises((OperationalException, AuthenticationError)):
         api_mock.__dict__[mock_ccxt_fun] = MagicMock(side_effect=ccxt.BaseError("DeadBeef"))
         exchange = get_patched_exchange(mocker, default_conf, api_mock, id=exchange_name)
         getattr(exchange, fun)(**kwargs)
@@ -78,6 +79,25 @@ def test_init(default_conf, mocker, caplog):
     caplog.set_level(logging.INFO)
     get_patched_exchange(mocker, default_conf)
     assert log_has('Instance is running with dry_run enabled', caplog)
+
+
+@pytest.mark.parametrize("exchange_name", EXCHANGES)
+def test_validate_credentials(default_conf, mocker, exchange_name):
+    api_mock = MagicMock()
+    api_mock.check_required_credentials = \
+        MagicMock(side_effect=ccxt.AuthenticationError("DeadBeef"))
+    default_conf['dry_run'] = False
+    with pytest.raises(OperationalException):
+        _ = get_patched_exchange(mocker, default_conf, api_mock, id=exchange_name)
+
+    api_mock.check_required_credentials = MagicMock()
+    api_mock.fetch_balance = MagicMock(side_effect=ccxt.DDoSProtection("DeadBeef"))
+    with pytest.raises(DDosProtection):
+        _ = get_patched_exchange(mocker, default_conf, api_mock, id=exchange_name)
+
+    api_mock.fetch_balance = MagicMock(side_effect=ccxt.BaseError("DeadBeef"))
+    with pytest.raises(AuthenticationError):
+        _ = get_patched_exchange(mocker, default_conf, api_mock, id=exchange_name)
 
 
 def test_remove_credentials(default_conf, caplog) -> None:

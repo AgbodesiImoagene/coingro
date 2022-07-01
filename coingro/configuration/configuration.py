@@ -68,7 +68,7 @@ class Configuration:
         # Load all configs
         config_files = self.args.get('config_save', None)
         if not config_files:
-            config_files = self.args.get("config", [])
+            config_files = self.args.get('config', [])
         config: Dict[str, Any] = load_from_files(config_files)
         config = Encryption(config).get_plain_config()
 
@@ -76,12 +76,16 @@ class Configuration:
         env_data = enironment_vars_to_dict()
         config = deep_merge_dicts(env_data, config)
 
+        # Set initial state
+        if self.args.get('config_save'):
+            config['initial_state'] = 'running'
+
         # Normalize config
         if 'internals' not in config:
             config['internals'] = {}
 
-        if 'pairlists' not in config:
-            config['pairlists'] = []
+        # if 'pairlists' not in config:
+        #     config['pairlists'] = []
 
         # Keep a copy of the original configuration file
         config['original_config'] = deepcopy(config)

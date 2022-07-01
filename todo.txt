@@ -22,8 +22,8 @@ ensure fiat and quote are enforced in config validation # done
 
 -- Config/Strategies changes --
 . test config quote currency restriction # done
-. fixes to strategy configuration - add pairlists and trading modes to strategy overides (might mean making pairlists a top level config param) # add to strategy_resolver, interface and templates
-. add exchange api permission validation to config validation
+. fixes to strategy configuration - add pairlists and trading modes to strategy overides # add to strategy_resolver, interface and templates # done
+. add exchange api permission validation to config validation # partially done, need to validate trade permissions
 . change default config folder # done
 . include functionality to reversibly encrypt api keys in saved config # done
 . add default config to templates
@@ -31,18 +31,24 @@ ensure fiat and quote are enforced in config validation # done
 . test -1 in save config for max trades # done
 . consider making encryption class singleton
 . add path parameter to save_config func
+. test pairlists in strategy with api get config
 
 -- API changes --
 . add reset config endpoint
 . add control and config endpoints
 . add start balance to update config endpoint
 . add alert to rpc status for api expiration and deletion
+. add get run state endpoint
 
 -- Coingro Master features --
 . modify database to include table that maps host address to bot id # reserve for master module
+. update benchmark pods exchange api keys periodically
 
 -- Docker changes --
 . check that saved configs are stored in volume_dir
 . remember to mkdir config and strategies in dockerfile for volumes
 . add log file to volume
 . volume to userdata/
+
+-- Strategy rules --
+. For now start with spot and volume pairlists

@@ -20,16 +20,16 @@ from ccxt import ROUND_DOWN, ROUND_UP, TICK_SIZE, TRUNCATE, Precise, decimal_to_
 from pandas import DataFrame
 
 from coingro.constants import (DEFAULT_AMOUNT_RESERVE_PERCENT, NON_OPEN_EXCHANGE_STATES, BuySell,
-                                 EntryExit, ListPairsWithTimeframes, PairWithTimeframe)
+                               EntryExit, ListPairsWithTimeframes, PairWithTimeframe)
 from coingro.data.converter import ohlcv_to_dataframe, trades_dict_to_list
 from coingro.enums import OPTIMIZE_MODES, CandleType, MarginMode, TradingMode
-from coingro.exceptions import (DDosProtection, ExchangeError, InsufficientFundsError,
-                                  InvalidOrderException, OperationalException, PricingError,
-                                  RetryableOrderError, TemporaryError)
+from coingro.exceptions import (AuthenticationError, DDosProtection, ExchangeError,
+                                InsufficientFundsError, InvalidOrderException, OperationalException,
+                                PricingError, RetryableOrderError, TemporaryError)
 from coingro.exchange.common import (API_FETCH_ORDER_RETRY_COUNT, BAD_EXCHANGES,
-                                       EXCHANGE_HAS_OPTIONAL, EXCHANGE_HAS_REQUIRED,
-                                       SUPPORTED_EXCHANGES, remove_credentials, retrier,
-                                       retrier_async)
+                                     EXCHANGE_HAS_OPTIONAL, EXCHANGE_HAS_REQUIRED,
+                                     SUPPORTED_EXCHANGES, remove_credentials, retrier,
+                                     retrier_async)
 from coingro.misc import chunks, deep_merge_dicts, safe_value_fallback2
 from coingro.plugins.pairlist.pairlist_helpers import expand_pairlist
 
@@ -174,6 +174,9 @@ class Exchange:
         logger.info(f'Using Exchange "{self.name}"')
 
         if validate:
+            # Check exchange credentials
+            self.validate_credentials()
+
             # Check if timeframe is available
             self.validate_timeframes(config.get('timeframe'))
 
@@ -302,6 +305,20 @@ class Exchange:
         Must be overridden in child methods if required.
         """
         pass
+
+    def validate_credentials(self) -> None:
+        if not self._config['dry_run']:
+            try:
+                self._api.check_required_credentials()
+            except ccxt.AuthenticationError as e:
+                raise OperationalException(e)
+
+            try:
+                self.get_balances()
+            except (DDosProtection, TemporaryError) as e:
+                raise e
+            except Exception:
+                raise AuthenticationError("Invalid exchange credentials.")
 
     def _log_exchange_response(self, endpoint, response) -> None:
         """ Log exchange responses """

@@ -94,6 +94,7 @@
         "password": "SuperSecurePassword"
     },
     "bot_name": "freqtrade",
+    "strategy": "SampleStrategy",
     "initial_state": "running",
     "force_entry_enable": false,
     "internals": {

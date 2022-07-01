@@ -34,6 +34,12 @@ class ExchangeError(DependencyException):
     """
 
 
+class AuthenticationError(ExchangeError):
+    """
+    This is returned when a private request cannot be authenticated.
+    """
+
+
 class InvalidOrderException(ExchangeError):
     """
     This is returned when the order is not valid. Example:

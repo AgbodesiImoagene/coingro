@@ -9,11 +9,11 @@ from typing import Any, Callable, Dict, Optional
 
 import sdnotify
 
-from coingro import __version__, constants
+from coingro import __env__, __version__, constants
+from coingro.coingrobot import CoingroBot
 from coingro.configuration import Configuration
 from coingro.enums import State
-from coingro.exceptions import OperationalException, TemporaryError
-from coingro.coingrobot import CoingroBot
+from coingro.exceptions import ExchangeError, OperationalException, TemporaryError
 
 
 logger = logging.getLogger(__name__)
@@ -157,14 +157,15 @@ class Worker:
         except TemporaryError as error:
             logger.warning(f"Error: {error}, retrying in {constants.RETRY_TIMEOUT} seconds...")
             time.sleep(constants.RETRY_TIMEOUT)
-        except OperationalException:
-            tb = traceback.format_exc()
-            hint = 'Issue `/start` if you think it is safe to restart.'
+        except (OperationalException, ExchangeError) as error:
+            if isinstance(error, OperationalException) or __env__ == 'docker':
+                tb = traceback.format_exc()
+                hint = 'Issue `/start` if you think it is safe to restart.'
 
-            self.coingro.notify_status(f'OperationalException:\n```\n{tb}```{hint}')
+                self.coingro.notify_status(f'{type(error).__name__}:\n```\n{tb}```{hint}')
 
-            logger.exception('OperationalException. Stopping trader ...')
-            self.coingro.state = State.STOPPED
+                logger.exception(f'{type(error).__name__}. Stopping trader ...')
+                self.coingro.state = State.STOPPED
 
     def _reconfigure(self) -> None:
         """
