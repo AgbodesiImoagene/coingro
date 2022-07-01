@@ -22,14 +22,15 @@ ensure fiat and quote are enforced in config validation # done
 
 -- Config/Strategies changes --
 . test config quote currency restriction # done
-. fixes to strategy configuration - add pairlists and trading modes to strategy overides (might mean making pairlists a top level config param)
+. fixes to strategy configuration - add pairlists and trading modes to strategy overides (might mean making pairlists a top level config param) # add to strategy_resolver, interface and templates
 . add exchange api permission validation to config validation
 . change default config folder # done
-. include functionality to reversibly encrypt api keys in saved config # done just test
+. include functionality to reversibly encrypt api keys in saved config # done
 . add default config to templates
-. update allowed exchanges
-. test -1 in save config for max trades
+. update allowed exchanges # done
+. test -1 in save config for max trades # done
 . consider making encryption class singleton
+. add path parameter to save_config func
 
 -- API changes --
 . add reset config endpoint

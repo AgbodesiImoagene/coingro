@@ -14,7 +14,7 @@ from coingro.configuration.deprecated_settings import process_temporary_deprecat
 from coingro.configuration.directory_operations import create_datadir, create_userdata_dir
 from coingro.configuration.environment_vars import enironment_vars_to_dict
 from coingro.configuration.load_config import load_file, load_from_files
-from coingro.enums import NON_UTIL_MODES, TRADING_MODES, CandleType, RunMode, TradingMode
+from coingro.enums import NON_UTIL_MODES, TRADING_MODES, CandleType, RunMode
 from coingro.exceptions import OperationalException
 from coingro.loggers import setup_logging
 from coingro.misc import deep_merge_dicts, parse_db_uri_for_logging
@@ -436,7 +436,6 @@ class Configuration:
                              logstring='Detected --trading-mode: {}')
         config['candle_type_def'] = CandleType.get_default(
             config.get('trading_mode', 'spot') or 'spot')
-        config['trading_mode'] = TradingMode(config.get('trading_mode', 'spot') or 'spot')
         self._args_to_config(config, argname='candle_types',
                              logstring='Detected --candle-types: {}')
 

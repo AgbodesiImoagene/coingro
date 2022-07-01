@@ -13,15 +13,15 @@ from pandas import DataFrame
 from coingro.constants import ListPairsWithTimeframes
 from coingro.data.dataprovider import DataProvider
 from coingro.enums import (CandleType, ExitCheckTuple, ExitType, SignalDirection, SignalTagType,
-                             SignalType, TradingMode)
+                           SignalType, TradingMode)
 from coingro.enums.runmode import RunMode
 from coingro.exceptions import OperationalException, StrategyError
 from coingro.exchange import timeframe_to_minutes, timeframe_to_next_date, timeframe_to_seconds
 from coingro.persistence import Order, PairLocks, Trade
 from coingro.strategy.hyper import HyperStrategyMixin
 from coingro.strategy.informative_decorator import (InformativeData, PopulateIndicators,
-                                                      _create_and_merge_informative_pair,
-                                                      _format_pair_name)
+                                                    _create_and_merge_informative_pair,
+                                                    _format_pair_name)
 from coingro.strategy.strategy_wrapper import strategy_safe_wrapper
 from coingro.wallets import Wallets
 
@@ -103,8 +103,13 @@ class IStrategy(ABC, HyperStrategyMixin):
     # Count of candles the strategy requires before producing valid signals
     startup_candle_count: int = 0
 
-    # Protections
+    # Plugins
+    pairlists: List = []
     protections: List = []
+
+    # Trading modes
+    trading_mode: str
+    margin_mode: str
 
     # Class level variables (intentional) containing
     # the dataprovider (dp) (access to other candles, historic data, ...)

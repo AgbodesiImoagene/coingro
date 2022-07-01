@@ -10,23 +10,23 @@ TAG_PI="${TAG}_pi"
 
 TAG_ARM=${TAG}_arm
 TAG_PLOT_ARM=${TAG_PLOT}_arm
-CACHE_IMAGE=freqtradeorg/freqtrade_cache
+CACHE_IMAGE=coingro_org/coingro_cache
 
 echo "Running for ${TAG}"
 
 # Add commit and commit_message to docker container
-echo "${GITHUB_SHA}" > freqtrade_commit
+echo "${GITHUB_SHA}" > coingro_commit
 
 if [ "${GITHUB_EVENT_NAME}" = "schedule" ]; then
     echo "event ${GITHUB_EVENT_NAME}: full rebuild - skipping cache"
     # Build regular image
-    docker build -t freqtrade:${TAG_ARM} .
+    docker build -t coingro:${TAG_ARM} .
 
 else
     echo "event ${GITHUB_EVENT_NAME}: building with cache"
     # Build regular image
     docker pull ${IMAGE_NAME}:${TAG_ARM}
-    docker build --cache-from ${IMAGE_NAME}:${TAG_ARM} -t freqtrade:${TAG_ARM} .
+    docker build --cache-from ${IMAGE_NAME}:${TAG_ARM} -t coingro:${TAG_ARM} .
 
 fi
 
@@ -35,14 +35,14 @@ if [ $? -ne 0 ]; then
     return 1
 fi
 # Tag image for upload and next build step
-docker tag freqtrade:$TAG_ARM ${CACHE_IMAGE}:$TAG_ARM
+docker tag coingro:$TAG_ARM ${CACHE_IMAGE}:$TAG_ARM
 
-docker build --cache-from freqtrade:${TAG_ARM} --build-arg sourceimage=${CACHE_IMAGE} --build-arg sourcetag=${TAG_ARM} -t freqtrade:${TAG_PLOT_ARM} -f docker/Dockerfile.plot .
+docker build --cache-from coingro:${TAG_ARM} --build-arg sourceimage=${CACHE_IMAGE} --build-arg sourcetag=${TAG_ARM} -t coingro:${TAG_PLOT_ARM} -f docker/Dockerfile.plot .
 
-docker tag freqtrade:$TAG_PLOT_ARM ${CACHE_IMAGE}:$TAG_PLOT_ARM
+docker tag coingro:$TAG_PLOT_ARM ${CACHE_IMAGE}:$TAG_PLOT_ARM
 
 # Run backtest
-docker run --rm -v $(pwd)/config_examples/config_bittrex.example.json:/freqtrade/config.json:ro -v $(pwd)/tests:/tests freqtrade:${TAG_ARM} backtesting --datadir /tests/testdata --strategy-path /tests/strategy/strats/ --strategy StrategyTestV3
+docker run --rm -v $(pwd)/config_examples/config_bittrex.example.json:/coingro/config.json:ro -v $(pwd)/tests:/tests coingro:${TAG_ARM} backtesting --datadir /tests/testdata --strategy-path /tests/strategy/strats/ --strategy StrategyTestV3
 
 if [ $? -ne 0 ]; then
     echo "failed running backtest"

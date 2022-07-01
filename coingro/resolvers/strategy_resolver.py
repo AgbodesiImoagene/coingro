@@ -64,6 +64,7 @@ class StrategyResolver(IResolver):
                       ("order_time_in_force",             None),
                       ("stake_currency",                  None),
                       ("stake_amount",                    None),
+                      ("pairlists",                       None),
                       ("protections",                     None),
                       ("startup_candle_count",            None),
                       ("unfilledtimeout",                 None),
@@ -74,7 +75,9 @@ class StrategyResolver(IResolver):
                       ("disable_dataframe_checks",        False),
                       ("ignore_buying_expired_candle_after",  0),
                       ("position_adjustment_enable",      False),
-                      ("max_entry_position_adjustment",      -1),
+                      ("max_entry_position_adjustment",   -1),
+                      ("trading_mode",                    "spot"),
+                      ("margin_mode",                     ""),
                       ]
         for attribute, default in attributes:
             StrategyResolver._override_attribute_helper(strategy, config,

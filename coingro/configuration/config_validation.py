@@ -228,6 +228,7 @@ def validate_migrated_strategy_settings(conf: Dict[str, Any]) -> None:
 def _validate_time_in_force(conf: Dict[str, Any]) -> None:
 
     time_in_force = conf.get('order_time_in_force', {})
+    conf['trading_mode'] = TradingMode(conf.get('trading_mode', 'spot') or 'spot')
     if 'buy' in time_in_force or 'sell' in time_in_force:
         if conf.get('trading_mode', TradingMode.SPOT) != TradingMode.SPOT:
             raise OperationalException(

@@ -590,7 +590,7 @@ def test_hyperopt_with_arguments(mocker, default_conf, caplog) -> None:
 def test_check_exchange(default_conf, caplog) -> None:
     # Test an officially supported by Coingro team exchange
     default_conf['runmode'] = RunMode.DRY_RUN
-    default_conf.get('exchange').update({'name': 'BITTREX'})
+    default_conf.get('exchange').update({'name': 'FTX'})
     assert check_exchange(default_conf)
     assert log_has_re(r"Exchange .* is officially supported by the Coingro development team\.",
                       caplog)

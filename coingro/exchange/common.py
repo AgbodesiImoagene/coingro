@@ -50,9 +50,9 @@ MAP_EXCHANGE_CHILDCLASS = {
 
 SUPPORTED_EXCHANGES = [
     'binance',
-    'bittrex',
+    # 'bittrex',
     'ftx',
-    'gateio',
+    # 'gateio',
     'huobi',
     'kraken',
     'okx',
@@ -95,10 +95,10 @@ def remove_credentials(config) -> None:
     Modifies the input dict!
     """
     if config.get('dry_run', False):
-        config['exchange']['key'] = ''
-        config['exchange']['secret'] = ''
-        config['exchange']['password'] = ''
-        config['exchange']['uid'] = ''
+        config['exchange']['key'] = ''  # nosec
+        config['exchange']['secret'] = ''  # nosec
+        config['exchange']['password'] = ''  # nosec
+        config['exchange']['uid'] = ''  # nosec
 
 
 def calculate_backoff(retrycount, max_retries):

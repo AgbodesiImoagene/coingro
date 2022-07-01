@@ -36,7 +36,7 @@ exclude = [
 ]
 
 [tool.bandit]
-skips = ["B404", "B603", "B607"]
+# skips = ["B404", "B603", "B607"]
 
 [[tool.mypy.overrides]]
 module = "tests.*"
