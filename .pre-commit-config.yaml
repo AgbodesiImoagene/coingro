@@ -57,13 +57,13 @@ repos:
             )$
         additional_dependencies: [toml]
 
-  - repo: local
-    hooks:
-      - id: pytest
-        name: tests
-        entry: pytest
-        args: [-x, --ff, --random-order, --cov=coingro, --cov-config=.coveragerc, tests/]
-        types: [python]
-        language: system
-        pass_filenames: false
-        always_run: true
+  # - repo: local
+  #   hooks:
+  #     - id: pytest
+  #       name: tests
+  #       entry: pytest
+  #       args: [-x, --ff, --random-order, --cov=coingro, --cov-config=.coveragerc, tests/]
+  #       types: [python]
+  #       language: system
+  #       pass_filenames: false
+  #       always_run: true

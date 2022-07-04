@@ -99,6 +99,8 @@ target/
 .pytest_cache/
 .mypy_cache/
 
+nohup.out
+
 #exceptions
 !*.gitkeep
 !config_examples/config_binance.example.json

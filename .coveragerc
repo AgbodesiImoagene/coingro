@@ -4,4 +4,5 @@ omit =
     coingro/templates/*
     coingro/vendor/*
     coingro/__main__.py
+    coingro/rpc/api_server/web_ui.py
     tests/*
