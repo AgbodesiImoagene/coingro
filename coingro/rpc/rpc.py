@@ -3,6 +3,7 @@ This module contains class to define a RPC communications
 """
 import logging
 from abc import abstractmethod
+from copy import deepcopy
 from datetime import date, datetime, timedelta, timezone
 from math import isnan
 from typing import Any, Dict, List, Optional, Tuple, Union
@@ -15,19 +16,23 @@ from numpy import NAN, inf, int64, mean
 from pandas import DataFrame, NaT
 
 from coingro import __version__
+from coingro.configuration import Configuration, validate_config_consistency
+from coingro.configuration.check_exchange import check_exchange
+from coingro.configuration.save_config import save_to_config_file
 from coingro.configuration.timerange import TimeRange
-from coingro.constants import CANCEL_REASON, DATETIME_PRINT_FORMAT
+from coingro.constants import CANCEL_REASON, DATETIME_PRINT_FORMAT, DEFAULT_CONFIG_SAVE
 from coingro.data.history import load_data
 from coingro.data.metrics import calculate_max_drawdown
-from coingro.enums import (CandleType, ExitCheckTuple, ExitType, SignalDirection, State,
-                             TradingMode)
+from coingro.enums import CandleType, ExitCheckTuple, ExitType, SignalDirection, State, TradingMode
 from coingro.exceptions import ExchangeError, PricingError
 from coingro.exchange import timeframe_to_minutes, timeframe_to_msecs
+from coingro.exchange.common import SUPPORTED_EXCHANGES
 from coingro.loggers import bufferHandler
 from coingro.misc import decimals_per_coin, shorten_date
 from coingro.persistence import PairLocks, Trade
 from coingro.persistence.models import PairLock
 from coingro.plugins.pairlist.pairlist_helpers import expand_pairlist
+from coingro.resolvers import ExchangeResolver, StrategyResolver
 from coingro.rpc.fiat_convert import CryptoToFiatConverter
 from coingro.wallets import PositionWallet, Wallet
 
@@ -758,10 +763,10 @@ class RPC:
             order_type = self._coingro.strategy.order_types.get(
                 'force_entry', self._coingro.strategy.order_types['entry'])
         if self._coingro.execute_entry(pair, stake_amount, price,
-                                         ordertype=order_type, trade=trade,
-                                         is_short=is_short,
-                                         enter_tag=enter_tag,
-                                         ):
+                                       ordertype=order_type, trade=trade,
+                                       is_short=is_short,
+                                       enter_tag=enter_tag,
+                                       ):
             Trade.commit()
             trade = Trade.get_trades([Trade.is_open.is_(True), Trade.pair == pair]).first()
             return trade
@@ -793,7 +798,7 @@ class RPC:
                     and trade.stoploss_order_id):
                 try:
                     self._coingro.exchange.cancel_stoploss_order(trade.stoploss_order_id,
-                                                                   trade.pair)
+                                                                 trade.pair)
                     c_count += 1
                 except (ExchangeError):
                     pass
@@ -1067,3 +1072,130 @@ class RPC:
             'last_process_loc': last_p.astimezone(tzlocal()).strftime(DATETIME_PRINT_FORMAT),
             'last_process_ts': int(last_p.timestamp()),
         }
+
+    def _state(self) -> Dict[str, str]:
+        return {
+            'state': str(self._coingro.state),
+            'message': self._coingro.message,
+        }
+
+    @staticmethod
+    def _rpc_exchange_info(exchange: str) -> Dict[str, Any]:
+        exchange = exchange.lower()
+        if exchange not in SUPPORTED_EXCHANGES:
+            raise RPCException(f'{exchange} is not a supported exchange.')
+        res = {}
+
+        try:
+            import ccxt
+            exchange_class = getattr(ccxt, exchange)()
+
+            res = {'name': exchange,
+                   'required_credentials': exchange_class.requiredCredentials}
+        except Exception as e:
+            raise RPCException(str(e)) from e
+        return res
+
+    def _rpc_update_exchange(self, **kwargs) -> Dict[str, Any]:
+        if kwargs:
+            name = kwargs.get('name')
+            if name and name.lower() not in SUPPORTED_EXCHANGES:
+                raise RPCException(f'{name} is not a supported exchange.')
+
+            try:
+                config = Configuration.from_files([DEFAULT_CONFIG_SAVE])
+
+                if 'dry_run' in kwargs:
+                    config['dry_run'] = kwargs['dry_run']
+                    kwargs.pop('dry_run')
+
+                if 'exchange' not in config:
+                    config['exchange'] = {}
+
+                if ('stake_currency' in config and 'name' in kwargs
+                        and kwargs['name'].lower() == 'binance'):
+                    config['exchange']['pair_blacklist'] = [f'BNB/{config["stake_currency"]}']
+
+                config['exchange'].update(kwargs)
+                tempconf = deepcopy(config)
+
+                RPC._validate_config(config, validate_exchange=True)
+
+                save_to_config_file(tempconf)
+            except Exception as e:
+                raise RPCException(str(e)) from e
+
+        return {'status': 'Successfully updated config. '
+                          'Reload config for changes to take effect.'}
+
+    def _rpc_update_strategy(self, **kwargs) -> Dict[str, Any]:
+        if kwargs:
+            try:
+                config = Configuration.from_files([DEFAULT_CONFIG_SAVE])
+
+                if 'minimal_roi' in kwargs:
+                    minimal_roi = {}
+                    for roi in kwargs['minimal_roi']:
+                        minimal_roi[str(roi['time_limit_mins'])] = roi['profit']
+                    kwargs['minimal_roi'] = minimal_roi
+
+                config.update(kwargs)
+                tempconf = deepcopy(config)
+
+                RPC._validate_config(config)
+
+                save_to_config_file(tempconf)
+            except Exception as e:
+                raise RPCException(str(e)) from e
+
+        return {'status': 'Successfully updated config. '
+                          'Reload config for changes to take effect.'}
+
+    def _rpc_update_general_settings(self, **kwargs) -> Dict[str, Any]:
+        if kwargs:
+            try:
+                config = Configuration.from_files([DEFAULT_CONFIG_SAVE])
+
+                if 'stake_currency' in kwargs:
+                    if 'exchange' not in config:
+                        config['exchange'] = {}
+                    config['exchange']['pair_whitelist'] = [f'.*/{kwargs["stake_currency"]}']
+                    if config['exchange']['name'].lower() == 'binance':
+                        config['exchange']['pair_blacklist'] = [f'BNB/{kwargs["stake_currency"]}']
+
+                config.update(kwargs)
+                tempconf = deepcopy(config)
+
+                RPC._validate_config(config)
+
+                save_to_config_file(tempconf)
+            except Exception as e:
+                raise RPCException(str(e)) from e
+
+        return {'status': 'Successfully updated config. '
+                          'Reload config for changes to take effect.'}
+
+    def _rpc_reset_original_config(self) -> Dict[str, Any]:
+        config = self._config.get('original_config', {})
+
+        if not config:
+            config_files = self._config.get('original_config_files', [])
+            if '-' not in config_files:
+                try:
+                    config = Configuration.from_files(config_files)
+                except Exception as e:
+                    raise RPCException(str(e)) from e
+
+        save_to_config_file(config)
+        self._coingro.state = State.RELOAD_CONFIG
+        return {'status': 'Reloading original config ...'}
+
+    @staticmethod
+    def _validate_config(config: Dict[str, Any], validate_exchange: bool = False):
+        StrategyResolver.load_strategy(config)
+        validate_config_consistency(config)
+        if validate_exchange:
+            check_exchange(config)
+        name = config.get('exchange', {}).get('name', '')
+        exchange = ExchangeResolver.load_exchange(name, config)
+        exchange.close()

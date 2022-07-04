@@ -84,11 +84,15 @@ class Configuration:
         if 'internals' not in config:
             config['internals'] = {}
 
+        if 'original_config_files' not in config:
+            config['original_config_files'] = config_files
+
         # if 'pairlists' not in config:
         #     config['pairlists'] = []
 
         # Keep a copy of the original configuration file
-        config['original_config'] = deepcopy(config)
+        if 'original_config' not in config:
+            config['original_config'] = deepcopy(config)
 
         self._process_logging_options(config)
 

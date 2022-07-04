@@ -7,20 +7,23 @@ from fastapi import APIRouter, Depends, Query
 from fastapi.exceptions import HTTPException
 
 from coingro import __version__
-from coingro.constants import USERPATH_STRATEGIES
+from coingro.constants import SUPPORTED_FIAT, SUPPORTED_STAKE_CURRENCIES, USERPATH_STRATEGIES
 from coingro.data.history import get_datahandler
 from coingro.enums import CandleType, TradingMode
 from coingro.exceptions import OperationalException
+from coingro.exchange.common import SUPPORTED_EXCHANGES
 from coingro.rpc import RPC
 from coingro.rpc.api_server.api_schemas import (AvailablePairs, Balances, BlacklistPayload,
-                                                  BlacklistResponse, Count, Daily,
-                                                  DeleteLockRequest, DeleteTrade, ForceEnterPayload,
-                                                  ForceEnterResponse, ForceExitPayload, Health,
-                                                  Locks, Logs, OpenTradeSchema, PairHistory,
-                                                  PerformanceEntry, Ping, PlotConfig, Profit,
-                                                  ResultMsg, ShowConfig, Stats, StatusMsg,
-                                                  StrategyListResponse, StrategyResponse, SysInfo,
-                                                  Version, WhitelistResponse)
+                                                BlacklistResponse, Count, Daily, DeleteLockRequest,
+                                                DeleteTrade, ExchangeInfo, ForceEnterPayload,
+                                                ForceEnterResponse, ForceExitPayload, Health, Locks,
+                                                Logs, OpenTradeSchema, PairHistory,
+                                                PerformanceEntry, Ping, PlotConfig, Profit,
+                                                ResultMsg, SettingsOptions, ShowConfig, State,
+                                                Stats, StatusMsg, StrategyListResponse,
+                                                StrategyResponse, SysInfo, UpdateExchangePayload,
+                                                UpdateSettingsPayload, UpdateStrategyPayload,
+                                                Version, WhitelistResponse)
 from coingro.rpc.api_server.deps import get_config, get_exchange, get_rpc, get_rpc_optional
 from coingro.rpc.rpc import RPCException
 
@@ -37,7 +40,8 @@ logger = logging.getLogger(__name__)
 # 2.14: Add entry/exit orders to trade response
 # 2.15: Add backtest history endpoints
 # 2.16: Additional daily metrics
-API_VERSION = 2.16
+# 3.1: Add config update endpoints
+API_VERSION = 3.1
 
 # Public API, requires no auth.
 router_public = APIRouter()
@@ -316,3 +320,45 @@ def sysinfo():
 @router.get('/health', response_model=Health, tags=['info'])
 def health(rpc: RPC = Depends(get_rpc)):
     return rpc._health()
+
+
+@router.get('/state', response_model=State, tags=['info'])
+def state(rpc: RPC = Depends(get_rpc)):
+    return rpc._state()
+
+
+@router.get('/exchange/{exchange_name}', response_model=ExchangeInfo, tags=['info'])
+def exchange_info(exchange_name: str):
+    return RPC._rpc_exchange_info(exchange_name)
+
+
+@router.get('/settings_options', response_model=SettingsOptions, tags=['info'])
+def list_exchanges():
+    return {
+        'exchanges': SUPPORTED_EXCHANGES,
+        'stake_currencies': SUPPORTED_STAKE_CURRENCIES,
+        'fiat_display_currencies': SUPPORTED_FIAT
+    }
+
+
+@router.post('/exchange', response_model=StatusMsg, tags=['botcontrol', 'setup'])
+def update_exchange(payload: UpdateExchangePayload, rpc: RPC = Depends(get_rpc)):
+    kwargs = payload.dict(exclude_none=True)
+    return rpc._rpc_update_exchange(**kwargs)
+
+
+@router.post('/strategy', response_model=StatusMsg, tags=['botcontrol', 'setup'])
+def update_strategy(payload: UpdateStrategyPayload, rpc: RPC = Depends(get_rpc)):
+    kwargs = payload.dict(exclude_none=True)
+    return rpc._rpc_update_strategy(**kwargs)
+
+
+@router.post('/settings', response_model=StatusMsg, tags=['botcontrol', 'setup'])
+def update_general_settings(payload: UpdateSettingsPayload, rpc: RPC = Depends(get_rpc)):
+    kwargs = payload.dict(exclude_none=True)
+    return rpc._rpc_update_general_settings(**kwargs)
+
+
+@router.post('/reset_original_config', response_model=StatusMsg, tags=['botcontrol'])
+def reset_original_config(rpc: RPC = Depends(get_rpc)):
+    return rpc._rpc_reset_original_config()

@@ -13,12 +13,13 @@ ensure fiat and quote are enforced in config validation # done
 . rewrite top level __init__.py # done
 . get bot id environment variable # done
 . rename config save constant # done
+. migrate from todo.txt to GitHub issues
 
 -- Database changes --
 . add id to all database entries # add to db names
 . add alembic migrations to coingro (master?)
 . add connect args to database config
-. retry db connection # sql alchemy already does this but retrier function added
+. retry db connection # sqlalchemy already does this but add retrier function
 
 -- Config/Strategies changes --
 . test config quote currency restriction # done
@@ -31,14 +32,17 @@ ensure fiat and quote are enforced in config validation # done
 . test -1 in save config for max trades # done
 . consider making encryption class singleton
 . add path parameter to save_config func
-. test pairlists in strategy with api get config
 
 -- API changes --
-. add reset config endpoint
-. add control and config endpoints
-. add start balance to update config endpoint
-. add alert to rpc status for api expiration and deletion
-. add get run state endpoint
+. add reset config endpoint # done
+. add control and config endpoints # done
+. add start balance to update config endpoint # done
+# add alert to rpc status for api expiration and deletion # partialy done
+. add get run state endpoint # done
+. add config options e.g supported fiat, supported stake # done
+. complete rpc script
+. add test for pydantic validator in api tests
+. rework schema pydantic type validators to work with mypy
 
 -- Coingro Master features --
 . modify database to include table that maps host address to bot id # reserve for master module

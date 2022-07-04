@@ -129,6 +129,9 @@ class CoingroBot(LoggingMixin):
         # Initialize protections AFTER bot start - otherwise parameters are not loaded.
         self.protections = ProtectionManager(self.config, self.strategy.protections)
 
+        # Returned by webserver on API /state call
+        self.message: str = ''
+
     def notify_status(self, msg: str) -> None:
         """
         Public method for users of this class (worker, etc.) to send notifications
@@ -138,6 +141,7 @@ class CoingroBot(LoggingMixin):
             'type': RPCMessageType.STATUS,
             'status': msg
         })
+        self.message = msg
 
     def cleanup(self) -> None:
         """

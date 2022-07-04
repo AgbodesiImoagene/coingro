@@ -28,8 +28,7 @@ from coingro.exceptions import (AuthenticationError, DDosProtection, ExchangeErr
                                 PricingError, RetryableOrderError, TemporaryError)
 from coingro.exchange.common import (API_FETCH_ORDER_RETRY_COUNT, BAD_EXCHANGES,
                                      EXCHANGE_HAS_OPTIONAL, EXCHANGE_HAS_REQUIRED,
-                                     SUPPORTED_EXCHANGES, remove_credentials, retrier,
-                                     retrier_async)
+                                     SUPPORTED_EXCHANGES, retrier, retrier_async)
 from coingro.misc import chunks, deep_merge_dicts, safe_value_fallback2
 from coingro.plugins.pairlist.pairlist_helpers import expand_pairlist
 
@@ -124,7 +123,7 @@ class Exchange:
 
         # Holds all open sell orders for dry_run
         self._dry_run_open_orders: Dict[str, Any] = {}
-        remove_credentials(config)
+        # remove_credentials(config)
 
         if config['dry_run']:
             logger.info('Instance is running with dry_run enabled')

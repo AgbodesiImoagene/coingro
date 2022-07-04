@@ -18,6 +18,7 @@ from requests.auth import _basic_auth_str
 from coingro.__init__ import __version__
 from coingro.enums import CandleType, RunMode, State, TradingMode
 from coingro.exceptions import DependencyException, ExchangeError, OperationalException
+from coingro.exchange.common import SUPPORTED_EXCHANGES
 from coingro.loggers import setup_logging, setup_logging_pre
 from coingro.persistence import PairLocks, Trade
 from coingro.rpc import RPC
@@ -547,7 +548,7 @@ def test_api_show_config(botclient):
     assert 'unfilledtimeout' in response
     assert 'version' in response
     assert 'api_version' in response
-    assert 2.1 <= response['api_version'] <= 2.2
+    assert 2.1 <= response['api_version'] <= 3.1
 
 
 def test_api_daily(botclient, mocker, ticker, fee, markets):
@@ -1635,3 +1636,105 @@ def test_health(botclient):
     ret = rc.json()
     assert ret['last_process_ts'] == 0
     assert ret['last_process'] == '1970-01-01T00:00:00+00:00'
+
+
+def test_state(botclient):
+    cgbot, client = botclient
+
+    rc = client_get(client, f"{BASE_URI}/state")
+
+    assert_response(rc)
+    ret = rc.json()
+    assert ret['state'] == 'running'
+    assert ret['message'] == ''
+
+
+@pytest.mark.parametrize('exchange', SUPPORTED_EXCHANGES)
+def test_exchange(botclient, exchange):
+    cgbot, client = botclient
+
+    rc = client_get(client, f"{BASE_URI}/exchange/{exchange}")
+    assert_response(rc)
+    ret = rc.json()
+    assert ret['name'] == exchange
+    assert 'required_credentials' in ret
+
+
+def test_exchange_error(botclient):
+    cgbot, client = botclient
+
+    rc = client_get(client, f"{BASE_URI}/exchange/abc")
+    assert_response(rc, 502)
+    assert rc.json() == \
+        {'error': 'Error querying /api/v1/exchange/abc: abc is not a supported exchange.'}
+
+
+def test_settings_options(botclient):
+    cgbot, client = botclient
+
+    rc = client_get(client, f"{BASE_URI}/settings_options")
+    assert_response(rc)
+    ret = rc.json()
+    assert isinstance(ret['exchanges'], list)
+    assert isinstance(ret['stake_currencies'], list)
+    assert isinstance(ret['fiat_display_currencies'], list)
+
+
+def test_update_exchange(botclient, mocker, default_conf):
+    cgbot, client = botclient
+    mock_conf = MagicMock(return_value=default_conf)
+    mocker.patch('coingro.rpc.rpc.Configuration.from_files', mock_conf)
+    mocker.patch('coingro.rpc.RPC._validate_config', MagicMock())
+    mocker.patch('coingro.rpc.rpc.save_to_config_file', MagicMock())
+
+    rc = client_post(client, f"{BASE_URI}/exchange",
+                     data='{"name": "abcd"}')
+    assert_response(rc, 502)
+    assert rc.json() == {"error": "Error querying /api/v1/exchange: "
+                                  "abcd is not a supported exchange."}
+
+    rc = client_post(client, f"{BASE_URI}/exchange",
+                     data='{"name": "binance", "dry_run": true}')
+    print(rc.json())
+    assert_response(rc)
+    assert rc.json() == {'status': 'Successfully updated config. '
+                                   'Reload config for changes to take effect.'}
+
+
+def test_update_strategy(botclient, mocker, default_conf):
+    cgbot, client = botclient
+    mock_conf = MagicMock(return_value=default_conf)
+    mocker.patch('coingro.rpc.rpc.Configuration.from_files', mock_conf)
+    mocker.patch('coingro.rpc.RPC._validate_config', MagicMock())
+    mocker.patch('coingro.rpc.rpc.save_to_config_file', MagicMock())
+
+    rc = client_post(client, f"{BASE_URI}/strategy",
+                     data='{"strategy": "SampleStrategy"}')
+    assert_response(rc)
+    assert rc.json() == {'status': 'Successfully updated config. '
+                                   'Reload config for changes to take effect.'}
+
+
+def test_update_settings(botclient, mocker, default_conf):
+    cgbot, client = botclient
+    mock_conf = MagicMock(return_value=default_conf)
+    mocker.patch('coingro.rpc.rpc.Configuration.from_files', mock_conf)
+    mocker.patch('coingro.rpc.RPC._validate_config', MagicMock())
+    mocker.patch('coingro.rpc.rpc.save_to_config_file', MagicMock())
+
+    rc = client_post(client, f"{BASE_URI}/settings",
+                     data='{"stake_currency": "BTC"}')
+    assert_response(rc)
+    assert rc.json() == {'status': 'Successfully updated config. '
+                                   'Reload config for changes to take effect.'}
+
+
+def test_reset_original_config(botclient, mocker):
+    cgbot, client = botclient
+    mock_conf = MagicMock(return_value={})
+    mocker.patch('coingro.rpc.rpc.Configuration.from_files', mock_conf)
+    mocker.patch('coingro.rpc.rpc.save_to_config_file', MagicMock())
+
+    rc = client_post(client, f"{BASE_URI}/reset_original_config")
+    assert_response(rc)
+    assert rc.json() == {'status': 'Reloading original config ...'}

@@ -355,6 +355,68 @@ class FtRestClient():
         """
         return self._get("sysinfo")
 
+    def state(self):
+        """Provides information on running state
+
+        :return: json object
+        """
+        return self._get("state")
+
+    def exchange(self, exchange_name):
+        """Info on a single exchange
+
+        :param exchange_name: Name of exchange
+        :return: json object
+        """
+        return self._get(f"exchange/{exchange_name}")
+
+    def settings_options(self):
+        """Configuration options
+
+        :return: json object
+        """
+        return self._get("settings_options")
+
+    def update_exchange(self,
+                        dry_run=None,
+                        name=None,
+                        key=None,
+                        secret=None,
+                        password=None,
+                        uid=None):
+        """Update exchange configuration
+
+        :param dry_run: Should the bot run in dry-run mode.
+        :param name: The exchange the bot should use.
+        :param key: API key (only required in live mode).
+        :param secret: API secret key (only required in live mode).
+        :param password: Password (depends on exchange).
+        :param uid: UID (depends on exchange).
+        :return: json object
+        """
+        return self._post("exchange", data={
+            "dry_run": dry_run,
+            "name": name,
+            "key": key,
+            "secret": secret,
+            "password": password,
+            "uid": uid,
+        })
+
+    def update_strategy(self,
+                        strategy=None,
+                        stoploss=None):
+        """Update strategy configuration
+
+        :param strategy: The strategy the bot should use.
+        :param stoploss: Fractional loss at which to close trades.
+        :return: json object
+        """
+        return self._post("exchange", data={
+            "strategy": strategy,
+            "stoploss": stoploss,
+        })
+
 
 def add_arguments():
     parser = argparse.ArgumentParser()

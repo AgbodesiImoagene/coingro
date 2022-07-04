@@ -16,9 +16,6 @@ logger = logging.getLogger(__name__)
 def save_to_config_file(config: Dict[str, Any]):
     file_path = Path(config['user_data_dir']) / USERPATH_CONFIG / DEFAULT_CONFIG_SAVE
 
-    if config.get('original_config'):
-        config.pop('original_config')
-
     if config.get('max_open_trades') == float('inf'):
         config['max_open_trades'] = -1
 

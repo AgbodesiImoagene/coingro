@@ -1,7 +1,8 @@
 from datetime import date, datetime
+from enum import Enum
 from typing import Any, Dict, List, Optional, Union
 
-from pydantic import BaseModel
+from pydantic import BaseModel, confloat, conint, conlist
 
 from coingro.constants import DATETIME_PRINT_FORMAT
 from coingro.enums import OrderTypeValues, SignalDirection, TradingMode
@@ -445,3 +446,56 @@ class SysInfo(BaseModel):
 class Health(BaseModel):
     last_process: datetime
     last_process_ts: int
+
+
+class State(BaseModel):
+    state: str
+    message: str
+
+
+class ExchangeInfo(BaseModel):
+    name: str
+    required_credentials: Dict[str, bool]
+
+
+class SettingsOptions(BaseModel):
+    exchanges: List[str]
+    stake_currencies: List[str]
+    fiat_display_currencies: List[str]
+
+
+class ROI(BaseModel):
+    time_limit_mins: conint(ge=0)  # type: ignore
+    profit: confloat(ge=-1)  # type: ignore
+
+
+class StakeAmountOptions(str, Enum):
+    unlimited = 'unlimited'
+
+
+class UpdateExchangePayload(BaseModel):
+    dry_run: Optional[bool]
+    name: Optional[str]
+    key: Optional[str]
+    secret: Optional[str]
+    password: Optional[str]
+    uid: Optional[str]
+
+
+class UpdateStrategyPayload(BaseModel):
+    strategy: Optional[str]
+    minimal_roi: Optional[conlist(item_type=ROI, min_items=1)]  # type: ignore
+    stoploss: Optional[confloat(lt=0, ge=-1)]  # type: ignore
+    trailing_stop: Optional[bool]
+    trailing_stop_positive: Optional[confloat(le=1, ge=0)]  # type: ignore
+    trailing_stop_positive_offset: Optional[confloat(le=1, ge=0)]  # type: ignore
+    trailing_only_offset_is_reached: Optional[bool]
+
+
+class UpdateSettingsPayload(BaseModel):
+    max_open_trades: Optional[conint(ge=-1)]  # type: ignore
+    stake_currency: Optional[str]
+    stake_amount: Optional[Union[confloat(le=0.0001), StakeAmountOptions]]  # type: ignore
+    tradable_balance_ratio: Optional[confloat(le=1, ge=0)]  # type: ignore
+    fiat_display_currency: Optional[str]
+    available_capital: Optional[confloat(ge=0)]  # type: ignore

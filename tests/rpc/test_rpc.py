@@ -1,6 +1,7 @@
 # pragma pylint: disable=missing-docstring, C0103
 # pragma pylint: disable=invalid-sequence-index, invalid-name, too-many-arguments
 
+from copy import deepcopy
 from datetime import datetime, timedelta, timezone
 from unittest.mock import ANY, MagicMock, PropertyMock
 
@@ -8,14 +9,14 @@ import pytest
 from numpy import isnan
 
 from coingro.edge import PairInfo
-from coingro.enums import SignalDirection, State, TradingMode
+from coingro.enums import RunMode, SignalDirection, State, TradingMode
 from coingro.exceptions import ExchangeError, InvalidOrderException, TemporaryError
 from coingro.persistence import Trade
 from coingro.persistence.pairlock_middleware import PairLocks
 from coingro.rpc import RPC, RPCException
 from coingro.rpc.fiat_convert import CryptoToFiatConverter
-from tests.conftest import (create_mock_trades, create_mock_trades_usdt, get_patched_coingrobot,
-                            patch_get_signal)
+from tests.conftest import (CURRENT_TEST_STRATEGY, create_mock_trades, create_mock_trades_usdt,
+                            get_patched_coingrobot, patch_get_signal)
 
 
 # Functions for recurrent object patching
@@ -1285,3 +1286,156 @@ def test_rpc_health(mocker, default_conf) -> None:
     result = rpc._health()
     assert result['last_process'] == '1970-01-01 00:00:00+00:00'
     assert result['last_process_ts'] == 0
+
+
+def test_rpc_state(mocker, default_conf) -> None:
+    mocker.patch('coingro.rpc.telegram.Telegram', MagicMock())
+
+    coingrobot = get_patched_coingrobot(mocker, default_conf)
+    rpc = RPC(coingrobot)
+    result = rpc._state()
+    assert result['state'] == 'running'
+    assert result['message'] == ''
+
+
+def test_rpc_exchange_info(mocker, default_conf) -> None:
+    mocker.patch('coingro.rpc.telegram.Telegram', MagicMock())
+
+    coingrobot = get_patched_coingrobot(mocker, default_conf)
+    rpc = RPC(coingrobot)
+    with pytest.raises(RPCException, match='bad_exchange is not a supported exchange.'):
+        rpc._rpc_exchange_info('bad_exchange')
+
+    result = rpc._rpc_exchange_info('binance')
+    assert result['name'] == 'binance'
+    assert 'required_credentials' in result
+    assert isinstance(result['required_credentials'], dict)
+
+
+def test_rpc_update_exchange(mocker, default_conf) -> None:
+    default_conf['runmode'] = RunMode.DRY_RUN
+    mock_conf = MagicMock(return_value=default_conf)
+    mocker.patch('coingro.rpc.telegram.Telegram', MagicMock())
+    mocker.patch('coingro.rpc.rpc.Configuration.from_files', mock_conf)
+    mock_exch = mocker.patch('coingro.rpc.rpc.ExchangeResolver', MagicMock())
+    mock_exch.close = MagicMock()
+    save_mock = mocker.patch('coingro.rpc.rpc.save_to_config_file', MagicMock())
+
+    coingrobot = get_patched_coingrobot(mocker, default_conf)
+    rpc = RPC(coingrobot)
+    with pytest.raises(RPCException, match='bad_exchange is not a supported exchange.'):
+        rpc._rpc_update_exchange(name='bad_exchange')
+
+    data = {'name': 'Kraken', 'dry_run': False, 'key': 'abc', 'secret': '123'}
+    result = rpc._rpc_update_exchange(**data)
+    assert result == {'status': 'Successfully updated config. '
+                      'Reload config for changes to take effect.'}
+    assert save_mock.call_args.args[0]['exchange']['name'] == 'Kraken'
+    assert not save_mock.call_args.args[0]['dry_run']
+
+
+def test_rpc_update_strategy(mocker, default_conf) -> None:
+    default_conf['runmode'] = RunMode.DRY_RUN
+    mock_conf = MagicMock(return_value=default_conf)
+    mocker.patch('coingro.rpc.telegram.Telegram', MagicMock())
+    mocker.patch('coingro.rpc.rpc.Configuration.from_files', mock_conf)
+    save_mock = mocker.patch('coingro.rpc.rpc.save_to_config_file', MagicMock())
+
+    coingrobot = get_patched_coingrobot(mocker, default_conf)
+    rpc = RPC(coingrobot)
+    with pytest.raises(RPCException, match=r"Impossible to load Strategy 'RandomStrategy'.*"):
+        rpc._rpc_update_strategy(strategy='RandomStrategy')
+
+    minimal_roi = [{'time_limit_mins': 120, 'profit': -1},
+                   {'time_limit_mins': 60, 'profit': 0},
+                   {'time_limit_mins': 40, 'profit': 0.02},
+                   {'time_limit_mins': 20, 'profit': 0.04},
+                   {'time_limit_mins': 0, 'profit': 0.1}]
+
+    data = {'strategy': CURRENT_TEST_STRATEGY,
+            'minimal_roi': minimal_roi,
+            'stoploss': -0.4,
+            'trailing_stop': True,
+            'trailing_stop_positive': 0.2,
+            'trailing_stop_positive_offset': 0.3,
+            'trailing_only_offset_is_reached': True}
+
+    result = rpc._rpc_update_strategy(**data)
+    assert result == {'status': 'Successfully updated config. '
+                      'Reload config for changes to take effect.'}
+    assert save_mock.call_args.args[0]['strategy'] == CURRENT_TEST_STRATEGY
+    assert save_mock.call_args.args[0]['minimal_roi'] == {'120': -1,
+                                                          '60': 0,
+                                                          '40': 0.02,
+                                                          '20': 0.04,
+                                                          '0': 0.1}
+    assert save_mock.call_args.args[0]['stoploss'] == -0.4
+    assert save_mock.call_args.args[0]['trailing_stop']
+    assert save_mock.call_args.args[0]['trailing_stop_positive'] == 0.2
+    assert save_mock.call_args.args[0]['trailing_stop_positive_offset'] == 0.3
+    assert save_mock.call_args.args[0]['trailing_only_offset_is_reached']
+
+
+def test_rpc_update_general_settings(mocker, default_conf) -> None:
+    default_conf['runmode'] = RunMode.DRY_RUN
+    mock_conf = MagicMock(return_value=default_conf)
+    mocker.patch('coingro.rpc.telegram.Telegram', MagicMock())
+    mocker.patch('coingro.rpc.rpc.Configuration.from_files', mock_conf)
+    save_mock = mocker.patch('coingro.rpc.rpc.save_to_config_file', MagicMock())
+
+    coingrobot = get_patched_coingrobot(mocker, default_conf)
+    rpc = RPC(coingrobot)
+
+    data = {'max_open_trades': -1,
+            'stake_currency': 'USDT',
+            'stake_amount': 200,
+            'tradable_balance_ratio': 0.8,
+            'fiat_display_currency': 'CAD'}
+
+    result = rpc._rpc_update_general_settings(**data)
+    assert result == {'status': 'Successfully updated config. '
+                      'Reload config for changes to take effect.'}
+    assert save_mock.call_args.args[0]['max_open_trades'] == -1
+    assert save_mock.call_args.args[0]['stake_currency'] == 'USDT'
+    assert save_mock.call_args.args[0]['stake_amount'] == 200
+    assert save_mock.call_args.args[0]['fiat_display_currency'] == 'CAD'
+    assert save_mock.call_args.args[0]['exchange']['pair_whitelist'] == ['.*/USDT']
+
+    data = {'max_open_trades': 3,
+            'stake_amount': 'unlimited',
+            'tradable_balance_ratio': 0.99,
+            'available_capital': 1000}
+
+    result = rpc._rpc_update_general_settings(**data)
+    assert result == {'status': 'Successfully updated config. '
+                      'Reload config for changes to take effect.'}
+    assert save_mock.call_args.args[0]['max_open_trades'] == 3
+    assert save_mock.call_args.args[0]['stake_amount'] == 'unlimited'
+    assert save_mock.call_args.args[0]['tradable_balance_ratio'] == 0.99
+    assert save_mock.call_args.args[0]['available_capital'] == 1000
+
+
+def test_rpc_reset_original_config(mocker, default_conf) -> None:
+    config = deepcopy(default_conf)
+    config['original_config'] = deepcopy(default_conf)
+    mocker.patch('coingro.rpc.telegram.Telegram', MagicMock())
+    save_mock = mocker.patch('coingro.rpc.rpc.save_to_config_file', MagicMock())
+
+    coingrobot = get_patched_coingrobot(mocker, config)
+    rpc = RPC(coingrobot)
+
+    result = rpc._rpc_reset_original_config()
+    assert result == {'status': 'Reloading original config ...'}
+    assert save_mock.call_args.args[0] == default_conf
+    assert coingrobot.state == State.RELOAD_CONFIG
+
+    mock_conf = MagicMock(return_value=default_conf)
+    mocker.patch('coingro.rpc.rpc.Configuration.from_files', mock_conf)
+
+    coingrobot = get_patched_coingrobot(mocker, default_conf)
+    rpc = RPC(coingrobot)
+
+    result = rpc._rpc_reset_original_config()
+    assert result == {'status': 'Reloading original config ...'}
+    assert save_mock.call_args.args[0] == default_conf
+    assert coingrobot.state == State.RELOAD_CONFIG
