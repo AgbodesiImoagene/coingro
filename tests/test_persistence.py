@@ -53,7 +53,7 @@ def test_init_invalid_db_url():
 
 def test_init_prod_db(default_conf, mocker):
     default_conf.update({'dry_run': False})
-    default_conf.update({'db_url': constants.DEFAULT_DB_PROD_URL})
+    default_conf.update({'db_url': constants.DEFAULT_DB_LIVE_URL})
 
     create_engine_mock = mocker.patch('coingro.persistence.models.create_engine', MagicMock())
 

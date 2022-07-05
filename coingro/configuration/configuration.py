@@ -7,7 +7,9 @@ from copy import deepcopy
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional
 
-from coingro import constants
+from sqlalchemy.engine import URL
+
+from coingro import __id__, constants
 from coingro.configuration.check_exchange import check_exchange
 from coingro.configuration.config_security import Encryption
 from coingro.configuration.deprecated_settings import process_temporary_deprecated_settings
@@ -138,13 +140,10 @@ class Configuration:
 
         if config.get('dry_run', False):
             logger.info('Dry run is enabled')
-            if config.get('db_url') in [None, constants.DEFAULT_DB_PROD_URL]:
-                # Default to in-memory db for dry_run if not specified
-                config['db_url'] = constants.DEFAULT_DB_DRYRUN_URL
         else:
-            if not config.get('db_url'):
-                config['db_url'] = constants.DEFAULT_DB_PROD_URL
             logger.info('Dry run is disabled')
+
+        config['db_url'] = Configuration.db_url_from_config(config)
 
         logger.info(f'Using DB: "{parse_db_uri_for_logging(config["db_url"])}"')
 
@@ -158,7 +157,7 @@ class Configuration:
                              logstring='Using additional Strategy lookup path: {}')
 
         if ('db_url' in self.args and self.args['db_url'] and
-                self.args['db_url'] != constants.DEFAULT_DB_PROD_URL):
+                self.args['db_url'] != constants.DEFAULT_DB_LIVE_URL):
             config.update({'db_url': self.args['db_url']})
             logger.info('Parameter --db-url detected ...')
 
@@ -531,3 +530,29 @@ class Configuration:
                 config['pairs'] = load_file(pairs_file)
                 if 'pairs' in config and isinstance(config['pairs'], list):
                     config['pairs'].sort()
+
+    @staticmethod
+    def db_url_from_config(config: Dict[str, Any]) -> str:
+        if 'db_config' in config:
+            db_args = deepcopy(config['db_config'])
+
+            if db_args['drivername'] == 'mysql':
+                db_args['drivername'] = 'mysql+pymysql'
+
+            if db_args['drivername'] == 'postgresql':
+                db_args['drivername'] = 'postgresql+psycopg2'
+
+            if db_args['drivername'] != 'sqlite' and 'database' not in db_args:
+                database = f'{__id__}.tradesv3.dryrun' if config.get('dry_run', True) \
+                    else f'{__id__}.tradesv3'
+                db_args['database'] = database
+
+            return URL.create(**db_args).render_as_string(hide_password=False)
+
+        if 'db_url' in config:
+            if not (config.get('dry_run', True) and
+                    config['db_url'] == constants.DEFAULT_DB_LIVE_URL):
+                return config['db_url']
+
+        return constants.DEFAULT_DB_DRYRUN_URL if config.get('dry_run', True) \
+            else constants.DEFAULT_DB_LIVE_URL

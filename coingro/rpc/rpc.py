@@ -1112,9 +1112,11 @@ class RPC:
                 if 'exchange' not in config:
                     config['exchange'] = {}
 
-                if ('stake_currency' in config and 'name' in kwargs
-                        and kwargs['name'].lower() == 'binance'):
-                    config['exchange']['pair_blacklist'] = [f'BNB/{config["stake_currency"]}']
+                if 'stake_currency' in config and 'name' in kwargs:
+                    if kwargs['name'].lower() == 'binance':
+                        config['exchange']['pair_blacklist'] = [f'BNB/{config["stake_currency"]}']
+                    if kwargs['name'].lower() == 'huobi':
+                        config['exchange']['pair_blacklist'] = [f'HT/{config["stake_currency"]}']
 
                 config['exchange'].update(kwargs)
                 tempconf = deepcopy(config)
@@ -1162,6 +1164,8 @@ class RPC:
                     config['exchange']['pair_whitelist'] = [f'.*/{kwargs["stake_currency"]}']
                     if config['exchange']['name'].lower() == 'binance':
                         config['exchange']['pair_blacklist'] = [f'BNB/{kwargs["stake_currency"]}']
+                    if config['exchange']['name'].lower() == 'huobi':
+                        config['exchange']['pair_blacklist'] = [f'HT/{kwargs["stake_currency"]}']
 
                 config.update(kwargs)
                 tempconf = deepcopy(config)

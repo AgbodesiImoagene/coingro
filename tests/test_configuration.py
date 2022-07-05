@@ -10,6 +10,7 @@ from unittest.mock import MagicMock
 import pytest
 from jsonschema import ValidationError
 
+from coingro import __id__
 from coingro.commands import Arguments
 from coingro.configuration import Configuration, check_exchange, validate_config_consistency
 from coingro.configuration.config_security import Encryption
@@ -22,7 +23,7 @@ from coingro.configuration.environment_vars import flat_vars_to_nested_dict
 from coingro.configuration.load_config import (load_config_file, load_file, load_from_files,
                                                log_config_error_range)
 from coingro.configuration.save_config import save_to_config_file
-from coingro.constants import (DEFAULT_CONFIG_SAVE, DEFAULT_DB_DRYRUN_URL, DEFAULT_DB_PROD_URL,
+from coingro.constants import (DEFAULT_CONFIG_SAVE, DEFAULT_DB_DRYRUN_URL, DEFAULT_DB_LIVE_URL,
                                ENV_VAR_PREFIX)
 from coingro.enums import RunMode
 from coingro.exceptions import OperationalException
@@ -357,14 +358,14 @@ def test_load_config_with_params(default_conf, mocker) -> None:
 
     configuration = Configuration(args)
     validated_conf = configuration.load_config()
-    assert validated_conf.get('db_url') == DEFAULT_DB_PROD_URL
+    assert validated_conf.get('db_url') == DEFAULT_DB_LIVE_URL
     assert "runmode" in validated_conf
     assert validated_conf['runmode'] == RunMode.LIVE
 
     # Test args provided db_url dry_run
     conf = default_conf.copy()
     conf["dry_run"] = True
-    conf["db_url"] = DEFAULT_DB_PROD_URL
+    conf["db_url"] = DEFAULT_DB_LIVE_URL
     patched_configuration_load_config_file(mocker, conf)
 
     arglist = [
@@ -1627,3 +1628,46 @@ def test_config_decryption(default_conf):
     decrypted_config.pop('encryption')
 
     assert decrypted_config == default_conf
+
+
+def test_db_url_from_config(default_conf, mocker):
+    assert Configuration.db_url_from_config(default_conf) == "sqlite://"
+
+    default_conf.pop('db_url')
+    assert Configuration.db_url_from_config(default_conf) == DEFAULT_DB_DRYRUN_URL
+
+    default_conf['db_url'] = DEFAULT_DB_LIVE_URL
+    assert Configuration.db_url_from_config(default_conf) == DEFAULT_DB_DRYRUN_URL
+
+    default_conf['dry_run'] = False
+    assert Configuration.db_url_from_config(default_conf) == DEFAULT_DB_LIVE_URL
+
+    default_conf.pop('db_url')
+    assert Configuration.db_url_from_config(default_conf) == DEFAULT_DB_LIVE_URL
+
+    default_conf['db_url'] = 'sqlite:///testdb'
+    assert Configuration.db_url_from_config(default_conf) == 'sqlite:///testdb'
+
+    db_args = {'drivername': 'mysql',
+               'username': 'test-user',
+               'password': 'Password123',
+               'host': 'test-host',
+               'port': 1234}
+    default_conf['db_config'] = db_args
+    url = f'mysql+pymysql://test-user:Password123@test-host:1234/{__id__}.tradesv3'
+    assert Configuration.db_url_from_config(default_conf) == url
+
+    default_conf['dry_run'] = True
+    db_args = {'drivername': 'postgresql',
+               'username': 'test-user',
+               'password': 'Password123',
+               'host': 'test-host',
+               'port': 1234}
+    default_conf['db_config'] = db_args
+    url = f'postgresql+psycopg2://test-user:Password123@test-host:1234/{__id__}.tradesv3.dryrun'
+    assert Configuration.db_url_from_config(default_conf) == url
+
+    db_args = {'drivername': 'sqlite',
+               'database': 'testdb2'}
+    default_conf['db_config'] = db_args
+    assert Configuration.db_url_from_config(default_conf) == 'sqlite:///testdb2'

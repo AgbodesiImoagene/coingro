@@ -102,7 +102,7 @@ AVAILABLE_CLI_OPTIONS = {
     "db_url": Arg(
         '--db-url',
         help=f'Override trades database URL, this is useful in custom deployments '
-        f'(default: `{constants.DEFAULT_DB_PROD_URL}` for Live Run mode, '
+        f'(default: `{constants.DEFAULT_DB_LIVE_URL}` for Live Run mode, '
         f'`{constants.DEFAULT_DB_DRYRUN_URL}` for Dry Run).',
         metavar='PATH',
     ),

@@ -11,10 +11,10 @@ import pytest
 
 from coingro.commands import (start_backtesting_show, start_convert_data, start_convert_trades,
                               start_create_userdir, start_download_data, start_hyperopt_list,
-                              start_hyperopt_show, start_install_ui, start_list_data,
-                              start_list_exchanges, start_list_markets, start_list_strategies,
-                              start_list_timeframes, start_new_strategy, start_show_trades,
-                              start_test_pairlist, start_trading, start_webserver)
+                              start_hyperopt_show, start_list_data, start_list_exchanges,
+                              start_list_markets, start_list_strategies, start_list_timeframes,
+                              start_new_strategy, start_show_trades, start_test_pairlist,
+                              start_trading, start_webserver)
 from coingro.commands.db_commands import start_convert_db
 from coingro.commands.deploy_commands import (clean_ui_subdir, download_and_install_ui,
                                               get_ui_download_url, read_ui_version)
@@ -520,32 +520,32 @@ def test_start_new_strategy_no_arg(mocker, caplog):
         start_new_strategy(get_args(args))
 
 
-def test_start_install_ui(mocker):
-    clean_mock = mocker.patch('coingro.commands.deploy_commands.clean_ui_subdir')
-    get_url_mock = mocker.patch('coingro.commands.deploy_commands.get_ui_download_url',
-                                return_value=('https://example.com/whatever', '0.0.1'))
-    download_mock = mocker.patch('coingro.commands.deploy_commands.download_and_install_ui')
-    mocker.patch('coingro.commands.deploy_commands.read_ui_version', return_value=None)
-    args = [
-        "install-ui",
-    ]
-    start_install_ui(get_args(args))
-    assert clean_mock.call_count == 1
-    assert get_url_mock.call_count == 1
-    assert download_mock.call_count == 1
+# def test_start_install_ui(mocker):
+#     clean_mock = mocker.patch('coingro.commands.deploy_commands.clean_ui_subdir')
+#     get_url_mock = mocker.patch('coingro.commands.deploy_commands.get_ui_download_url',
+#                                 return_value=('https://example.com/whatever', '0.0.1'))
+#     download_mock = mocker.patch('coingro.commands.deploy_commands.download_and_install_ui')
+#     mocker.patch('coingro.commands.deploy_commands.read_ui_version', return_value=None)
+#     args = [
+#         "install-ui",
+#     ]
+#     start_install_ui(get_args(args))
+#     assert clean_mock.call_count == 1
+#     assert get_url_mock.call_count == 1
+#     assert download_mock.call_count == 1
 
-    clean_mock.reset_mock()
-    get_url_mock.reset_mock()
-    download_mock.reset_mock()
+#     clean_mock.reset_mock()
+#     get_url_mock.reset_mock()
+#     download_mock.reset_mock()
 
-    args = [
-        "install-ui",
-        "--erase",
-    ]
-    start_install_ui(get_args(args))
-    assert clean_mock.call_count == 1
-    assert get_url_mock.call_count == 1
-    assert download_mock.call_count == 0
+#     args = [
+#         "install-ui",
+#         "--erase",
+#     ]
+#     start_install_ui(get_args(args))
+#     assert clean_mock.call_count == 1
+#     assert get_url_mock.call_count == 1
+#     assert download_mock.call_count == 0
 
 
 def test_clean_ui_subdir(mocker, tmpdir, caplog):

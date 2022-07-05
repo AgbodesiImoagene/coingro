@@ -499,3 +499,4 @@ class UpdateSettingsPayload(BaseModel):
     tradable_balance_ratio: Optional[confloat(le=1, ge=0)]  # type: ignore
     fiat_display_currency: Optional[str]
     available_capital: Optional[confloat(ge=0)]  # type: ignore
+    dry_run_wallet: Optional[confloat(ge=0)]  # type: ignore

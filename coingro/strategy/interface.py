@@ -49,10 +49,15 @@ class IStrategy(ABC, HyperStrategyMixin):
 
     _cg_params_from_file: Dict
     # associated minimal roi
-    minimal_roi: Dict = {}
+    minimal_roi: Dict = {
+        "40":  0.0,
+        "30":  0.01,
+        "20":  0.02,
+        "0":  0.04
+    }
 
     # associated stoploss
-    stoploss: float
+    stoploss: float = -0.10
 
     # trailing stoploss
     trailing_stop: bool = False
@@ -65,7 +70,7 @@ class IStrategy(ABC, HyperStrategyMixin):
     can_short: bool = False
 
     # associated timeframe
-    timeframe: str
+    timeframe: str = "5m"
 
     # Optional order types
     order_types: Dict = {
@@ -85,17 +90,17 @@ class IStrategy(ABC, HyperStrategyMixin):
     # run "populate_indicators" only for new candle
     process_only_new_candles: bool = True
 
-    use_exit_signal: bool
-    exit_profit_only: bool
-    exit_profit_offset: float
-    ignore_roi_if_entry_signal: bool
+    use_exit_signal: bool = True
+    exit_profit_only: bool = False
+    exit_profit_offset: float = 0.0
+    ignore_roi_if_entry_signal: bool = False
 
     # Position adjustment is disabled by default
     position_adjustment_enable: bool = False
     max_entry_position_adjustment: int = -1
 
     # Number of seconds after which the candle will no longer result in a buy on expired candles
-    ignore_buying_expired_candle_after: int = 0
+    ignore_buying_expired_candle_after: int = 300
 
     # Disable checking the dataframe (converts the error into a warning message)
     disable_dataframe_checks: bool = False
@@ -104,12 +109,19 @@ class IStrategy(ABC, HyperStrategyMixin):
     startup_candle_count: int = 0
 
     # Plugins
-    pairlists: List = []
+    pairlists: List = [
+        {
+            "method": "VolumePairList",
+            "number_assets": 20,
+            "sort_key": "quoteVolume",
+            "refresh_period": 1800
+        }
+    ]
     protections: List = []
 
     # Trading modes
-    trading_mode: str
-    margin_mode: str
+    trading_mode: str = "spot"
+    margin_mode: str = ""
 
     # Class level variables (intentional) containing
     # the dataprovider (dp) (access to other candles, historic data, ...)

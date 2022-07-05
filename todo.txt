@@ -16,10 +16,12 @@ ensure fiat and quote are enforced in config validation # done
 . migrate from todo.txt to GitHub issues
 
 -- Database changes --
-. add id to all database entries # add to db names
+. add id to to db names # done
 . add alembic migrations to coingro (master?)
-. add connect args to database config
+. add connect args to database config # done
 . retry db connection # sqlalchemy already does this but add retrier function
+. test get url # done
+. create db
 
 -- Config/Strategies changes --
 . test config quote currency restriction # done
@@ -27,11 +29,12 @@ ensure fiat and quote are enforced in config validation # done
 . add exchange api permission validation to config validation # partially done, need to validate trade permissions
 . change default config folder # done
 . include functionality to reversibly encrypt api keys in saved config # done
-. add default config to templates
+. add default config to templates # done
 . update allowed exchanges # done
 . test -1 in save config for max trades # done
 . consider making encryption class singleton
 . add path parameter to save_config func
+. add descriptions to strategy interface and API
 
 -- API changes --
 . add reset config endpoint # done

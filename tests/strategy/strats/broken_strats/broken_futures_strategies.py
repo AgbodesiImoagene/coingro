@@ -11,7 +11,6 @@ from coingro.strategy.interface import IStrategy
 
 
 class TestStrategyNoImplements(IStrategy):
-
     def populate_indicators(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
         return super().populate_indicators(dataframe, metadata)
 

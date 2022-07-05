@@ -7,6 +7,7 @@ from sqlalchemy import create_engine, inspect
 from sqlalchemy.exc import NoSuchModuleError
 from sqlalchemy.orm import scoped_session, sessionmaker
 from sqlalchemy.pool import StaticPool
+from sqlalchemy_utils import create_database, database_exists
 
 from coingro.exceptions import OperationalException
 from coingro.persistence.base import _DECL_BASE
@@ -49,6 +50,13 @@ def init_db(db_url: str) -> None:
     except NoSuchModuleError:
         raise OperationalException(f"Given value for db_url: '{db_url}' "
                                    f"is no valid database URL! (See {_SQL_DOCS_URL})")
+
+    # Create database if it does not exist. User must have create database privileges.
+    if not database_exists(db_url):
+        create_database(db_url)
+    else:
+        # Connect the database if exists.
+        engine.connect()
 
     # https://docs.sqlalchemy.org/en/13/orm/contextual.html#thread-local-scope
     # Scoped sessions proxy requests to the appropriate thread-local session.

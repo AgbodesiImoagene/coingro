@@ -17,7 +17,7 @@ HYPEROPT_EPOCH = 100  # epochs
 RETRY_TIMEOUT = 30  # sec
 TIMEOUT_UNITS = ['minutes', 'seconds']
 EXPORT_OPTIONS = ['none', 'trades', 'signals']
-DEFAULT_DB_PROD_URL = 'sqlite:///tradesv3.sqlite'
+DEFAULT_DB_LIVE_URL = 'sqlite:///tradesv3.sqlite'
 DEFAULT_DB_DRYRUN_URL = 'sqlite:///tradesv3.dryrun.sqlite'
 UNLIMITED_STAKE_AMOUNT = 'unlimited'
 DEFAULT_AMOUNT_RESERVE_PERCENT = 0.05
@@ -85,6 +85,7 @@ DUST_PER_COIN = {
 
 # Source files with destination directories within user-directory
 USER_DATA_FILES = {
+    'config.json': USERPATH_CONFIG,
     'sample_strategy.py': USERPATH_STRATEGIES,
     'sample_hyperopt_loss.py': USERPATH_HYPEROPTS,
     'strategy_analysis_example.ipynb': USERPATH_NOTEBOOKS,
@@ -97,14 +98,27 @@ PROTECTED_CREDENTIALS = {
         'password': None,
         'uid': None
     },
-    'database': {
+    'db_config': {
         'username': None,
         'password': None
     },
-    'db_url': None
+    'db_url': None,
+    'original_config': {
+        'exchange': {
+            'key': None,
+            'secret': None,
+            'password': None,
+            'uid': None
+        },
+        'db_config': {
+            'username': None,
+            'password': None
+        },
+        'db_url': None
+    }
 }
 
-DB_ENGINE_OPTIONS = ['mysql', 'postgresql', 'sqlite']
+DRIVERNAME_OPTIONS = ['mysql', 'postgresql', 'sqlite']
 
 SUPPORTED_FIAT = [
     "AUD", "BRL", "CAD", "CHF", "CLP", "CNY", "CZK", "DKK",
@@ -422,13 +436,13 @@ CONF_SCHEMA = {
             },
             'required': ['enabled', 'listen_ip_address', 'listen_port', 'username', 'password']
         },
-        'database': {
+        'db_config': {
             'type': 'object',
             'properties': {
-                'engine': {'type': 'string', 'enum': DB_ENGINE_OPTIONS},
+                'drivername': {'type': 'string', 'enum': DRIVERNAME_OPTIONS},
                 'username': {'type': 'string'},
                 'password': {'type': 'string'},
-                'hostname': {
+                'host': {
                     'anyOf': [
                         {'format': 'hostname'},
                         {'format': 'ipv4'},
@@ -440,10 +454,10 @@ CONF_SCHEMA = {
                     'minimum': 1024,
                     'maximum': 65535
                 },
-                'database_name': {'type': 'string'},
-                'file_path': {'type': 'string'}
+                'database': {'type': 'string'},
+                'query': {'type': 'object', 'default': {}}
             },
-            'required': ['dbms']
+            'required': ['drivername']
         },
         'db_url': {'type': 'string'},
         'encryption': {'type': 'boolean', 'default': False},
