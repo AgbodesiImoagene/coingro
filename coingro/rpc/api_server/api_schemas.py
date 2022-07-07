@@ -495,7 +495,7 @@ class UpdateStrategyPayload(BaseModel):
 class UpdateSettingsPayload(BaseModel):
     max_open_trades: Optional[conint(ge=-1)]  # type: ignore
     stake_currency: Optional[str]
-    stake_amount: Optional[Union[confloat(le=0.0001), StakeAmountOptions]]  # type: ignore
+    stake_amount: Optional[Union[confloat(ge=0.0001), StakeAmountOptions]]  # type: ignore
     tradable_balance_ratio: Optional[confloat(le=1, ge=0)]  # type: ignore
     fiat_display_currency: Optional[str]
     available_capital: Optional[confloat(ge=0)]  # type: ignore

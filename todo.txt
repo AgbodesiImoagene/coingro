@@ -1,11 +1,11 @@
 # remove hyperopt, edge and backtest args
 # search project for strategy path
+# move hardcoded time in wallets.update to constants
 ? add settings config validation
+# separate dry run and live persistence models to stay in the same database # rather include dry run in model
 
 figure out how to persist config over container restarts: append bot id to save file name and store in shared config volume
 initialise benchmark strategy bots, cache perfomance metrics in master module
-move hardcoded time in wallets.update to constants
-separate dry run and live persistence models to stay in the same database # rather include dry run in model
 check to see if strategy dir and strategy need to be included in validation schema
 ensure fiat and quote are enforced in config validation # done
 
@@ -17,11 +17,11 @@ ensure fiat and quote are enforced in config validation # done
 
 -- Database changes --
 . add id to to db names # done
-. add alembic migrations to coingro (master?)
+. add alembic migrations to coingro (master?) # nope, too difficult to execute migrations programmatically
 . add connect args to database config # done
-. retry db connection # sqlalchemy already does this but add retrier function
+. retry db connection # sqlalchemy already does this but add retrier function # done
 . test get url # done
-. create db
+. create db # done
 
 -- Config/Strategies changes --
 . test config quote currency restriction # done
@@ -34,7 +34,7 @@ ensure fiat and quote are enforced in config validation # done
 . test -1 in save config for max trades # done
 . consider making encryption class singleton
 . add path parameter to save_config func
-. add descriptions to strategy interface and API
+. add descriptions to strategy interface and API # done, will add to master api
 
 -- API changes --
 . add reset config endpoint # done
@@ -43,8 +43,8 @@ ensure fiat and quote are enforced in config validation # done
 # add alert to rpc status for api expiration and deletion # partialy done
 . add get run state endpoint # done
 . add config options e.g supported fiat, supported stake # done
-. complete rpc script
-. add test for pydantic validator in api tests
+. complete rpc script # done
+. add test for pydantic validator in api tests # done
 . rework schema pydantic type validators to work with mypy
 
 -- Coingro Master features --

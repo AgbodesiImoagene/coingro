@@ -1,2 +1,0 @@
-remove user data directory and create strategy folder instead
-remove optimization modules

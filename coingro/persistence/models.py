@@ -2,14 +2,17 @@
 This module contains the class to persist trades into SQLite
 """
 import logging
+import random
+import time
 
-from sqlalchemy import create_engine, inspect
-from sqlalchemy.exc import NoSuchModuleError
+from sqlalchemy import create_engine, event, inspect, select
+from sqlalchemy.exc import DBAPIError, NoSuchModuleError, OperationalError
 from sqlalchemy.orm import scoped_session, sessionmaker
 from sqlalchemy.pool import StaticPool
 from sqlalchemy_utils import create_database, database_exists
 
-from coingro.exceptions import OperationalException
+from coingro.exceptions import OperationalException, TemporaryError
+from coingro.misc import retrier
 from coingro.persistence.base import _DECL_BASE
 from coingro.persistence.migrations import check_migrate
 from coingro.persistence.pairlock import PairLock
@@ -20,6 +23,67 @@ logger = logging.getLogger(__name__)
 
 
 _SQL_DOCS_URL = 'http://docs.sqlalchemy.org/en/latest/core/engines.html#database-urls'
+
+
+def ping_connection(connection, branch):
+    """
+    Pessimistic SQLAlchemy disconnect handling. Ensures that each
+    connection returned from the pool is properly connected to the database.
+
+    http://docs.sqlalchemy.org/en/rel_1_1/core/pooling.html#disconnect-handling-pessimistic
+    """
+    if branch:
+        # "branch" refers to a sub-connection of a connection,
+        # we don't want to bother pinging on these.
+        return
+
+    start = time.time()
+    backoff = 0.2
+    reconnect_timeout_seconds = 150
+    max_backoff_seconds = 120
+    # turn off "close with result".  This flag is only used with
+    # "connectionless" execution, otherwise will be False in any case
+    save_should_close_with_result = connection.should_close_with_result
+
+    while True:
+        connection.should_close_with_result = False
+
+        try:
+            connection.scalar(select([1]))
+            rollback = getattr(connection, "rollback", None)
+            if callable(rollback):
+                connection.rollback()
+            # If we made it here then the connection appears to be healthy
+            break
+        except DBAPIError as err:
+            if time.time() - start >= reconnect_timeout_seconds:
+                logger.error(
+                    "Failed to re-establish DB connection within %s secs: %s",
+                    reconnect_timeout_seconds,
+                    err)
+                raise OperationalException(err)
+            # if err.connection_invalidated:
+            logger.warning("DB connection invalidated. Reconnecting...")
+
+            # Use a truncated binary exponential backoff. Also includes
+            # a jitter to prevent the thundering herd problem of
+            # simultaneous client reconnects
+            backoff += backoff * random.random()
+            time.sleep(min(backoff, max_backoff_seconds))
+
+            # run the same SELECT again - the connection will re-validate
+            # itself and establish a new connection.  The disconnect detection
+            # here also causes the whole connection pool to be invalidated
+            # so that all stale connections are discarded.
+            continue
+            # else:
+            #     logger.error(
+            #         "Unknown database connection error. Not retrying: %s",
+            #         err)
+            #     raise OperationalException(err)
+        finally:
+            # restore "close with result"
+            connection.should_close_with_result = save_should_close_with_result
 
 
 def init_db(db_url: str) -> None:
@@ -51,12 +115,9 @@ def init_db(db_url: str) -> None:
         raise OperationalException(f"Given value for db_url: '{db_url}' "
                                    f"is no valid database URL! (See {_SQL_DOCS_URL})")
 
-    # Create database if it does not exist. User must have create database privileges.
-    if not database_exists(db_url):
-        create_database(db_url)
-    else:
-        # Connect the database if exists.
-        engine.connect()
+    event.listen(engine, "engine_connect", ping_connection)
+
+    create_db(db_url)
 
     # https://docs.sqlalchemy.org/en/13/orm/contextual.html#thread-local-scope
     # Scoped sessions proxy requests to the appropriate thread-local session.
@@ -69,6 +130,17 @@ def init_db(db_url: str) -> None:
     previous_tables = inspect(engine).get_table_names()
     _DECL_BASE.metadata.create_all(engine)
     check_migrate(engine, decl_base=_DECL_BASE, previous_tables=previous_tables)
+
+
+@retrier
+def create_db(db_url: str) -> None:
+    # Create database if it does not exist. User must have create database privileges.
+    try:
+        if not database_exists(db_url):
+            create_database(db_url)
+    except OperationalError as e:
+        raise TemporaryError(
+            f'Could not connect to database due to {e.__class__.__name__}. Message: {e}') from e
 
 
 def cleanup_db() -> None:

@@ -1723,6 +1723,11 @@ def test_update_settings(botclient, mocker, default_conf):
     mocker.patch('coingro.rpc.rpc.save_to_config_file', MagicMock())
 
     rc = client_post(client, f"{BASE_URI}/settings",
+                     data='{"max_open_trades": -4}')
+    assert_response(rc, 422)
+    assert rc.json()['detail'][0]['msg'] == 'ensure this value is greater than or equal to -1'
+
+    rc = client_post(client, f"{BASE_URI}/settings",
                      data='{"stake_currency": "BTC"}')
     assert_response(rc)
     assert rc.json() == {'status': 'Successfully updated config. '

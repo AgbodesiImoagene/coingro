@@ -56,6 +56,7 @@ def test_init_prod_db(default_conf, mocker):
     default_conf.update({'db_url': constants.DEFAULT_DB_LIVE_URL})
 
     create_engine_mock = mocker.patch('coingro.persistence.models.create_engine', MagicMock())
+    mocker.patch('coingro.persistence.models.event.listen', MagicMock())
 
     init_db(default_conf['db_url'])
     assert create_engine_mock.call_count == 1

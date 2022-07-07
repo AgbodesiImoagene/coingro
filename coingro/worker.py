@@ -5,13 +5,16 @@ import logging
 import time
 import traceback
 from os import getpid
+from pathlib import Path
 from typing import Any, Callable, Dict, Optional
 
 import sdnotify
 
-from coingro import __env__, __version__, constants
+from coingro import __env__, __version__
 from coingro.coingrobot import CoingroBot
 from coingro.configuration import Configuration
+from coingro.constants import (DEFAULT_CONFIG_SAVE, PROCESS_THROTTLE_SECS, RETRY_TIMEOUT,
+                               USERPATH_CONFIG)
 from coingro.enums import State
 from coingro.exceptions import ExchangeError, OperationalException, TemporaryError
 
@@ -34,9 +37,11 @@ class Worker:
         self._config = config
         self._init(False)
 
-        if not self._args:
-            self._args = {}
-        self._args["config_save"] = [constants.DEFAULT_CONFIG_SAVE]
+        self._args = self._args if self._args else {}
+        self._config = self._config if self._config else {}
+        cfgsavefile = Path(self._config.get('user_data_dir', '')) / USERPATH_CONFIG \
+            / DEFAULT_CONFIG_SAVE
+        self._args["config_save"] = [str(cfgsavefile)]
 
         self.last_throttle_start_time: float = 0
         self._heartbeat_msg: float = 0
@@ -57,7 +62,7 @@ class Worker:
 
         internals_config = self._config.get('internals', {})
         self._throttle_secs = internals_config.get('process_throttle_secs',
-                                                   constants.PROCESS_THROTTLE_SECS)
+                                                   PROCESS_THROTTLE_SECS)
         self._heartbeat_interval = internals_config.get('heartbeat_interval', 60)
 
         self._sd_notify = sdnotify.SystemdNotifier() if \
@@ -155,8 +160,8 @@ class Worker:
         try:
             self.coingro.process()
         except TemporaryError as error:
-            logger.warning(f"Error: {error}, retrying in {constants.RETRY_TIMEOUT} seconds...")
-            time.sleep(constants.RETRY_TIMEOUT)
+            logger.warning(f"Error: {error}, retrying in {RETRY_TIMEOUT} seconds...")
+            time.sleep(RETRY_TIMEOUT)
         except (OperationalException, ExchangeError) as error:
             if isinstance(error, OperationalException) or __env__ == 'docker':
                 tb = traceback.format_exc()

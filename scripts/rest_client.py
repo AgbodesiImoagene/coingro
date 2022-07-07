@@ -386,8 +386,8 @@ class FtRestClient():
                         uid=None):
         """Update exchange configuration
 
-        :param dry_run: Should the bot run in dry-run mode.
-        :param name: The exchange the bot should use.
+        :param dry_run: Boolean indicating if the bot run in dry-run mode.
+        :param name: Exchange name.
         :param key: API key (only required in live mode).
         :param secret: API secret key (only required in live mode).
         :param password: Password (depends on exchange).
@@ -405,17 +405,75 @@ class FtRestClient():
 
     def update_strategy(self,
                         strategy=None,
-                        stoploss=None):
+                        minimal_roi=None,
+                        stoploss=None,
+                        trailing_stop=None,
+                        trailing_stop_positive=None,
+                        trailing_stop_positive_offset=None,
+                        trailing_only_offset_is_reached=None):
         """Update strategy configuration
 
         :param strategy: The strategy the bot should use.
-        :param stoploss: Fractional loss at which to close trades.
+        :param minimal_roi: Json object representing the minimal roi in the form {"<mins>": <roi>}.
+        :param stoploss: Fractional loss at which to close trades (negative float).
+        :param trailing_stop: boolean indicating if a trailing stoploss should be utilised.
+        :param trailing_stop_positive: Fraction behind highest observed price at which to set the
+            trailing stoploss.
+        :param trailing_stop_positive_offset: Fraction indicating price increase required for
+            trailing stoploss to be activated.
+        :param trailing_only_offset_is_reached: Should the positive offset be used.
         :return: json object
         """
-        return self._post("exchange", data={
+        minimal_roi_list = [{"time_limit_mins": int(mins), "profit": roi}
+                            for mins, roi in minimal_roi] if minimal_roi else None
+        return self._post("strategy", data={
             "strategy": strategy,
+            "minimal_roi": minimal_roi_list,
             "stoploss": stoploss,
+            "trailing_stop": trailing_stop,
+            "trailing_stop_positive": trailing_stop_positive,
+            "trailing_stop_positive_offset": trailing_stop_positive_offset,
+            "trailing_only_offset_is_reached": trailing_only_offset_is_reached,
         })
+
+    def update_settings(self,
+                        max_open_trades=None,
+                        stake_currency=None,
+                        stake_amount=None,
+                        tradable_balance_ratio=None,
+                        fiat_display_currency=None,
+                        available_capital=None,
+                        dry_run_wallet=None):
+        """Update general configuration
+
+        :param max_open_trades: Maximum number of trades that can be open simultaneously
+            (-1 for infinite).
+        :param stake_currency: Stake currency for trading.
+        :param stake_amount: Amount of stake currency entered into each trade.
+        :param tradable_balance_ratio: Ratio of starting balance available for trading.
+        :param fiat_display_currency: Currency used to display perfomance metrics.
+        :param available_capital: Starting capital available to the bot (useful for running more
+            than one coingro instance on the same account).
+        :param dry_run_wallet: Starting value of simulated stake currency
+            (only used in dry-run mode).
+        :return: json object
+        """
+        return self._post("settings", data={
+            "max_open_trades": max_open_trades,
+            "stake_currency": stake_currency,
+            "stake_amount": stake_amount,
+            "tradable_balance_ratio": tradable_balance_ratio,
+            "fiat_display_currency": fiat_display_currency,
+            "available_capital": available_capital,
+            "dry_run_wallet": dry_run_wallet,
+        })
+
+    def reset_original_config(self):
+        """Reset the configuration to its original state
+
+        :return: json object
+        """
+        return self._post("reset_original_config")
 
 
 def add_arguments():

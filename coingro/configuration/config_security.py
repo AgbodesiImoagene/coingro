@@ -39,11 +39,13 @@ class Encryption:
         if config.get('encryption', False):
             self.encrypted_config = config
             salt = config.get('salt')
-            if salt:
+            if isinstance(salt, bytes):
                 self.salt = base64.decodebytes(salt)
+            elif isinstance(salt, str):
+                self.salt = base64.decodebytes(salt.encode())
             else:
                 raise OperationalException('Config with encrypted credentials '
-                                           'must contain a salt. ')
+                                           'must contain a valid salt. ')
         else:
             self.plain_config = config
             self.salt = os.urandom(16)
@@ -71,7 +73,7 @@ class Encryption:
         if not self.plain_config:
             self.plain_config = self._decrypt_config(deepcopy(self.encrypted_config),
                                                      PROTECTED_CREDENTIALS)
-            self.plain_config.update({'encryption': False, 'salt': ''})
+            self.plain_config.update({'encryption': False, 'salt': None})
             self.plain_config.pop('salt')
 
         return self.plain_config

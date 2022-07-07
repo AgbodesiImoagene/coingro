@@ -6,6 +6,7 @@ from abc import abstractmethod
 from copy import deepcopy
 from datetime import date, datetime, timedelta, timezone
 from math import isnan
+from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 import arrow
@@ -20,7 +21,8 @@ from coingro.configuration import Configuration, validate_config_consistency
 from coingro.configuration.check_exchange import check_exchange
 from coingro.configuration.save_config import save_to_config_file
 from coingro.configuration.timerange import TimeRange
-from coingro.constants import CANCEL_REASON, DATETIME_PRINT_FORMAT, DEFAULT_CONFIG_SAVE
+from coingro.constants import (CANCEL_REASON, DATETIME_PRINT_FORMAT, DEFAULT_CONFIG_SAVE,
+                               USERPATH_CONFIG)
 from coingro.data.history import load_data
 from coingro.data.metrics import calculate_max_drawdown
 from coingro.enums import CandleType, ExitCheckTuple, ExitType, SignalDirection, State, TradingMode
@@ -1103,7 +1105,7 @@ class RPC:
                 raise RPCException(f'{name} is not a supported exchange.')
 
             try:
-                config = Configuration.from_files([DEFAULT_CONFIG_SAVE])
+                config = self._load_saved_config()
 
                 if 'dry_run' in kwargs:
                     config['dry_run'] = kwargs['dry_run']
@@ -1127,13 +1129,15 @@ class RPC:
             except Exception as e:
                 raise RPCException(str(e)) from e
 
-        return {'status': 'Successfully updated config. '
-                          'Reload config for changes to take effect.'}
+            return {'status': 'Successfully updated config. '
+                              'Reload config for changes to take effect.'}
+        else:
+            return {'status': 'No changes detected.'}
 
     def _rpc_update_strategy(self, **kwargs) -> Dict[str, Any]:
         if kwargs:
             try:
-                config = Configuration.from_files([DEFAULT_CONFIG_SAVE])
+                config = self._load_saved_config()
 
                 if 'minimal_roi' in kwargs:
                     minimal_roi = {}
@@ -1150,17 +1154,20 @@ class RPC:
             except Exception as e:
                 raise RPCException(str(e)) from e
 
-        return {'status': 'Successfully updated config. '
-                          'Reload config for changes to take effect.'}
+            return {'status': 'Successfully updated config. '
+                              'Reload config for changes to take effect.'}
+        else:
+            return {'status': 'No changes detected.'}
 
     def _rpc_update_general_settings(self, **kwargs) -> Dict[str, Any]:
         if kwargs:
             try:
-                config = Configuration.from_files([DEFAULT_CONFIG_SAVE])
+                config = self._load_saved_config()
 
                 if 'stake_currency' in kwargs:
                     if 'exchange' not in config:
                         config['exchange'] = {}
+                    config['pairs'] = [f'.*/{kwargs["stake_currency"]}']
                     config['exchange']['pair_whitelist'] = [f'.*/{kwargs["stake_currency"]}']
                     if config['exchange']['name'].lower() == 'binance':
                         config['exchange']['pair_blacklist'] = [f'BNB/{kwargs["stake_currency"]}']
@@ -1176,8 +1183,10 @@ class RPC:
             except Exception as e:
                 raise RPCException(str(e)) from e
 
-        return {'status': 'Successfully updated config. '
-                          'Reload config for changes to take effect.'}
+            return {'status': 'Successfully updated config. '
+                              'Reload config for changes to take effect.'}
+        else:
+            return {'status': 'No changes detected.'}
 
     def _rpc_reset_original_config(self) -> Dict[str, Any]:
         config = self._config.get('original_config', {})
@@ -1194,8 +1203,12 @@ class RPC:
         self._coingro.state = State.RELOAD_CONFIG
         return {'status': 'Reloading original config ...'}
 
+    def _load_saved_config(self) -> Dict[str, Any]:
+        cfgfile = Path(self._config['user_data_dir']) / USERPATH_CONFIG / DEFAULT_CONFIG_SAVE
+        return Configuration.from_files([str(cfgfile)])
+
     @staticmethod
-    def _validate_config(config: Dict[str, Any], validate_exchange: bool = False):
+    def _validate_config(config: Dict[str, Any], validate_exchange: bool = False) -> None:
         StrategyResolver.load_strategy(config)
         validate_config_consistency(config)
         if validate_exchange:
