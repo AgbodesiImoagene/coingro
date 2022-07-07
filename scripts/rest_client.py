@@ -28,7 +28,7 @@ logging.basicConfig(
 logger = logging.getLogger("ft_rest_client")
 
 
-class FtRestClient():
+class CgRestClient():
 
     def __init__(self, serverurl, username=None, password=None):
 
@@ -522,7 +522,7 @@ def load_config(configfile):
 
 def print_commands():
     # Print dynamic help for the different commands using the commands doc-strings
-    client = FtRestClient(None)
+    client = CgRestClient(None)
     print("Possible commands:\n")
     for x, y in inspect.getmembers(client):
         if not x.startswith('_'):
@@ -543,7 +543,7 @@ def main(args):
     password = config.get('api_server', {}).get('password')
 
     server_url = f"http://{url}:{port}"
-    client = FtRestClient(server_url, username, password)
+    client = CgRestClient(server_url, username, password)
 
     m = [x for x, y in inspect.getmembers(client) if not x.startswith('_')]
     command = args["command"]
