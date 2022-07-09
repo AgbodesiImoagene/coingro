@@ -49,7 +49,7 @@ setup(
     install_requires=[
         # from requirements.txt
         'ccxt>=1.83.12',
-        'cryptography'
+        'cryptography',
         'aiohttp',
         'SQLAlchemy',
         'SQLAlchemy-Utils',
@@ -82,7 +82,7 @@ setup(
         'pyjwt',
         'aiofiles',
         'schedule',
-        'python-dateutil'
+        'python-dateutil',
     ],
     extras_require={
         'dev': all_extra,
