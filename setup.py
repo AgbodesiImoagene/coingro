@@ -13,6 +13,11 @@ hyperopt = [
     'progressbar2',
 ]
 
+databases = [
+    'psycopg2',
+    'PyMySQL',
+]
+
 develop = [
     'coveralls',
     'flake8',
@@ -32,7 +37,7 @@ jupyter = [
     'nbconvert',
 ]
 
-all_extra = plot + develop + jupyter + hyperopt
+all_extra = plot + develop + jupyter + hyperopt + databases
 
 setup(
     tests_require=[
@@ -44,7 +49,10 @@ setup(
     install_requires=[
         # from requirements.txt
         'ccxt>=1.83.12',
+        'cryptography'
+        'aiohttp',
         'SQLAlchemy',
+        'SQLAlchemy-Utils',
         'python-telegram-bot>=13.4',
         'arrow>=0.17.0',
         'cachetools',
@@ -73,7 +81,8 @@ setup(
         'psutil',
         'pyjwt',
         'aiofiles',
-        'schedule'
+        'schedule',
+        'python-dateutil'
     ],
     extras_require={
         'dev': all_extra,

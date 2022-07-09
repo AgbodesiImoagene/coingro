@@ -22,7 +22,7 @@ logger = logging.getLogger('coingro')
 
 def main(sysargv: List[str] = None) -> None:
     """
-    This function will initiate the bot and start the trading loop.
+    This function will initiate the module and start the loop.
     :return: None
     """
 

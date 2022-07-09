@@ -24,8 +24,6 @@ user_data
 .mypy_cache
 .ipynb_checkpoints
 
-scripts/
-tests/
 .env/
 .pytest_cache/
 *__pycache__

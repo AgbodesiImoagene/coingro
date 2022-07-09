@@ -49,7 +49,7 @@ USER cguser
 # Install and execute
 COPY --chown=cguser:cguser . /coingro/
 
-RUN pip install -e . --user --no-cache-dir --no-build-isolation \
+RUN pip install -e .[all] --user --no-cache-dir --no-build-isolation \
   && mkdir /coingro/user_data/
 
 ENTRYPOINT ["coingro"]
