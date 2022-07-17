@@ -228,7 +228,7 @@ class StrategyResolver(IResolver):
         """
         if config.get('recursive_strategy_search', False):
             extra_dirs: List[str] = [
-                path[0] for path in walk(f"{config['user_data_dir']}/{USERPATH_STRATEGIES}")
+                path[0] for path in walk(f"{USERPATH_STRATEGIES}")
             ]  # sub-directories
         else:
             extra_dirs = []
@@ -236,16 +236,19 @@ class StrategyResolver(IResolver):
         if extra_dir:
             extra_dirs.append(extra_dir)
 
-        abs_paths = StrategyResolver.build_search_paths(config,
-                                                        user_subdir=USERPATH_STRATEGIES,
-                                                        extra_dirs=extra_dirs)
+        abs_paths: List[Path] = []
+        abs_paths.insert(0, Path(USERPATH_STRATEGIES).resolve())
+
+        # Add extra directory to the top of the search paths
+        for dir in extra_dirs:
+            abs_paths.insert(0, Path(dir).resolve())
 
         if ":" in strategy_name:
             logger.info("loading base64 encoded strategy")
             strat = strategy_name.split(":")
 
             if len(strat) == 2:
-                temp = Path(tempfile.mkdtemp("freq", "strategy"))
+                temp = Path(tempfile.mkdtemp("cg", "strategy"))
                 name = strat[0] + ".py"
 
                 temp.joinpath(name).write_text(urlsafe_b64decode(strat[1]).decode('utf-8'))

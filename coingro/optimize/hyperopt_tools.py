@@ -40,7 +40,7 @@ class HyperoptTools():
         Get Strategy-location (filename) from strategy_name
         """
         from coingro.resolvers.strategy_resolver import StrategyResolver
-        directory = Path(config.get('strategy_path', config['user_data_dir'] / USERPATH_STRATEGIES))
+        directory = Path(config.get('strategy_path', USERPATH_STRATEGIES))
         strategy_objs = StrategyResolver.search_all_objects(
             directory, False, config.get('recursive_strategy_search', False))
         strategies = [s for s in strategy_objs if s['name'] == strategy_name]

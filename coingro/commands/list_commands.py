@@ -76,7 +76,7 @@ def start_list_strategies(args: Dict[str, Any]) -> None:
     """
     config = setup_utils_configuration(args, RunMode.UTIL_NO_EXCHANGE)
 
-    directory = Path(config.get('strategy_path', config['user_data_dir'] / USERPATH_STRATEGIES))
+    directory = Path(config.get('strategy_path', USERPATH_STRATEGIES))
     strategy_objs = StrategyResolver.search_all_objects(
         directory, not args['print_one_column'], config.get('recursive_strategy_search', False))
     # Sort alphabetically

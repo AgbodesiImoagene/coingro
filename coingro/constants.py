@@ -11,7 +11,7 @@ from coingro.enums import CandleType
 
 DEFAULT_CONFIG = 'config.json'
 DEFAULT_CONFIG_SAVE = f'{__id__}_config.json'
-DEFAULT_EXCHANGE = 'bittrex'
+DEFAULT_EXCHANGE = 'binance'
 PROCESS_THROTTLE_SECS = 5  # sec
 HYPEROPT_EPOCH = 100  # epochs
 RETRY_TIMEOUT = 30  # sec

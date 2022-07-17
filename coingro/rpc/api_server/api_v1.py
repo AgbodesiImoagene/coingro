@@ -256,7 +256,7 @@ def plot_config(rpc: RPC = Depends(get_rpc)):
 @router.get('/strategies', response_model=StrategyListResponse, tags=['strategy'])
 def list_strategies(config=Depends(get_config)):
     directory = Path(config.get(
-        'strategy_path', config['user_data_dir'] / USERPATH_STRATEGIES))
+        'strategy_path', USERPATH_STRATEGIES))
     from coingro.resolvers.strategy_resolver import StrategyResolver
     strategies = StrategyResolver.search_all_objects(
         directory, False, config.get('recursive_strategy_search', False))

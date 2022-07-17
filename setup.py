@@ -48,7 +48,7 @@ setup(
     ],
     install_requires=[
         # from requirements.txt
-        'ccxt>=1.83.12',
+        'ccxt>=1.83.12,<1.90.*',
         'cryptography',
         'aiohttp',
         'SQLAlchemy',

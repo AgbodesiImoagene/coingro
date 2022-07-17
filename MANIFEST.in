@@ -3,3 +3,4 @@ include README.md
 recursive-include coingro *.py
 recursive-include coingro/templates/ *.j2 *.ipynb *.json
 include coingro/exchange/binance_leverage_tiers.json
+recursive-include strategies

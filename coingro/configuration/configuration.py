@@ -533,6 +533,11 @@ class Configuration:
 
     @staticmethod
     def db_url_from_config(config: Dict[str, Any]) -> str:
+        if 'db_url' in config:
+            if not (config.get('dry_run', True) and
+                    config['db_url'] == constants.DEFAULT_DB_LIVE_URL):
+                return config['db_url']
+
         if 'db_config' in config:
             db_args = deepcopy(config['db_config'])
 
@@ -548,11 +553,6 @@ class Configuration:
                 db_args['database'] = database
 
             return URL.create(**db_args).render_as_string(hide_password=False)
-
-        if 'db_url' in config:
-            if not (config.get('dry_run', True) and
-                    config['db_url'] == constants.DEFAULT_DB_LIVE_URL):
-                return config['db_url']
 
         return constants.DEFAULT_DB_DRYRUN_URL if config.get('dry_run', True) \
             else constants.DEFAULT_DB_LIVE_URL

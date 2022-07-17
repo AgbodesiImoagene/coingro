@@ -1648,6 +1648,7 @@ def test_db_url_from_config(default_conf, mocker):
     default_conf['db_url'] = 'sqlite:///testdb'
     assert Configuration.db_url_from_config(default_conf) == 'sqlite:///testdb'
 
+    default_conf.pop('db_url')
     db_args = {'drivername': 'mysql',
                'username': 'test-user',
                'password': 'Password123',
