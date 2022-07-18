@@ -133,6 +133,7 @@ class IStrategy(ABC, HyperStrategyMixin):
     # container variable for strategy source code
     __source__: str = ''
 
+    __strategy_name__: str = ''
     __short_description__: str = 'Short description'
     __long_description__: str = 'Long description'
 
