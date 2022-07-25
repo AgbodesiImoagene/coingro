@@ -475,6 +475,18 @@ class CgRestClient():
         """
         return self._post("reset_original_config")
 
+    def timeunit_profit(self, timeunit=None, timescale=1):
+        """Return the profits for a time frame, and amount of trades.
+
+        :return: json object
+        """
+        if timeunit not in ['weeks', 'months']:
+            timeunit = 'days'
+        return self._get("timeunit_profit", params={
+                'timeunit': timeunit,
+                'timescale': timescale,
+            })
+
 
 def add_arguments():
     parser = argparse.ArgumentParser()

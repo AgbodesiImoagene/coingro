@@ -50,7 +50,7 @@ USER cguser
 COPY --chown=cguser:cguser . /coingro/
 
 RUN pip install -e .[all] --user --no-cache-dir --no-build-isolation \
-  && mkdir /coingro/user_data/
+  && mkdir /coingro/user_data/ \
   && coingro create-userdir --userdir /coingro/user_data/
 
 ENTRYPOINT ["coingro"]

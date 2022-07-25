@@ -9,4 +9,5 @@ from coingro.enums.rpcmessagetype import RPCMessageType
 from coingro.enums.runmode import NON_UTIL_MODES, OPTIMIZE_MODES, TRADING_MODES, RunMode
 from coingro.enums.signaltype import SignalDirection, SignalTagType, SignalType
 from coingro.enums.state import State
+from coingro.enums.timeunit import TimeUnit
 from coingro.enums.tradingmode import TradingMode

@@ -133,9 +133,12 @@ class IStrategy(ABC, HyperStrategyMixin):
     # container variable for strategy source code
     __source__: str = ''
 
+    # metadata
     __strategy_name__: str = ''
     __short_description__: str = 'Short description'
     __long_description__: str = 'Long description'
+    __category__: str = ''
+    __tags__: List[str] = []  # should not include commas
 
     # Definition of plot_config. See plotting documentation for more details.
     plot_config: Dict = {}

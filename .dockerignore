@@ -31,3 +31,4 @@ nohup.out
 .pre-commit-config.yaml
 git-execute.sh
 .coveragerc
+dist/

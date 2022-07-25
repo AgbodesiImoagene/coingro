@@ -9,7 +9,7 @@ from fastapi.exceptions import HTTPException
 from coingro import __version__
 from coingro.constants import SUPPORTED_FIAT, SUPPORTED_STAKE_CURRENCIES, USERPATH_STRATEGIES
 from coingro.data.history import get_datahandler
-from coingro.enums import CandleType, TradingMode
+from coingro.enums import CandleType, TimeUnit, TradingMode
 from coingro.exceptions import OperationalException
 from coingro.exchange.common import SUPPORTED_EXCHANGES
 from coingro.rpc import RPC
@@ -21,9 +21,9 @@ from coingro.rpc.api_server.api_schemas import (AvailablePairs, Balances, Blackl
                                                 PerformanceEntry, Ping, PlotConfig, Profit,
                                                 ResultMsg, SettingsOptions, ShowConfig, State,
                                                 Stats, StatusMsg, StrategyListResponse,
-                                                StrategyResponse, SysInfo, UpdateExchangePayload,
-                                                UpdateSettingsPayload, UpdateStrategyPayload,
-                                                Version, WhitelistResponse)
+                                                StrategyResponse, SysInfo, TimeUnitProfit,
+                                                UpdateExchangePayload, UpdateSettingsPayload,
+                                                UpdateStrategyPayload, Version, WhitelistResponse)
 from coingro.rpc.api_server.deps import get_config, get_exchange, get_rpc, get_rpc_optional
 from coingro.rpc.rpc import RPCException
 
@@ -93,6 +93,17 @@ def stats(rpc: RPC = Depends(get_rpc)):
 def daily(timescale: int = 7, rpc: RPC = Depends(get_rpc), config=Depends(get_config)):
     return rpc._rpc_timeunit_profit(timescale, config['stake_currency'],
                                     config.get('fiat_display_currency', ''))
+
+
+@router.get('/timeunit_profit', response_model=TimeUnitProfit, tags=['info'])
+def timeunit_profit(timeunit: TimeUnit, timescale: int = 1,
+                    rpc: RPC = Depends(get_rpc), config=Depends(get_config)):
+    timeframe = timeunit.value
+    resp = rpc._rpc_timeunit_profit(timescale, config['stake_currency'],
+                                    config.get('fiat_display_currency', ''),
+                                    timeframe)
+    resp['timeunit'] = timeframe
+    return resp
 
 
 @router.get('/status', response_model=List[OpenTradeSchema], tags=['info'])

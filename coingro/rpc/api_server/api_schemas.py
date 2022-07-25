@@ -5,7 +5,7 @@ from typing import Any, Dict, List, Optional, Union
 from pydantic import BaseModel, confloat, conint, conlist
 
 from coingro.constants import DATETIME_PRINT_FORMAT
-from coingro.enums import OrderTypeValues, SignalDirection, TradingMode
+from coingro.enums import OrderTypeValues, SignalDirection, TimeUnit, TradingMode
 
 
 class Ping(BaseModel):
@@ -123,7 +123,7 @@ class Stats(BaseModel):
 
 
 class DailyRecord(BaseModel):
-    date: date
+    date: Union[date, str]
     abs_profit: float
     rel_profit: float
     starting_balance: float
@@ -135,6 +135,10 @@ class Daily(BaseModel):
     data: List[DailyRecord]
     fiat_display_currency: str
     stake_currency: str
+
+
+class TimeUnitProfit(Daily):
+    timeunit: TimeUnit
 
 
 class UnfilledTimeout(BaseModel):

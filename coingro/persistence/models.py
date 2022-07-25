@@ -50,9 +50,9 @@ def ping_connection(connection, branch):
 
         try:
             connection.scalar(select([1]))
-            rollback = getattr(connection, "rollback", None)
-            if callable(rollback):
-                connection.rollback()
+            commit = getattr(connection, "commit", None)
+            if callable(commit):
+                connection.commit()
             # If we made it here then the connection appears to be healthy
             break
         except DBAPIError as err:
