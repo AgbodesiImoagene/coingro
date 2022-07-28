@@ -20,16 +20,14 @@ from coingro.data import history
 from coingro.data.btanalysis import find_existing_backtest_stats, trade_list_to_dataframe
 from coingro.data.converter import trim_dataframe, trim_dataframes
 from coingro.data.dataprovider import DataProvider
-from coingro.enums import (BacktestState, CandleType, ExitCheckTuple, ExitType, RunMode,
-                             TradingMode)
+from coingro.enums import BacktestState, CandleType, ExitCheckTuple, ExitType, RunMode, TradingMode
 from coingro.exceptions import DependencyException, OperationalException
 from coingro.exchange import timeframe_to_minutes, timeframe_to_seconds
 from coingro.mixins import LoggingMixin
 from coingro.optimize.backtest_caching import get_strategy_run_id
 from coingro.optimize.bt_progress import BTProgress
 from coingro.optimize.optimize_reports import (generate_backtest_stats, show_backtest_results,
-                                                 store_backtest_signal_candles,
-                                                 store_backtest_stats)
+                                               store_backtest_signal_candles, store_backtest_stats)
 from coingro.persistence import LocalTrade, Order, PairLocks, Trade
 from coingro.plugins.pairlistmanager import PairListManager
 from coingro.plugins.protectionmanager import ProtectionManager

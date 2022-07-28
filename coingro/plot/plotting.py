@@ -5,13 +5,12 @@ from typing import Any, Dict, List, Optional
 import pandas as pd
 
 from coingro.configuration import TimeRange
-from coingro.data.btanalysis import (analyze_trade_parallelism, extract_trades_of_period,
-                                       load_trades)
+from coingro.data.btanalysis import analyze_trade_parallelism, extract_trades_of_period, load_trades
 from coingro.data.converter import trim_dataframe
 from coingro.data.dataprovider import DataProvider
 from coingro.data.history import get_timerange, load_data
 from coingro.data.metrics import (calculate_max_drawdown, calculate_underwater,
-                                    combine_dataframes_with_mean, create_cum_profit)
+                                  combine_dataframes_with_mean, create_cum_profit)
 from coingro.enums import CandleType
 from coingro.exceptions import OperationalException
 from coingro.exchange import timeframe_to_prev_date, timeframe_to_seconds
@@ -75,6 +74,7 @@ def init_plotscript(config, markets: List, startup_candles: int = 0):
         trades = load_trades(
             config['trade_source'],
             db_url=config.get('db_url'),
+            dry_run=config.get('dry_run', True),
             exportfilename=filename,
             no_trades=no_trades,
             strategy=config.get('strategy'),

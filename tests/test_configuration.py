@@ -10,7 +10,6 @@ from unittest.mock import MagicMock
 import pytest
 from jsonschema import ValidationError
 
-from coingro import __id__
 from coingro.commands import Arguments
 from coingro.configuration import Configuration, check_exchange, validate_config_consistency
 from coingro.configuration.config_security import Encryption
@@ -1655,7 +1654,7 @@ def test_db_url_from_config(default_conf, mocker):
                'host': 'test-host',
                'port': 1234}
     default_conf['db_config'] = db_args
-    url = f'mysql+pymysql://test-user:Password123@test-host:1234/{__id__}.tradesv3'
+    url = 'mysql+pymysql://test-user:Password123@test-host:1234/coingro_bot'
     assert Configuration.db_url_from_config(default_conf) == url
 
     default_conf['dry_run'] = True
@@ -1665,7 +1664,7 @@ def test_db_url_from_config(default_conf, mocker):
                'host': 'test-host',
                'port': 1234}
     default_conf['db_config'] = db_args
-    url = f'postgresql+psycopg2://test-user:Password123@test-host:1234/{__id__}.tradesv3.dryrun'
+    url = 'postgresql+psycopg2://test-user:Password123@test-host:1234/coingro_bot'
     assert Configuration.db_url_from_config(default_conf) == url
 
     db_args = {'drivername': 'sqlite',

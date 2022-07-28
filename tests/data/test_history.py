@@ -17,11 +17,11 @@ from coingro.constants import AVAILABLE_DATAHANDLERS
 from coingro.data.converter import ohlcv_to_dataframe
 from coingro.data.history.hdf5datahandler import HDF5DataHandler
 from coingro.data.history.history_utils import (_download_pair_history, _download_trades_history,
-                                                  _load_cached_data_for_updating,
-                                                  convert_trades_to_ohlcv, get_timerange, load_data,
-                                                  load_pair_history, refresh_backtest_ohlcv_data,
-                                                  refresh_backtest_trades_data, refresh_data,
-                                                  validate_backtest_data)
+                                                _load_cached_data_for_updating,
+                                                convert_trades_to_ohlcv, get_timerange, load_data,
+                                                load_pair_history, refresh_backtest_ohlcv_data,
+                                                refresh_backtest_trades_data, refresh_data,
+                                                validate_backtest_data)
 from coingro.data.history.idatahandler import IDataHandler, get_datahandler, get_datahandlerclass
 from coingro.data.history.jsondatahandler import JsonDataHandler, JsonGzDataHandler
 from coingro.enums import CandleType, TradingMode

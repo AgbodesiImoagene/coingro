@@ -5,7 +5,7 @@ from pandas import DataFrame
 
 import coingro.vendor.qtpylib.indicators as qtpylib
 from coingro.strategy import (BooleanParameter, DecimalParameter, IntParameter, IStrategy,
-                                RealParameter)
+                              RealParameter)
 
 
 class StrategyTestV3Analysis(IStrategy):

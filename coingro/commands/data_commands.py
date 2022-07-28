@@ -7,7 +7,7 @@ from typing import Any, Dict, List
 from coingro.configuration import TimeRange, setup_utils_configuration
 from coingro.data.converter import convert_ohlcv_format, convert_trades_format
 from coingro.data.history import (convert_trades_to_ohlcv, refresh_backtest_ohlcv_data,
-                                    refresh_backtest_trades_data)
+                                  refresh_backtest_trades_data)
 from coingro.enums import CandleType, RunMode, TradingMode
 from coingro.exceptions import OperationalException
 from coingro.exchange import timeframe_to_minutes

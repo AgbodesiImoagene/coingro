@@ -4,6 +4,7 @@ from typing import Any, Dict, Optional
 from sqlalchemy import Boolean, Column, DateTime, Integer, String, or_
 from sqlalchemy.orm import Query
 
+from coingro import __id__
 from coingro.constants import DATETIME_PRINT_FORMAT
 from coingro.persistence.base import _DECL_BASE
 
@@ -12,7 +13,7 @@ class PairLock(_DECL_BASE):
     """
     Pair Locks database model.
     """
-    __tablename__ = 'pairlocks'
+    __tablename__ = f"{__id__}-pairlocks"
 
     id = Column(Integer, primary_key=True)
 

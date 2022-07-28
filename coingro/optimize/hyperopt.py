@@ -19,7 +19,7 @@ from colorama import init as colorama_init
 from joblib import Parallel, cpu_count, delayed, dump, load, wrap_non_picklable_objects
 from pandas import DataFrame
 
-from coingro.constants import DATETIME_PRINT_FORMAT, CGHYPT_FILEVERSION, LAST_BT_RESULT_FN
+from coingro.constants import CGHYPT_FILEVERSION, DATETIME_PRINT_FORMAT, LAST_BT_RESULT_FN
 from coingro.data.converter import trim_dataframes
 from coingro.data.history import get_timerange
 from coingro.exceptions import OperationalException

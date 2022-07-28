@@ -10,7 +10,7 @@ from pandas import DataFrame, concat
 from coingro.configuration import TimeRange
 from coingro.constants import DEFAULT_DATAFRAME_COLUMNS
 from coingro.data.converter import (clean_ohlcv_dataframe, ohlcv_to_dataframe,
-                                      trades_remove_duplicates, trades_to_ohlcv)
+                                    trades_remove_duplicates, trades_to_ohlcv)
 from coingro.data.history.idatahandler import IDataHandler, get_datahandler
 from coingro.enums import CandleType
 from coingro.exceptions import OperationalException

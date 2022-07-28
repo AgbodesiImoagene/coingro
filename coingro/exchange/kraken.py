@@ -9,7 +9,7 @@ from pandas import DataFrame
 from coingro.constants import BuySell
 from coingro.enums import MarginMode, TradingMode
 from coingro.exceptions import (DDosProtection, InsufficientFundsError, InvalidOrderException,
-                                  OperationalException, TemporaryError)
+                                OperationalException, TemporaryError)
 from coingro.exchange import Exchange
 from coingro.exchange.common import retrier
 

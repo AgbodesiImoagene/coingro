@@ -12,20 +12,20 @@ import arrow
 import pytest
 from pandas import DataFrame
 
+from coingro.coingrobot import CoingroBot
 from coingro.constants import CANCEL_REASON, MATH_CLOSE_PREC, UNLIMITED_STAKE_AMOUNT
 from coingro.enums import (CandleType, ExitCheckTuple, ExitType, RPCMessageType, RunMode,
-                             SignalDirection, State)
+                           SignalDirection, State)
 from coingro.exceptions import (DependencyException, ExchangeError, InsufficientFundsError,
-                                  InvalidOrderException, OperationalException, PricingError,
-                                  TemporaryError)
-from coingro.coingrobot import CoingroBot
+                                InvalidOrderException, OperationalException, PricingError,
+                                TemporaryError)
 from coingro.persistence import Order, PairLocks, Trade
 from coingro.persistence.models import PairLock
 from coingro.plugins.protections.iprotection import ProtectionReturn
 from coingro.worker import Worker
-from tests.conftest import (create_mock_trades, get_patched_coingrobot, get_patched_worker,
-                            log_has, log_has_re, patch_edge, patch_exchange, patch_get_signal,
-                            patch_wallet, patch_whitelist)
+from tests.conftest import (create_mock_trades, get_patched_coingrobot, get_patched_worker, log_has,
+                            log_has_re, patch_edge, patch_exchange, patch_get_signal, patch_wallet,
+                            patch_whitelist)
 from tests.conftest_trades import (MOCK_TRADE_COUNT, entry_side, exit_side, mock_order_1,
                                    mock_order_2, mock_order_2_sell, mock_order_3, mock_order_3_sell,
                                    mock_order_4, mock_order_5_stoploss, mock_order_6_sell)
@@ -3455,7 +3455,7 @@ def test_execute_trade_exit_sloe_cancel_exception(
     trade.stoploss_order_id = "abcd"
 
     coingro.execute_trade_exit(trade=trade, limit=1234,
-                                 exit_check=ExitCheckTuple(exit_type=ExitType.STOP_LOSS))
+                               exit_check=ExitCheckTuple(exit_type=ExitType.STOP_LOSS))
     assert create_order_mock.call_count == 2
     assert log_has('Could not cancel stoploss order abcd', caplog)
 

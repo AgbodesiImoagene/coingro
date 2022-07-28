@@ -9,7 +9,7 @@ from tabulate import tabulate
 
 from coingro.constants import DATETIME_PRINT_FORMAT, LAST_BT_RESULT_FN, UNLIMITED_STAKE_AMOUNT
 from coingro.data.metrics import (calculate_cagr, calculate_csum, calculate_market_change,
-                                    calculate_max_drawdown)
+                                  calculate_max_drawdown)
 from coingro.misc import decimals_per_coin, file_dump_joblib, file_dump_json, round_coin_value
 from coingro.optimize.backtest_caching import get_backtest_metadata_filename
 

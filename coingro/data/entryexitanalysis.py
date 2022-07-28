@@ -7,7 +7,7 @@ import pandas as pd
 from tabulate import tabulate
 
 from coingro.data.btanalysis import (get_latest_backtest_filename, load_backtest_data,
-                                       load_backtest_stats)
+                                     load_backtest_stats)
 from coingro.exceptions import OperationalException
 
 

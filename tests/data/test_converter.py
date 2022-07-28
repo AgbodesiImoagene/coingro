@@ -7,11 +7,10 @@ import pytest
 
 from coingro.configuration.timerange import TimeRange
 from coingro.data.converter import (convert_ohlcv_format, convert_trades_format,
-                                      ohlcv_fill_up_missing_data, ohlcv_to_dataframe,
-                                      trades_dict_to_list, trades_remove_duplicates,
-                                      trades_to_ohlcv, trim_dataframe)
-from coingro.data.history import (get_timerange, load_data, load_pair_history,
-                                    validate_backtest_data)
+                                    ohlcv_fill_up_missing_data, ohlcv_to_dataframe,
+                                    trades_dict_to_list, trades_remove_duplicates, trades_to_ohlcv,
+                                    trim_dataframe)
+from coingro.data.history import get_timerange, load_data, load_pair_history, validate_backtest_data
 from coingro.data.history.idatahandler import IDataHandler
 from coingro.enums import CandleType
 from tests.conftest import log_has, log_has_re

@@ -9,7 +9,7 @@ from typing import Any, Callable, Dict, List, Optional
 
 from sqlalchemy.engine import URL
 
-from coingro import __id__, constants
+from coingro import constants
 from coingro.configuration.check_exchange import check_exchange
 from coingro.configuration.config_security import Encryption
 from coingro.configuration.deprecated_settings import process_temporary_deprecated_settings
@@ -548,9 +548,7 @@ class Configuration:
                 db_args['drivername'] = 'postgresql+psycopg2'
 
             if db_args['drivername'] != 'sqlite' and 'database' not in db_args:
-                database = f'{__id__}.tradesv3.dryrun' if config.get('dry_run', True) \
-                    else f'{__id__}.tradesv3'
-                db_args['database'] = database
+                db_args['database'] = 'coingro_bot'
 
             return URL.create(**db_args).render_as_string(hide_password=False)
 

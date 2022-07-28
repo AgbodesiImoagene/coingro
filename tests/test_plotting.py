@@ -14,9 +14,9 @@ from coingro.data.btanalysis import load_backtest_data
 from coingro.data.metrics import create_cum_profit
 from coingro.exceptions import OperationalException
 from coingro.plot.plotting import (add_areas, add_indicators, add_profit, create_plotconfig,
-                                     generate_candlestick_graph, generate_plot_filename,
-                                     generate_profit_graph, init_plotscript, load_and_plot_trades,
-                                     plot_profit, plot_trades, store_plot_file)
+                                   generate_candlestick_graph, generate_plot_filename,
+                                   generate_profit_graph, init_plotscript, load_and_plot_trades,
+                                   plot_profit, plot_trades, store_plot_file)
 from coingro.resolvers import StrategyResolver
 from tests.conftest import get_args, log_has, log_has_re, patch_exchange
 

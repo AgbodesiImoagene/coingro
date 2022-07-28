@@ -11,7 +11,7 @@ from coingro.data.btanalysis import get_backtest_resultlist, load_and_merge_back
 from coingro.enums import BacktestState
 from coingro.exceptions import DependencyException
 from coingro.rpc.api_server.api_schemas import (BacktestHistoryEntry, BacktestRequest,
-                                                  BacktestResponse)
+                                                BacktestResponse)
 from coingro.rpc.api_server.deps import get_config, is_webserver_mode
 from coingro.rpc.api_server.webserver import ApiServer
 from coingro.rpc.rpc import RPCException
@@ -48,8 +48,7 @@ async def api_start_backtest(bt_settings: BacktestRequest, background_tasks: Bac
     # Start backtesting
     # Initialize backtesting object
     def run_backtest():
-        from coingro.optimize.optimize_reports import (generate_backtest_stats,
-                                                         store_backtest_stats)
+        from coingro.optimize.optimize_reports import generate_backtest_stats, store_backtest_stats
         from coingro.resolvers import StrategyResolver
         asyncio.set_event_loop(asyncio.new_event_loop())
         try:

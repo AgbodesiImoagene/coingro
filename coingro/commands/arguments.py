@@ -76,17 +76,17 @@ ARGS_DOWNLOAD_DATA = ["pairs", "pairs_file", "days", "new_pairs_days", "include_
                       "prepend_data"]
 
 ARGS_PLOT_DATAFRAME = ["pairs", "indicators1", "indicators2", "plot_limit",
-                       "db_url", "trade_source", "export", "exportfilename",
-                       "timerange", "timeframe", "no_trades"]
+                       "db_url", "dry_run", "trade_source", "export",
+                       "exportfilename", "timerange", "timeframe", "no_trades"]
 
 ARGS_PLOT_PROFIT = ["pairs", "timerange", "export", "exportfilename", "db_url",
-                    "trade_source", "timeframe", "plot_auto_open", ]
+                    "dry_run", "trade_source", "timeframe", "plot_auto_open"]
 
-ARGS_CONVERT_DB = ["db_url", "db_url_from"]
+ARGS_CONVERT_DB = ["db_url", "db_url_from", "dry_run"]
 
 ARGS_INSTALL_UI = ["erase_ui_only", "ui_version"]
 
-ARGS_SHOW_TRADES = ["db_url", "trade_ids", "print_json"]
+ARGS_SHOW_TRADES = ["db_url", "dry_run", "trade_ids", "print_json"]
 
 ARGS_HYPEROPT_LIST = ["hyperopt_list_best", "hyperopt_list_profitable",
                       "hyperopt_list_min_trades", "hyperopt_list_max_trades",

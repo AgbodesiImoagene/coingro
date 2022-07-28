@@ -6,10 +6,10 @@ from unittest.mock import MagicMock, PropertyMock
 
 import pytest
 
+from coingro.coingrobot import CoingroBot
 from coingro.commands import Arguments
 from coingro.enums import State
 from coingro.exceptions import CoingroException, OperationalException
-from coingro.coingrobot import CoingroBot
 from coingro.main import main
 from coingro.worker import Worker
 from tests.conftest import (log_has, log_has_re, patch_exchange,

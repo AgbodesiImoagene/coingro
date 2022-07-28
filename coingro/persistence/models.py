@@ -5,7 +5,7 @@ import logging
 import random
 import time
 
-from sqlalchemy import create_engine, event, inspect, select
+from sqlalchemy import create_engine, event, select  # inspect
 from sqlalchemy.exc import DBAPIError, NoSuchModuleError, OperationalError
 from sqlalchemy.orm import scoped_session, sessionmaker
 from sqlalchemy.pool import StaticPool
@@ -14,7 +14,7 @@ from sqlalchemy_utils import create_database, database_exists
 from coingro.exceptions import OperationalException, TemporaryError
 from coingro.misc import retrier
 from coingro.persistence.base import _DECL_BASE
-from coingro.persistence.migrations import check_migrate
+from coingro.persistence.migrations import set_sqlite_to_wal  # check_migrate
 from coingro.persistence.pairlock import PairLock
 from coingro.persistence.trade_model import Order, Trade
 
@@ -86,7 +86,7 @@ def ping_connection(connection, branch):
             connection.should_close_with_result = save_should_close_with_result
 
 
-def init_db(db_url: str) -> None:
+def init_db(db_url: str, dry_run: bool) -> None:
     """
     Initializes this module with the given config,
     registers all known command handlers
@@ -122,14 +122,21 @@ def init_db(db_url: str) -> None:
     # https://docs.sqlalchemy.org/en/13/orm/contextual.html#thread-local-scope
     # Scoped sessions proxy requests to the appropriate thread-local session.
     # We should use the scoped_session object - not a seperately initialized version
+    if dry_run:
+        Trade.__tablename__ += '-dryrun'
+        Order.__tablename__ += '-dryrun'
+        Order._trade_table_name += '-dryrun'
+        PairLock.__tablename__ += '-dryrun'
+
     Trade._session = scoped_session(sessionmaker(bind=engine, autoflush=True))
     Trade.query = Trade._session.query_property()
     Order.query = Trade._session.query_property()
     PairLock.query = Trade._session.query_property()
 
-    previous_tables = inspect(engine).get_table_names()
+    # previous_tables = inspect(engine).get_table_names()
     _DECL_BASE.metadata.create_all(engine)
-    check_migrate(engine, decl_base=_DECL_BASE, previous_tables=previous_tables)
+    # check_migrate(engine, decl_base=_DECL_BASE, previous_tables=previous_tables)
+    set_sqlite_to_wal(engine)
 
 
 @retrier

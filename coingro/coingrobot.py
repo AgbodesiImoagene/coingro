@@ -71,7 +71,7 @@ class CoingroBot(LoggingMixin):
 
         self.exchange = ExchangeResolver.load_exchange(self.config['exchange']['name'], self.config)
 
-        init_db(self.config['db_url'])
+        init_db(self.config['db_url'], self.config['dry_run'])
 
         self.wallets = Wallets(self.config, self.exchange)
 

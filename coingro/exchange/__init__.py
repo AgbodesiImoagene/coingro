@@ -9,12 +9,11 @@ from coingro.exchange.bitpanda import Bitpanda
 from coingro.exchange.bittrex import Bittrex
 from coingro.exchange.bybit import Bybit
 from coingro.exchange.coinbasepro import Coinbasepro
-from coingro.exchange.exchange import (available_exchanges, ccxt_exchanges,
-                                         is_exchange_known_ccxt, is_exchange_officially_supported,
-                                         market_is_active, timeframe_to_minutes, timeframe_to_msecs,
-                                         timeframe_to_next_date, timeframe_to_prev_date,
-                                         timeframe_to_seconds, validate_exchange,
-                                         validate_exchanges)
+from coingro.exchange.exchange import (available_exchanges, ccxt_exchanges, is_exchange_known_ccxt,
+                                       is_exchange_officially_supported, market_is_active,
+                                       timeframe_to_minutes, timeframe_to_msecs,
+                                       timeframe_to_next_date, timeframe_to_prev_date,
+                                       timeframe_to_seconds, validate_exchange, validate_exchanges)
 from coingro.exchange.ftx import Ftx
 from coingro.exchange.gateio import Gateio
 from coingro.exchange.hitbtc import Hitbtc

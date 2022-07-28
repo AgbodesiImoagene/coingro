@@ -8,7 +8,7 @@ import pandas as pd
 
 from coingro.configuration import TimeRange
 from coingro.constants import (DEFAULT_DATAFRAME_COLUMNS, DEFAULT_TRADES_COLUMNS,
-                                 ListPairsWithTimeframes, TradeList)
+                               ListPairsWithTimeframes, TradeList)
 from coingro.enums import CandleType, TradingMode
 
 from .idatahandler import IDataHandler

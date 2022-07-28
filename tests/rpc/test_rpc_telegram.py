@@ -16,11 +16,11 @@ from telegram import Chat, Message, ReplyKeyboardMarkup, Update
 from telegram.error import BadRequest, NetworkError, TelegramError
 
 from coingro import __version__
+from coingro.coingrobot import CoingroBot
 from coingro.constants import CANCEL_REASON
 from coingro.edge import PairInfo
 from coingro.enums import ExitType, RPCMessageType, RunMode, SignalDirection, State
 from coingro.exceptions import OperationalException
-from coingro.coingrobot import CoingroBot
 from coingro.loggers import setup_logging
 from coingro.persistence import PairLocks, Trade
 from coingro.persistence.models import Order

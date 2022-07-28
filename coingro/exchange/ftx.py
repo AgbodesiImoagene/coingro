@@ -7,7 +7,7 @@ import ccxt
 from coingro.constants import BuySell
 from coingro.enums import MarginMode, TradingMode
 from coingro.exceptions import (DDosProtection, InsufficientFundsError, InvalidOrderException,
-                                  OperationalException, TemporaryError)
+                                OperationalException, TemporaryError)
 from coingro.exchange import Exchange
 from coingro.exchange.common import API_FETCH_ORDER_RETRY_COUNT, retrier
 from coingro.misc import safe_value_fallback2

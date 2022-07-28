@@ -317,5 +317,5 @@ def check_migrate(engine, decl_base, previous_tables) -> None:
             "Please update to coingro 2022.3 to migrate this database or "
             "start with a fresh database.")
 
-    set_sqlite_to_wal(engine)
+    # set_sqlite_to_wal(engine)
     fix_old_dry_orders(engine)

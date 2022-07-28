@@ -11,18 +11,17 @@ from coingro.configuration import TimeRange
 from coingro.constants import DATETIME_PRINT_FORMAT, LAST_BT_RESULT_FN
 from coingro.data import history
 from coingro.data.btanalysis import (get_latest_backtest_filename, load_backtest_data,
-                                       load_backtest_stats)
+                                     load_backtest_stats)
 from coingro.edge import PairInfo
 from coingro.enums import ExitType
 from coingro.optimize.optimize_reports import (_get_resample_from_period, generate_backtest_stats,
-                                                 generate_daily_stats, generate_edge_table,
-                                                 generate_exit_reason_stats, generate_pair_metrics,
-                                                 generate_periodic_breakdown_stats,
-                                                 generate_strategy_comparison,
-                                                 generate_trading_stats, show_sorted_pairlist,
-                                                 store_backtest_signal_candles,
-                                                 store_backtest_stats, text_table_bt_results,
-                                                 text_table_exit_reason, text_table_strategy)
+                                               generate_daily_stats, generate_edge_table,
+                                               generate_exit_reason_stats, generate_pair_metrics,
+                                               generate_periodic_breakdown_stats,
+                                               generate_strategy_comparison, generate_trading_stats,
+                                               show_sorted_pairlist, store_backtest_signal_candles,
+                                               store_backtest_stats, text_table_bt_results,
+                                               text_table_exit_reason, text_table_strategy)
 from coingro.resolvers.strategy_resolver import StrategyResolver
 from tests.conftest import CURRENT_TEST_STRATEGY
 from tests.data.test_history import _backup_file, _clean_test_file

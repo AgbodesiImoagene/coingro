@@ -4,7 +4,7 @@ from typing import Any, Dict
 from coingro.enums import RunMode
 from coingro.exceptions import OperationalException
 from coingro.exchange import (available_exchanges, is_exchange_known_ccxt,
-                                is_exchange_officially_supported, validate_exchange)
+                              is_exchange_officially_supported, validate_exchange)
 
 
 logger = logging.getLogger(__name__)

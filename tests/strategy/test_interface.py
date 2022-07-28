@@ -18,7 +18,7 @@ from coingro.persistence import PairLocks, Trade
 from coingro.resolvers import StrategyResolver
 from coingro.strategy.hyper import detect_parameters
 from coingro.strategy.parameters import (BaseParameter, BooleanParameter, CategoricalParameter,
-                                           DecimalParameter, IntParameter, RealParameter)
+                                         DecimalParameter, IntParameter, RealParameter)
 from coingro.strategy.strategy_wrapper import strategy_safe_wrapper
 from tests.conftest import (CURRENT_TEST_STRATEGY, TRADE_SIDES, create_mock_trades, log_has,
                             log_has_re)

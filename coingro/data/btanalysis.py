@@ -347,7 +347,9 @@ def trade_list_to_dataframe(trades: List[LocalTrade]) -> pd.DataFrame:
     return df
 
 
-def load_trades_from_db(db_url: str, strategy: Optional[str] = None) -> pd.DataFrame:
+def load_trades_from_db(db_url: str,
+                        dry_run: bool,
+                        strategy: Optional[str] = None) -> pd.DataFrame:
     """
     Load trades from a DB (using dburl)
     :param db_url: Sqlite url (default format sqlite:///tradesv3.dry-run.sqlite)
@@ -355,7 +357,7 @@ def load_trades_from_db(db_url: str, strategy: Optional[str] = None) -> pd.DataF
                      Can also serve as protection to load the correct result.
     :return: Dataframe containing Trades
     """
-    init_db(db_url)
+    init_db(db_url, dry_run)
 
     filters = []
     if strategy:
@@ -365,7 +367,7 @@ def load_trades_from_db(db_url: str, strategy: Optional[str] = None) -> pd.DataF
     return trades
 
 
-def load_trades(source: str, db_url: str, exportfilename: Path,
+def load_trades(source: str, db_url: str, dry_run: bool, exportfilename: Path,
                 no_trades: bool = False, strategy: Optional[str] = None) -> pd.DataFrame:
     """
     Based on configuration option 'trade_source':
@@ -382,7 +384,7 @@ def load_trades(source: str, db_url: str, exportfilename: Path,
         return df
 
     if source == "DB":
-        return load_trades_from_db(db_url)
+        return load_trades_from_db(db_url, dry_run)
     elif source == "file":
         return load_backtest_data(exportfilename, strategy)
 

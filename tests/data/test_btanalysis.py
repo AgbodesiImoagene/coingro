@@ -9,13 +9,13 @@ from pandas import DataFrame, DateOffset, Timestamp, to_datetime
 from coingro.configuration import TimeRange
 from coingro.constants import LAST_BT_RESULT_FN
 from coingro.data.btanalysis import (BT_DATA_COLUMNS, analyze_trade_parallelism,
-                                       extract_trades_of_period, get_latest_backtest_filename,
-                                       get_latest_hyperopt_file, load_backtest_data,
-                                       load_backtest_metadata, load_trades, load_trades_from_db)
+                                     extract_trades_of_period, get_latest_backtest_filename,
+                                     get_latest_hyperopt_file, load_backtest_data,
+                                     load_backtest_metadata, load_trades, load_trades_from_db)
 from coingro.data.history import load_data, load_pair_history
 from coingro.data.metrics import (calculate_cagr, calculate_csum, calculate_market_change,
-                                    calculate_max_drawdown, calculate_underwater,
-                                    combine_dataframes_with_mean, create_cum_profit)
+                                  calculate_max_drawdown, calculate_underwater,
+                                  combine_dataframes_with_mean, create_cum_profit)
 from coingro.exceptions import OperationalException
 from tests.conftest import CURRENT_TEST_STRATEGY, create_mock_trades
 from tests.conftest_trades import MOCK_TRADE_COUNT
@@ -132,7 +132,7 @@ def test_load_trades_from_db(default_conf, fee, is_short, mocker):
     # remove init so it does not init again
     init_mock = mocker.patch('coingro.data.btanalysis.init_db', MagicMock())
 
-    trades = load_trades_from_db(db_url=default_conf['db_url'])
+    trades = load_trades_from_db(db_url=default_conf['db_url'], dry_run=default_conf['dry_run'])
     assert init_mock.call_count == 1
     assert len(trades) == MOCK_TRADE_COUNT
     assert isinstance(trades, DataFrame)
@@ -143,9 +143,13 @@ def test_load_trades_from_db(default_conf, fee, is_short, mocker):
     for col in BT_DATA_COLUMNS:
         if col not in ['index', 'open_at_end']:
             assert col in trades.columns
-    trades = load_trades_from_db(db_url=default_conf['db_url'], strategy=CURRENT_TEST_STRATEGY)
+    trades = load_trades_from_db(db_url=default_conf['db_url'],
+                                 dry_run=default_conf['dry_run'],
+                                 strategy=CURRENT_TEST_STRATEGY)
     assert len(trades) == 4
-    trades = load_trades_from_db(db_url=default_conf['db_url'], strategy='NoneStrategy')
+    trades = load_trades_from_db(db_url=default_conf['db_url'],
+                                 dry_run=default_conf['dry_run'],
+                                 strategy='NoneStrategy')
     assert len(trades) == 0
 
 
@@ -199,6 +203,7 @@ def test_load_trades(default_conf, mocker):
 
     load_trades("DB",
                 db_url=default_conf.get('db_url'),
+                dry_run=default_conf.get('dry_run', True),
                 exportfilename=default_conf.get('exportfilename'),
                 no_trades=False,
                 strategy=CURRENT_TEST_STRATEGY,
@@ -212,6 +217,7 @@ def test_load_trades(default_conf, mocker):
     default_conf['exportfilename'] = Path("testfile.json")
     load_trades("file",
                 db_url=default_conf.get('db_url'),
+                dry_run=default_conf.get('dry_run', True),
                 exportfilename=default_conf.get('exportfilename'),
                 )
 
@@ -223,6 +229,7 @@ def test_load_trades(default_conf, mocker):
     default_conf['exportfilename'] = "testfile.json"
     load_trades("file",
                 db_url=default_conf.get('db_url'),
+                dry_run=default_conf.get('dry_run', True),
                 exportfilename=default_conf.get('exportfilename'),
                 no_trades=True
                 )

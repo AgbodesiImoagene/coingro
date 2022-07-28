@@ -14,12 +14,12 @@ import pytest
 from telegram import Chat, Message, Update
 
 from coingro import constants
+from coingro.coingrobot import CoingroBot
 from coingro.commands import Arguments
 from coingro.data.converter import ohlcv_to_dataframe
 from coingro.edge import PairInfo
 from coingro.enums import CandleType, MarginMode, RunMode, SignalDirection, TradingMode
 from coingro.exchange import Exchange
-from coingro.coingrobot import CoingroBot
 from coingro.persistence import LocalTrade, Order, Trade, init_db
 from coingro.resolvers import ExchangeResolver
 from coingro.worker import Worker
@@ -399,7 +399,7 @@ def patch_coingekko(mocker) -> None:
 
 @pytest.fixture(scope='function')
 def init_persistence(default_conf):
-    init_db(default_conf['db_url'])
+    init_db(default_conf['db_url'], default_conf['dry_run'])
 
 
 @pytest.fixture(scope="function")

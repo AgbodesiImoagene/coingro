@@ -15,7 +15,7 @@ from coingro.persistence import Trade
 from coingro.plugins.pairlist.pairlist_helpers import expand_pairlist
 from coingro.plugins.pairlistmanager import PairListManager
 from coingro.resolvers import PairListResolver
-from tests.conftest import (create_mock_trades_usdt, get_patched_exchange, get_patched_coingrobot,
+from tests.conftest import (create_mock_trades_usdt, get_patched_coingrobot, get_patched_exchange,
                             log_has, log_has_re, num_log_has)
 
 

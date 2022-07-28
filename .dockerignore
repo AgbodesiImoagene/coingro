@@ -32,3 +32,4 @@ nohup.out
 git-execute.sh
 .coveragerc
 dist/
+todo.txt

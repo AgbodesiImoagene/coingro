@@ -10,6 +10,7 @@ from sqlalchemy import (Boolean, Column, DateTime, Enum, Float, ForeignKey, Inte
                         UniqueConstraint, desc, func)
 from sqlalchemy.orm import Query, lazyload, relationship
 
+from coingro import __id__
 from coingro.constants import DATETIME_PRINT_FORMAT, NON_OPEN_EXCHANGE_STATES, BuySell, LongShort
 from coingro.enums import ExitType, TradingMode
 from coingro.exceptions import DependencyException, OperationalException
@@ -31,13 +32,16 @@ class Order(_DECL_BASE):
 
     Mirrors CCXT Order structure
     """
-    __tablename__ = 'orders'
+    __tablename__ = f'{__id__}-orders'
+
+    _trade_table_name = f'{__id__}-trades'
+
     # Uniqueness should be ensured over pair, order_id
     # its likely that order_id is unique per Pair on some exchanges.
     __table_args__ = (UniqueConstraint('cg_pair', 'order_id', name="_order_pair_order_id"),)
 
     id = Column(Integer, primary_key=True)
-    cg_trade_id = Column(Integer, ForeignKey('trades.id'), index=True)
+    cg_trade_id = Column(Integer, ForeignKey(f'{_trade_table_name}.id'), index=True)
 
     trade = relationship("Trade", back_populates="orders")
 
@@ -1003,7 +1007,7 @@ class Trade(_DECL_BASE, LocalTrade):
 
     Note: Fields must be aligned with LocalTrade class
     """
-    __tablename__ = 'trades'
+    __tablename__ = f"{__id__}-trades"
 
     use_db: bool = True
 
