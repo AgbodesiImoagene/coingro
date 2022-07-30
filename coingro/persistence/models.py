@@ -11,6 +11,7 @@ from sqlalchemy.orm import scoped_session, sessionmaker
 from sqlalchemy.pool import StaticPool
 from sqlalchemy_utils import create_database, database_exists
 
+from coingro import __id__
 from coingro.exceptions import OperationalException, TemporaryError
 from coingro.misc import retrier
 from coingro.persistence.base import _DECL_BASE
@@ -123,10 +124,15 @@ def init_db(db_url: str, dry_run: bool) -> None:
     # Scoped sessions proxy requests to the appropriate thread-local session.
     # We should use the scoped_session object - not a seperately initialized version
     if dry_run:
-        Trade.__tablename__ += '-dryrun'
-        Order.__tablename__ += '-dryrun'
-        Order._trade_table_name += '-dryrun'
-        PairLock.__tablename__ += '-dryrun'
+        Trade.__table__.name = f'{__id__}-trades-dryrun'
+        Order.__table__.name = f'{__id__}-orders-dryrun'
+        Order._trade_table_name = f'{__id__}-trades-dryrun'
+        PairLock.__table__.name = f'{__id__}-pairlocks-dryrun'
+    else:
+        Trade.__table__.name = f'{__id__}-trades'
+        Order.__table__.name = f'{__id__}-orders'
+        Order._trade_table_name = f'{__id__}-trades'
+        PairLock.__table__.name = f'{__id__}-pairlocks'
 
     Trade._session = scoped_session(sessionmaker(bind=engine, autoflush=True))
     Trade.query = Trade._session.query_property()
