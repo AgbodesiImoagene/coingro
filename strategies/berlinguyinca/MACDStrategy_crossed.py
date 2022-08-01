@@ -10,7 +10,7 @@ from coingro.strategy.interface import IStrategy
 # --------------------------------
 
 
-class MACDStrategy_crossed(IStrategy):
+class MACDStrategyCrossed(IStrategy):
     """
         buy:
             MACD crosses MACD signal above

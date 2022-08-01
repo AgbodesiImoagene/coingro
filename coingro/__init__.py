@@ -2,6 +2,6 @@
 import os
 
 
-__version__ = '1.0.7'
+__version__ = '1.0.8'
 __id__ = os.environ.get('CG_BOT_ID', 'coingro-bot')
 __env__ = os.environ.get('CG_APP_ENV')

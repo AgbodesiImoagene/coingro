@@ -96,6 +96,8 @@ class Configuration:
         if 'original_config' not in config:
             config['original_config'] = deepcopy(config)
 
+        self._process_datadir_options(config)
+
         self._process_logging_options(config)
 
         self._process_runmode(config)
@@ -259,8 +261,6 @@ class Configuration:
 
         self._args_to_config(config, argname='timerange',
                              logstring='Parameter --timerange detected: {} ...')
-
-        self._process_datadir_options(config)
 
         self._args_to_config(config, argname='strategy_list',
                              logstring='Using strategy list of {} strategies', logfun=len)
