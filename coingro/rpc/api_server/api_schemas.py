@@ -504,3 +504,9 @@ class UpdateSettingsPayload(BaseModel):
     fiat_display_currency: Optional[str]
     available_capital: Optional[confloat(ge=0)]  # type: ignore
     dry_run_wallet: Optional[confloat(ge=0)]  # type: ignore
+
+
+class TradesSummaryResponse(BaseModel):
+    daily: Daily
+    weekly: Daily
+    monthly: Daily

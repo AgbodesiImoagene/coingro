@@ -357,6 +357,74 @@ class RPC:
             'data': data
         }
 
+    def _rpc_timeunit_trade_profit(
+            self, timescale: int,
+            stake_currency: str, fiat_display_currency: str,
+            timeunit: str = 'days') -> Dict[str, Any]:
+        """
+        :param timeunit: Valid entries are 'days', 'weeks', 'months'
+        """
+        start_date = datetime.now(timezone.utc).date()
+        if timeunit == 'weeks':
+            # weekly
+            start_date = start_date - timedelta(days=start_date.weekday())  # Monday
+        if timeunit == 'months':
+            start_date = start_date.replace(day=1)
+
+        def time_offset(step: int):
+            if timeunit == 'months':
+                return relativedelta(months=step)
+            return timedelta(**{timeunit: step})
+
+        if not (isinstance(timescale, int) and timescale > 0):
+            raise RPCException('timescale must be an integer greater than 0')
+
+        profit_units: Dict[date, Dict] = {}
+        daily_stake = self._coingro.wallets.get_total_stake_amount()
+
+        for day in range(0, timescale):
+            profitday = start_date - time_offset(day)
+            # Only query for necessary columns for performance reasons.
+            trades = Trade.query.session.query(Trade.close_profit_abs).filter(
+                Trade.is_open.is_(False),
+                Trade.close_date >= profitday,
+                Trade.close_date < (profitday + time_offset(1))
+            ).order_by(Trade.close_date).all()
+
+            curdayprofit = sum(
+                trade.close_profit_abs for trade in trades if trade.close_profit_abs is not None)
+            tradevolume = sum(
+                trade.stake_amount for trade in trades if trade.close_profit is not None)
+            # Calculate this periods starting balance
+            daily_stake = daily_stake - curdayprofit
+            profit_units[profitday] = {
+                'amount': curdayprofit,
+                'daily_stake': daily_stake,
+                'rel_profit': round(curdayprofit / tradevolume, 8) if tradevolume > 0 else 0,
+                'trades': len(trades),
+            }
+
+        data = [
+            {
+                'date': f"{key.year}-{key.month:02d}" if timeunit == 'months' else key,
+                'abs_profit': value["amount"],
+                'starting_balance': value["daily_stake"],
+                'rel_profit': value["rel_profit"],
+                'fiat_value': self._fiat_converter.convert_amount(
+                    value['amount'],
+                    stake_currency,
+                    fiat_display_currency
+                ) if self._fiat_converter else 0,
+                'trade_count': value["trades"],
+            }
+            for key, value in profit_units.items()
+        ]
+        return {
+            'stake_currency': stake_currency,
+            'fiat_display_currency': fiat_display_currency,
+            'data': data
+        }
+
     def _rpc_trade_history(self, limit: int, offset: int = 0, order_by_id: bool = False) -> Dict:
         """ Returns the X last trades """
         order_by = Trade.id if order_by_id else Trade.close_date.desc()
@@ -1216,3 +1284,24 @@ class RPC:
         name = config.get('exchange', {}).get('name', '')
         exchange = ExchangeResolver.load_exchange(name, config)
         exchange.close()
+
+    def _rpc_summary(self) -> Dict[str, Any]:
+        try:
+            timeunits = {
+                'days': 'daily',
+                'weeks': 'weekly',
+                'months': 'monthly'
+            }
+            resp = {}
+            for unit in timeunits:
+                timeframe = timeunits[unit]
+                data = self._rpc_timeunit_trade_profit(
+                           1,
+                           self._config['stake_currency'],
+                           self._config.get('fiat_display_currency', ''),
+                           timeframe
+                       )
+                resp[timeframe] = data
+            return resp
+        except Exception as e:
+            raise RPCException(str(e)) from e

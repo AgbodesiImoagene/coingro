@@ -22,8 +22,9 @@ from coingro.rpc.api_server.api_schemas import (AvailablePairs, Balances, Blackl
                                                 ResultMsg, SettingsOptions, ShowConfig, State,
                                                 Stats, StatusMsg, StrategyListResponse,
                                                 StrategyResponse, SysInfo, TimeUnitProfit,
-                                                UpdateExchangePayload, UpdateSettingsPayload,
-                                                UpdateStrategyPayload, Version, WhitelistResponse)
+                                                TradesSummaryResponse, UpdateExchangePayload,
+                                                UpdateSettingsPayload, UpdateStrategyPayload,
+                                                Version, WhitelistResponse)
 from coingro.rpc.api_server.deps import get_config, get_exchange, get_rpc, get_rpc_optional
 from coingro.rpc.rpc import RPCException
 
@@ -373,3 +374,8 @@ def update_general_settings(payload: UpdateSettingsPayload, rpc: RPC = Depends(g
 @router.post('/reset_original_config', response_model=StatusMsg, tags=['botcontrol'])
 def reset_original_config(rpc: RPC = Depends(get_rpc)):
     return rpc._rpc_reset_original_config()
+
+
+@router.get('/trade_summary', response_model=TradesSummaryResponse, tags=['info'])
+def summary(rpc: RPC = Depends(get_rpc)):
+    return rpc._rpc_summary()

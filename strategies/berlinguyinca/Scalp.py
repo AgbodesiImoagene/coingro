@@ -1,4 +1,3 @@
-# --- Do not remove these libs ---
 # --------------------------------
 import talib.abstract as ta
 from pandas import DataFrame
@@ -9,8 +8,8 @@ from coingro.strategy.interface import IStrategy
 
 class Scalp(IStrategy):
     """
-        this strategy is based around the idea of generating a lot of potentatils buys and make
-        tiny profits on each trade
+        this strategy is based around the idea of generating a lot of potential buys,
+        making tiny profits on each trade
 
         we recommend to have at least 60 parallel trades at any time to cover non avoidable losses.
 
