@@ -132,6 +132,10 @@ SUPPORTED_STAKE_CURRENCIES = [
     "BTC", "ETH", "USDT", "USDC", "BUSD", 'EUR'
 ]
 
+SUPPORTED_FORCEENTER_CURRENCIES = [
+    'BTC, ETH', 'XRP', 'ADA', 'SOL'
+]
+
 MINIMAL_CONFIG = {
     "stake_currency": "BTC",
     "dry_run": True,

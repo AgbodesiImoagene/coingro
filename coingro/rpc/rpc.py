@@ -385,7 +385,7 @@ class RPC:
         for day in range(0, timescale):
             profitday = start_date - time_offset(day)
             # Only query for necessary columns for performance reasons.
-            trades = Trade.query.session.query(Trade.close_profit_abs).filter(
+            trades = Trade.query.session.query(Trade.close_profit_abs, Trade.stake_amount).filter(
                 Trade.is_open.is_(False),
                 Trade.close_date >= profitday,
                 Trade.close_date < (profitday + time_offset(1))
@@ -394,7 +394,7 @@ class RPC:
             curdayprofit = sum(
                 trade.close_profit_abs for trade in trades if trade.close_profit_abs is not None)
             tradevolume = sum(
-                trade.stake_amount for trade in trades if trade.close_profit is not None)
+                trade.stake_amount for trade in trades if trade.close_profit_abs is not None)
             # Calculate this periods starting balance
             daily_stake = daily_stake - curdayprofit
             profit_units[profitday] = {
@@ -1299,7 +1299,7 @@ class RPC:
                            1,
                            self._config['stake_currency'],
                            self._config.get('fiat_display_currency', ''),
-                           timeframe
+                           unit
                        )
                 resp[timeframe] = data
             return resp

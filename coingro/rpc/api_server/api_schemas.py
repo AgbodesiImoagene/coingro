@@ -497,6 +497,7 @@ class UpdateStrategyPayload(BaseModel):
 
 
 class UpdateSettingsPayload(BaseModel):
+    bot_name: Optional[str]
     max_open_trades: Optional[conint(ge=-1)]  # type: ignore
     stake_currency: Optional[str]
     stake_amount: Optional[Union[confloat(ge=0.0001), StakeAmountOptions]]  # type: ignore

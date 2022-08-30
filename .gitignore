@@ -109,3 +109,5 @@ nohup.out
 !config_examples/config_full.example.json
 !config_examples/config_kraken.example.json
 !coingro/templates/config.json
+
+strategies/
