@@ -22,7 +22,7 @@ def get_rpc() -> Optional[Iterator[RPC]]:
         yield _rpc
         Trade.query.session.rollback()
     else:
-        raise RPCException('Bot is not in the correct state')
+        raise RPCException("Bot is not in the correct state")
 
 
 def get_config() -> Dict[str, Any]:
@@ -30,18 +30,18 @@ def get_config() -> Dict[str, Any]:
 
 
 def get_api_config() -> Dict[str, Any]:
-    return ApiServer._config['api_server']
+    return ApiServer._config["api_server"]
 
 
 def get_exchange(config=Depends(get_config)):
     if not ApiServer._exchange:
         from coingro.resolvers import ExchangeResolver
-        ApiServer._exchange = ExchangeResolver.load_exchange(
-            config['exchange']['name'], config)
+
+        ApiServer._exchange = ExchangeResolver.load_exchange(config["exchange"]["name"], config)
     return ApiServer._exchange
 
 
 def is_webserver_mode(config=Depends(get_config)):
-    if config['runmode'] != RunMode.WEBSERVER:
-        raise RPCException('Bot is not in the correct state')
+    if config["runmode"] != RunMode.WEBSERVER:
+        raise RPCException("Bot is not in the correct state")
     return None

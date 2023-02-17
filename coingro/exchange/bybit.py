@@ -5,7 +5,6 @@ from typing import Dict, List, Tuple
 from coingro.enums import MarginMode, TradingMode
 from coingro.exchange import Exchange
 
-
 logger = logging.getLogger(__name__)
 
 
@@ -19,10 +18,7 @@ class Bybit(Exchange):
     may still not work as expected.
     """
 
-    _cg_has: Dict = {
-        "ohlcv_candle_limit": 200,
-        "ccxt_futures_name": "linear"
-    }
+    _cg_has: Dict = {"ohlcv_candle_limit": 200, "ccxt_futures_name": "linear"}
 
     _supported_trading_mode_margin_pairs: List[Tuple[TradingMode, MarginMode]] = [
         # TradingMode.SPOT always supported and not required in this list
@@ -36,10 +32,6 @@ class Bybit(Exchange):
         # ccxt defaults to swap mode.
         config = {}
         if self.trading_mode == TradingMode.SPOT:
-            config.update({
-                "options": {
-                    "defaultType": "spot"
-                }
-            })
+            config.update({"options": {"defaultType": "spot"}})
         config.update(super()._ccxt_config)
         return config

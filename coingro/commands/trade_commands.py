@@ -1,7 +1,6 @@
 import logging
 from typing import Any, Dict
 
-
 logger = logging.getLogger(__name__)
 
 
@@ -21,7 +20,7 @@ def start_trading(args: Dict[str, Any]) -> int:
         logger.error(str(e))
         logger.exception("Fatal exception!")
     except KeyboardInterrupt:
-        logger.info('SIGINT received, aborting ...')
+        logger.info("SIGINT received, aborting ...")
     finally:
         if worker:
             logger.info("worker found ... calling exit")

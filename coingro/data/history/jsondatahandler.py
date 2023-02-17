@@ -14,7 +14,6 @@ from coingro.enums import CandleType, TradingMode
 
 from .idatahandler import IDataHandler
 
-
 logger = logging.getLogger(__name__)
 
 
@@ -25,25 +24,29 @@ class JsonDataHandler(IDataHandler):
 
     @classmethod
     def ohlcv_get_available_data(
-            cls, datadir: Path, trading_mode: TradingMode) -> ListPairsWithTimeframes:
+        cls, datadir: Path, trading_mode: TradingMode
+    ) -> ListPairsWithTimeframes:
         """
         Returns a list of all pairs with ohlcv data available in this datadir
         :param datadir: Directory to search for ohlcv files
         :param trading_mode: trading-mode to be used
         :return: List of Tuples of (pair, timeframe)
         """
-        if trading_mode == 'futures':
-            datadir = datadir.joinpath('futures')
+        if trading_mode == "futures":
+            datadir = datadir.joinpath("futures")
         _tmp = [
-            re.search(
-                cls._OHLCV_REGEX, p.name
-            ) for p in datadir.glob(f"*.{cls._get_file_extension()}")]
+            re.search(cls._OHLCV_REGEX, p.name)
+            for p in datadir.glob(f"*.{cls._get_file_extension()}")
+        ]
         return [
             (
                 cls.rebuild_pair_from_filename(match[1]),
                 cls.rebuild_timeframe_from_filename(match[2]),
-                CandleType.from_string(match[3])
-            ) for match in _tmp if match and len(match.groups()) > 1]
+                CandleType.from_string(match[3]),
+            )
+            for match in _tmp
+            if match and len(match.groups()) > 1
+        ]
 
     @classmethod
     def ohlcv_get_pairs(cls, datadir: Path, timeframe: str, candle_type: CandleType) -> List[str]:
@@ -57,16 +60,19 @@ class JsonDataHandler(IDataHandler):
         """
         candle = ""
         if candle_type != CandleType.SPOT:
-            datadir = datadir.joinpath('futures')
+            datadir = datadir.joinpath("futures")
             candle = f"-{candle_type}"
 
-        _tmp = [re.search(r'^(\S+)(?=\-' + timeframe + candle + '.json)', p.name)
-                for p in datadir.glob(f"*{timeframe}{candle}.{cls._get_file_extension()}")]
+        _tmp = [
+            re.search(r"^(\S+)(?=\-" + timeframe + candle + ".json)", p.name)
+            for p in datadir.glob(f"*{timeframe}{candle}.{cls._get_file_extension()}")
+        ]
         # Check if regex found something and only return these results
         return [cls.rebuild_pair_from_filename(match[0]) for match in _tmp if match]
 
     def ohlcv_store(
-            self, pair: str, timeframe: str, data: DataFrame, candle_type: CandleType) -> None:
+        self, pair: str, timeframe: str, data: DataFrame, candle_type: CandleType
+    ) -> None:
         """
         Store data in json format "values".
             format looks as follows:
@@ -81,16 +87,16 @@ class JsonDataHandler(IDataHandler):
         self.create_dir_if_needed(filename)
         _data = data.copy()
         # Convert date to int
-        _data['date'] = _data['date'].view(np.int64) // 1000 // 1000
+        _data["date"] = _data["date"].view(np.int64) // 1000 // 1000
 
         # Reset index, select only appropriate columns and save as json
         _data.reset_index(drop=True).loc[:, self._columns].to_json(
-            filename, orient="values",
-            compression='gzip' if self._use_zip else None)
+            filename, orient="values", compression="gzip" if self._use_zip else None
+        )
 
-    def _ohlcv_load(self, pair: str, timeframe: str,
-                    timerange: Optional[TimeRange], candle_type: CandleType
-                    ) -> DataFrame:
+    def _ohlcv_load(
+        self, pair: str, timeframe: str, timerange: Optional[TimeRange], candle_type: CandleType
+    ) -> DataFrame:
         """
         Internal method used to load data for one pair from disk.
         Implements the loading and conversion to a Pandas dataframe.
@@ -103,34 +109,36 @@ class JsonDataHandler(IDataHandler):
         :param candle_type: Any of the enum CandleType (must match trading mode!)
         :return: DataFrame with ohlcv data, or empty DataFrame
         """
-        filename = self._pair_data_filename(
-            self._datadir, pair, timeframe, candle_type=candle_type)
+        filename = self._pair_data_filename(self._datadir, pair, timeframe, candle_type=candle_type)
         if not filename.exists():
             # Fallback mode for 1M files
             filename = self._pair_data_filename(
-                self._datadir, pair, timeframe, candle_type=candle_type, no_timeframe_modify=True)
+                self._datadir, pair, timeframe, candle_type=candle_type, no_timeframe_modify=True
+            )
             if not filename.exists():
                 return DataFrame(columns=self._columns)
         try:
-            pairdata = read_json(filename, orient='values')
+            pairdata = read_json(filename, orient="values")
             pairdata.columns = self._columns
         except ValueError:
             logger.error(f"Could not load data for {pair}.")
             return DataFrame(columns=self._columns)
-        pairdata = pairdata.astype(dtype={'open': 'float', 'high': 'float',
-                                          'low': 'float', 'close': 'float', 'volume': 'float'})
-        pairdata['date'] = to_datetime(pairdata['date'],
-                                       unit='ms',
-                                       utc=True,
-                                       infer_datetime_format=True)
+        pairdata = pairdata.astype(
+            dtype={
+                "open": "float",
+                "high": "float",
+                "low": "float",
+                "close": "float",
+                "volume": "float",
+            }
+        )
+        pairdata["date"] = to_datetime(
+            pairdata["date"], unit="ms", utc=True, infer_datetime_format=True
+        )
         return pairdata
 
     def ohlcv_append(
-        self,
-        pair: str,
-        timeframe: str,
-        data: DataFrame,
-        candle_type: CandleType
+        self, pair: str, timeframe: str, data: DataFrame, candle_type: CandleType
     ) -> None:
         """
         Append data to existing data structures
@@ -148,8 +156,10 @@ class JsonDataHandler(IDataHandler):
         :param datadir: Directory to search for ohlcv files
         :return: List of Pairs
         """
-        _tmp = [re.search(r'^(\S+)(?=\-trades.json)', p.name)
-                for p in datadir.glob(f"*trades.{cls._get_file_extension()}")]
+        _tmp = [
+            re.search(r"^(\S+)(?=\-trades.json)", p.name)
+            for p in datadir.glob(f"*trades.{cls._get_file_extension()}")
+        ]
         # Check if regex found something and only return these results to avoid exceptions.
         return [cls.rebuild_pair_from_filename(match[0]) for match in _tmp if match]
 

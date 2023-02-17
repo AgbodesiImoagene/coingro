@@ -12,19 +12,28 @@ from pandas import DataFrame
 
 from coingro.constants import ListPairsWithTimeframes
 from coingro.data.dataprovider import DataProvider
-from coingro.enums import (CandleType, ExitCheckTuple, ExitType, SignalDirection, SignalTagType,
-                           SignalType, TradingMode)
+from coingro.enums import (
+    CandleType,
+    ExitCheckTuple,
+    ExitType,
+    SignalDirection,
+    SignalTagType,
+    SignalType,
+    TradingMode,
+)
 from coingro.enums.runmode import RunMode
 from coingro.exceptions import OperationalException, StrategyError
 from coingro.exchange import timeframe_to_minutes, timeframe_to_next_date, timeframe_to_seconds
 from coingro.persistence import Order, PairLocks, Trade
 from coingro.strategy.hyper import HyperStrategyMixin
-from coingro.strategy.informative_decorator import (InformativeData, PopulateIndicators,
-                                                    _create_and_merge_informative_pair,
-                                                    _format_pair_name)
+from coingro.strategy.informative_decorator import (
+    InformativeData,
+    PopulateIndicators,
+    _create_and_merge_informative_pair,
+    _format_pair_name,
+)
 from coingro.strategy.strategy_wrapper import strategy_safe_wrapper
 from coingro.wallets import Wallets
-
 
 logger = logging.getLogger(__name__)
 CUSTOM_EXIT_MAX_LENGTH = 64
@@ -40,6 +49,7 @@ class IStrategy(ABC, HyperStrategyMixin):
         stoploss -> float: optimal stoploss designed for the strategy
         timeframe -> str: value of the timeframe to use with the strategy
     """
+
     # Strategy interface version
     # Default to version 2
     # Version 1 is the initial interface without metadata dict - deprecated and no longer supported.
@@ -49,12 +59,7 @@ class IStrategy(ABC, HyperStrategyMixin):
 
     _cg_params_from_file: Dict
     # associated minimal roi
-    minimal_roi: Dict = {
-        "40":  0.0,
-        "30":  0.01,
-        "20":  0.02,
-        "0":  0.04
-    }
+    minimal_roi: Dict = {"40": 0.0, "30": 0.01, "20": 0.02, "0": 0.04}
 
     # associated stoploss
     stoploss: float = -0.10
@@ -74,17 +79,17 @@ class IStrategy(ABC, HyperStrategyMixin):
 
     # Optional order types
     order_types: Dict = {
-        'entry': 'limit',
-        'exit': 'limit',
-        'stoploss': 'limit',
-        'stoploss_on_exchange': False,
-        'stoploss_on_exchange_interval': 60,
+        "entry": "limit",
+        "exit": "limit",
+        "stoploss": "limit",
+        "stoploss_on_exchange": False,
+        "stoploss_on_exchange_interval": 60,
     }
 
     # Optional time in force
     order_time_in_force: Dict = {
-        'entry': 'gtc',
-        'exit': 'gtc',
+        "entry": "gtc",
+        "exit": "gtc",
     }
 
     # run "populate_indicators" only for new candle
@@ -114,7 +119,7 @@ class IStrategy(ABC, HyperStrategyMixin):
             "method": "VolumePairList",
             "number_assets": 20,
             "sort_key": "quoteVolume",
-            "refresh_period": 1800
+            "refresh_period": 1800,
         }
     ]
     protections: List = []
@@ -131,13 +136,13 @@ class IStrategy(ABC, HyperStrategyMixin):
     # Filled from configuration
     stake_currency: str
     # container variable for strategy source code
-    __source__: str = ''
+    __source__: str = ""
 
     # metadata
-    __strategy_name__: str = ''
-    __short_description__: str = 'Short description'
-    __long_description__: str = 'Long description'
-    __category__: str = ''
+    __strategy_name__: str = ""
+    __short_description__: str = "Short description"
+    __long_description__: str = "Long description"
+    __category__: str = ""
     __tags__: List[str] = []  # should not include commas
 
     # Definition of plot_config. See plotting documentation for more details.
@@ -155,7 +160,7 @@ class IStrategy(ABC, HyperStrategyMixin):
             cls_method = getattr(self.__class__, attr_name)
             if not callable(cls_method):
                 continue
-            informative_data_list = getattr(cls_method, '_cg_informative', None)
+            informative_data_list = getattr(cls_method, "_cg_informative", None)
             if not isinstance(informative_data_list, list):
                 # Type check is required because mocker would return a mock object that evaluates to
                 # True, confusing this code.
@@ -163,10 +168,11 @@ class IStrategy(ABC, HyperStrategyMixin):
             strategy_timeframe_minutes = timeframe_to_minutes(self.timeframe)
             for informative_data in informative_data_list:
                 if timeframe_to_minutes(informative_data.timeframe) < strategy_timeframe_minutes:
-                    raise OperationalException('Informative timeframe must be equal or higher than '
-                                               'strategy timeframe!')
+                    raise OperationalException(
+                        "Informative timeframe must be equal or higher than " "strategy timeframe!"
+                    )
                 if not informative_data.candle_type:
-                    informative_data.candle_type = config['candle_type_def']
+                    informative_data.candle_type = config["candle_type_def"]
                 self._cg_informative.append((informative_data, cls_method))
 
     def cg_bot_start(self, **kwargs) -> None:
@@ -176,7 +182,7 @@ class IStrategy(ABC, HyperStrategyMixin):
         """
         strategy_safe_wrapper(self.bot_start)()
 
-        self.cg_load_hyper_params(self.config.get('runmode') == RunMode.HYPEROPT)
+        self.cg_load_hyper_params(self.config.get("runmode") == RunMode.HYPEROPT)
 
     @abstractmethod
     def populate_indicators(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
@@ -241,15 +247,17 @@ class IStrategy(ABC, HyperStrategyMixin):
         """
         pass
 
-    def check_buy_timeout(self, pair: str, trade: Trade, order: Order,
-                          current_time: datetime, **kwargs) -> bool:
+    def check_buy_timeout(
+        self, pair: str, trade: Trade, order: Order, current_time: datetime, **kwargs
+    ) -> bool:
         """
         DEPRECATED: Please use `check_entry_timeout` instead.
         """
         return False
 
-    def check_entry_timeout(self, pair: str, trade: Trade, order: Order,
-                            current_time: datetime, **kwargs) -> bool:
+    def check_entry_timeout(
+        self, pair: str, trade: Trade, order: Order, current_time: datetime, **kwargs
+    ) -> bool:
         """
         Check entry timeout function callback.
         This method can be used to override the entry-timeout.
@@ -267,17 +275,20 @@ class IStrategy(ABC, HyperStrategyMixin):
         :return bool: When True is returned, then the entry order is cancelled.
         """
         return self.check_buy_timeout(
-            pair=pair, trade=trade, order=order, current_time=current_time)
+            pair=pair, trade=trade, order=order, current_time=current_time
+        )
 
-    def check_sell_timeout(self, pair: str, trade: Trade, order: Order,
-                           current_time: datetime, **kwargs) -> bool:
+    def check_sell_timeout(
+        self, pair: str, trade: Trade, order: Order, current_time: datetime, **kwargs
+    ) -> bool:
         """
         DEPRECATED: Please use `check_exit_timeout` instead.
         """
         return False
 
-    def check_exit_timeout(self, pair: str, trade: Trade, order: Order,
-                           current_time: datetime, **kwargs) -> bool:
+    def check_exit_timeout(
+        self, pair: str, trade: Trade, order: Order, current_time: datetime, **kwargs
+    ) -> bool:
         """
         Check exit timeout function callback.
         This method can be used to override the exit-timeout.
@@ -295,11 +306,21 @@ class IStrategy(ABC, HyperStrategyMixin):
         :return bool: When True is returned, then the exit-order is cancelled.
         """
         return self.check_sell_timeout(
-            pair=pair, trade=trade, order=order, current_time=current_time)
+            pair=pair, trade=trade, order=order, current_time=current_time
+        )
 
-    def confirm_trade_entry(self, pair: str, order_type: str, amount: float, rate: float,
-                            time_in_force: str, current_time: datetime, entry_tag: Optional[str],
-                            side: str, **kwargs) -> bool:
+    def confirm_trade_entry(
+        self,
+        pair: str,
+        order_type: str,
+        amount: float,
+        rate: float,
+        time_in_force: str,
+        current_time: datetime,
+        entry_tag: Optional[str],
+        side: str,
+        **kwargs,
+    ) -> bool:
         """
         Called right before placing a entry order.
         Timing for this function is critical, so avoid doing heavy computations or
@@ -324,9 +345,18 @@ class IStrategy(ABC, HyperStrategyMixin):
         """
         return True
 
-    def confirm_trade_exit(self, pair: str, trade: Trade, order_type: str, amount: float,
-                           rate: float, time_in_force: str, exit_reason: str,
-                           current_time: datetime, **kwargs) -> bool:
+    def confirm_trade_exit(
+        self,
+        pair: str,
+        trade: Trade,
+        order_type: str,
+        amount: float,
+        rate: float,
+        time_in_force: str,
+        exit_reason: str,
+        current_time: datetime,
+        **kwargs,
+    ) -> bool:
         """
         Called right before placing a regular exit order.
         Timing for this function is critical, so avoid doing heavy computations or
@@ -353,8 +383,15 @@ class IStrategy(ABC, HyperStrategyMixin):
         """
         return True
 
-    def custom_stoploss(self, pair: str, trade: Trade, current_time: datetime, current_rate: float,
-                        current_profit: float, **kwargs) -> float:
+    def custom_stoploss(
+        self,
+        pair: str,
+        trade: Trade,
+        current_time: datetime,
+        current_rate: float,
+        current_profit: float,
+        **kwargs,
+    ) -> float:
         """
         Custom stoploss logic, returning the new distance relative to current_rate (as ratio).
         e.g. returning -0.05 would create a stoploss 5% below current_rate.
@@ -375,8 +412,15 @@ class IStrategy(ABC, HyperStrategyMixin):
         """
         return self.stoploss
 
-    def custom_entry_price(self, pair: str, current_time: datetime, proposed_rate: float,
-                           entry_tag: Optional[str], side: str, **kwargs) -> float:
+    def custom_entry_price(
+        self,
+        pair: str,
+        current_time: datetime,
+        proposed_rate: float,
+        entry_tag: Optional[str],
+        side: str,
+        **kwargs,
+    ) -> float:
         """
         Custom entry price logic, returning the new entry price.
 
@@ -394,9 +438,16 @@ class IStrategy(ABC, HyperStrategyMixin):
         """
         return proposed_rate
 
-    def custom_exit_price(self, pair: str, trade: Trade,
-                          current_time: datetime, proposed_rate: float,
-                          current_profit: float, exit_tag: Optional[str], **kwargs) -> float:
+    def custom_exit_price(
+        self,
+        pair: str,
+        trade: Trade,
+        current_time: datetime,
+        proposed_rate: float,
+        current_profit: float,
+        exit_tag: Optional[str],
+        **kwargs,
+    ) -> float:
         """
         Custom exit price logic, returning the new exit price.
 
@@ -415,8 +466,15 @@ class IStrategy(ABC, HyperStrategyMixin):
         """
         return proposed_rate
 
-    def custom_sell(self, pair: str, trade: Trade, current_time: datetime, current_rate: float,
-                    current_profit: float, **kwargs) -> Optional[Union[str, bool]]:
+    def custom_sell(
+        self,
+        pair: str,
+        trade: Trade,
+        current_time: datetime,
+        current_rate: float,
+        current_profit: float,
+        **kwargs,
+    ) -> Optional[Union[str, bool]]:
         """
         DEPRECATED - please use custom_exit instead.
         Custom exit signal logic indicating that specified position should be sold. Returning a
@@ -440,8 +498,15 @@ class IStrategy(ABC, HyperStrategyMixin):
         """
         return None
 
-    def custom_exit(self, pair: str, trade: Trade, current_time: datetime, current_rate: float,
-                    current_profit: float, **kwargs) -> Optional[Union[str, bool]]:
+    def custom_exit(
+        self,
+        pair: str,
+        trade: Trade,
+        current_time: datetime,
+        current_rate: float,
+        current_profit: float,
+        **kwargs,
+    ) -> Optional[Union[str, bool]]:
         """
         Custom exit signal logic indicating that specified position should be sold. Returning a
         string or True from this method is equal to setting exit signal on a candle at specified
@@ -464,9 +529,18 @@ class IStrategy(ABC, HyperStrategyMixin):
         """
         return self.custom_sell(pair, trade, current_time, current_rate, current_profit, **kwargs)
 
-    def custom_stake_amount(self, pair: str, current_time: datetime, current_rate: float,
-                            proposed_stake: float, min_stake: Optional[float], max_stake: float,
-                            entry_tag: Optional[str], side: str, **kwargs) -> float:
+    def custom_stake_amount(
+        self,
+        pair: str,
+        current_time: datetime,
+        current_rate: float,
+        proposed_stake: float,
+        min_stake: Optional[float],
+        max_stake: float,
+        entry_tag: Optional[str],
+        side: str,
+        **kwargs,
+    ) -> float:
         """
         Customize stake size for each new trade.
 
@@ -482,10 +556,16 @@ class IStrategy(ABC, HyperStrategyMixin):
         """
         return proposed_stake
 
-    def adjust_trade_position(self, trade: Trade, current_time: datetime,
-                              current_rate: float, current_profit: float,
-                              min_stake: Optional[float], max_stake: float,
-                              **kwargs) -> Optional[float]:
+    def adjust_trade_position(
+        self,
+        trade: Trade,
+        current_time: datetime,
+        current_rate: float,
+        current_profit: float,
+        min_stake: Optional[float],
+        max_stake: float,
+        **kwargs,
+    ) -> Optional[float]:
         """
         Custom trade adjustment logic, returning the stake amount that a trade should be increased.
         This means extra buy orders with additional fees.
@@ -506,9 +586,18 @@ class IStrategy(ABC, HyperStrategyMixin):
         """
         return None
 
-    def adjust_entry_price(self, trade: Trade, order: Optional[Order], pair: str,
-                           current_time: datetime, proposed_rate: float, current_order_rate: float,
-                           entry_tag: Optional[str], side: str, **kwargs) -> float:
+    def adjust_entry_price(
+        self,
+        trade: Trade,
+        order: Optional[Order],
+        pair: str,
+        current_time: datetime,
+        proposed_rate: float,
+        current_order_rate: float,
+        entry_tag: Optional[str],
+        side: str,
+        **kwargs,
+    ) -> float:
         """
         Entry price re-adjustment logic, returning the user desired limit price.
         This only executes when a order was already placed, still open (unfilled fully or partially)
@@ -534,9 +623,17 @@ class IStrategy(ABC, HyperStrategyMixin):
         """
         return current_order_rate
 
-    def leverage(self, pair: str, current_time: datetime, current_rate: float,
-                 proposed_leverage: float, max_leverage: float, entry_tag: Optional[str],
-                 side: str, **kwargs) -> float:
+    def leverage(
+        self,
+        pair: str,
+        current_time: datetime,
+        current_rate: float,
+        proposed_leverage: float,
+        max_leverage: float,
+        entry_tag: Optional[str],
+        side: str,
+        **kwargs,
+    ) -> float:
         """
         Customize leverage for each new trade. This method is only called in futures mode.
 
@@ -570,9 +667,9 @@ class IStrategy(ABC, HyperStrategyMixin):
         """
         return None
 
-###
-# END - Intended to be overridden by strategy
-###
+    ###
+    # END - Intended to be overridden by strategy
+    ###
 
     def gather_informative_pairs(self) -> ListPairsWithTimeframes:
         """
@@ -581,13 +678,22 @@ class IStrategy(ABC, HyperStrategyMixin):
         informative_pairs = self.informative_pairs()
         # Compatibility code for 2 tuple informative pairs
         informative_pairs = [
-            (p[0], p[1], CandleType.from_string(p[2]) if len(
-                p) > 2 and p[2] != '' else self.config.get('candle_type_def', CandleType.SPOT))
-            for p in informative_pairs]
+            (
+                p[0],
+                p[1],
+                CandleType.from_string(p[2])
+                if len(p) > 2 and p[2] != ""
+                else self.config.get("candle_type_def", CandleType.SPOT),
+            )
+            for p in informative_pairs
+        ]
         for inf_data, _ in self._cg_informative:
             # Get default candle type if not provided explicitly.
-            candle_type = (inf_data.candle_type if inf_data.candle_type
-                           else self.config.get('candle_type_def', CandleType.SPOT))
+            candle_type = (
+                inf_data.candle_type
+                if inf_data.candle_type
+                else self.config.get("candle_type_def", CandleType.SPOT)
+            )
             if inf_data.asset:
                 pair_tf = (
                     _format_pair_name(self.config, inf_data.asset),
@@ -597,8 +703,10 @@ class IStrategy(ABC, HyperStrategyMixin):
                 informative_pairs.append(pair_tf)
             else:
                 if not self.dp:
-                    raise OperationalException('@informative decorator with unspecified asset '
-                                               'requires DataProvider instance.')
+                    raise OperationalException(
+                        "@informative decorator with unspecified asset "
+                        "requires DataProvider instance."
+                    )
                 for pair in self.dp.current_whitelist():
                     informative_pairs.append((pair, inf_data.timeframe, candle_type))
         return list(set(informative_pairs))
@@ -609,7 +717,9 @@ class IStrategy(ABC, HyperStrategyMixin):
         """
         return self.__class__.__name__
 
-    def lock_pair(self, pair: str, until: datetime, reason: str = None, side: str = '*') -> None:
+    def lock_pair(
+        self, pair: str, until: datetime, reason: Optional[str] = None, side: str = "*"
+    ) -> None:
         """
         Locks pair until a given timestamp happens.
         Locked pairs are not analyzed, and are prevented from opening new trades.
@@ -641,7 +751,9 @@ class IStrategy(ABC, HyperStrategyMixin):
         """
         PairLocks.unlock_reason(reason, datetime.now(timezone.utc))
 
-    def is_pair_locked(self, pair: str, *, candle_date: datetime = None, side: str = '*') -> bool:
+    def is_pair_locked(
+        self, pair: str, *, candle_date: Optional[datetime] = None, side: str = "*"
+    ) -> bool:
         """
         Checks if a pair is currently locked
         The 2nd, optional parameter ensures that locks are applied until the new candle arrives,
@@ -683,19 +795,24 @@ class IStrategy(ABC, HyperStrategyMixin):
         :param metadata: Metadata dictionary with additional data (e.g. 'pair')
         :return: DataFrame of candle (OHLCV) data with indicator data and signals added
         """
-        pair = str(metadata.get('pair'))
+        pair = str(metadata.get("pair"))
 
         # Test if seen this pair and last candle before.
         # always run if process_only_new_candles is set to false
-        if (not self.process_only_new_candles or
-                self._last_candle_seen_per_pair.get(pair, None) != dataframe.iloc[-1]['date']):
+        if (
+            not self.process_only_new_candles
+            or self._last_candle_seen_per_pair.get(pair, None) != dataframe.iloc[-1]["date"]
+        ):
             # Defs that only make change on new candle data.
             dataframe = self.analyze_ticker(dataframe, metadata)
-            self._last_candle_seen_per_pair[pair] = dataframe.iloc[-1]['date']
+            self._last_candle_seen_per_pair[pair] = dataframe.iloc[-1]["date"]
             if self.dp:
                 self.dp._set_cached_df(
-                    pair, self.timeframe, dataframe,
-                    candle_type=self.config.get('candle_type_def', CandleType.SPOT))
+                    pair,
+                    self.timeframe,
+                    dataframe,
+                    candle_type=self.config.get("candle_type_def", CandleType.SPOT),
+                )
         else:
             logger.debug("Skipping TA Analysis for already analyzed candle")
             dataframe[SignalType.ENTER_LONG.value] = 0
@@ -719,18 +836,18 @@ class IStrategy(ABC, HyperStrategyMixin):
         if not self.dp:
             raise OperationalException("DataProvider not found.")
         dataframe = self.dp.ohlcv(
-            pair, self.timeframe, candle_type=self.config.get('candle_type_def', CandleType.SPOT)
+            pair, self.timeframe, candle_type=self.config.get("candle_type_def", CandleType.SPOT)
         )
         if not isinstance(dataframe, DataFrame) or dataframe.empty:
-            logger.warning('Empty candle (OHLCV) data for pair %s', pair)
+            logger.warning("Empty candle (OHLCV) data for pair %s", pair)
             return
 
         try:
             df_len, df_close, df_date = self.preserve_df(dataframe)
 
-            dataframe = strategy_safe_wrapper(
-                self._analyze_ticker_internal, message=""
-            )(dataframe, {'pair': pair})
+            dataframe = strategy_safe_wrapper(self._analyze_ticker_internal, message="")(
+                dataframe, {"pair": pair}
+            )
 
             self.assert_df(dataframe, df_len, df_close, df_date)
         except StrategyError as error:
@@ -738,7 +855,7 @@ class IStrategy(ABC, HyperStrategyMixin):
             return
 
         if dataframe.empty:
-            logger.warning('Empty dataframe for pair %s', pair)
+            logger.warning("Empty dataframe for pair %s", pair)
             return
 
     def analyze(self, pairs: List[str]) -> None:
@@ -751,7 +868,7 @@ class IStrategy(ABC, HyperStrategyMixin):
 
     @staticmethod
     def preserve_df(dataframe: DataFrame) -> Tuple[int, float, datetime]:
-        """ keep some data for dataframes """
+        """keep some data for dataframes"""
         return len(dataframe), dataframe["close"].iloc[-1], dataframe["date"].iloc[-1]
 
     def assert_df(self, dataframe: DataFrame, df_len: int, df_close: float, df_date: datetime):
@@ -762,7 +879,7 @@ class IStrategy(ABC, HyperStrategyMixin):
         message = ""
         if dataframe is None:
             message = "No dataframe returned (return statement missing?)."
-        elif 'enter_long' not in dataframe:
+        elif "enter_long" not in dataframe:
             message = "enter_long/buy column not set."
         elif df_len != len(dataframe):
             message = message_template.format("length")
@@ -792,31 +909,28 @@ class IStrategy(ABC, HyperStrategyMixin):
         :return: (None, None) or (Dataframe, latest_date) - corresponding to the last candle
         """
         if not isinstance(dataframe, DataFrame) or dataframe.empty:
-            logger.warning(f'Empty candle (OHLCV) data for pair {pair}')
+            logger.warning(f"Empty candle (OHLCV) data for pair {pair}")
             return None, None
 
-        latest_date = dataframe['date'].max()
-        latest = dataframe.loc[dataframe['date'] == latest_date].iloc[-1]
+        latest_date = dataframe["date"].max()
+        latest = dataframe.loc[dataframe["date"] == latest_date].iloc[-1]
         # Explicitly convert to arrow object to ensure the below comparison does not fail
         latest_date = arrow.get(latest_date)
 
         # Check if dataframe is out of date
         timeframe_minutes = timeframe_to_minutes(timeframe)
-        offset = self.config.get('exchange', {}).get('outdated_offset', 5)
+        offset = self.config.get("exchange", {}).get("outdated_offset", 5)
         if latest_date < (arrow.utcnow().shift(minutes=-(timeframe_minutes * 2 + offset))):
             logger.warning(
-                'Outdated history for pair %s. Last tick is %s minutes old',
-                pair, int((arrow.utcnow() - latest_date).total_seconds() // 60)
+                "Outdated history for pair %s. Last tick is %s minutes old",
+                pair,
+                int((arrow.utcnow() - latest_date).total_seconds() // 60),
             )
             return None, None
         return latest, latest_date
 
     def get_exit_signal(
-        self,
-        pair: str,
-        timeframe: str,
-        dataframe: DataFrame,
-        is_short: bool = None
+        self, pair: str, timeframe: str, dataframe: DataFrame, is_short: Optional[bool] = None
     ) -> Tuple[bool, bool, Optional[str]]:
         """
         Calculates current exit signal based based on the dataframe
@@ -844,8 +958,7 @@ class IStrategy(ABC, HyperStrategyMixin):
         # Tags can be None, which does not resolve to False.
         exit_tag = exit_tag if isinstance(exit_tag, str) else None
 
-        logger.debug(f"exit-trigger: {latest['date']} (pair={pair}) "
-                     f"enter={enter} exit={exit_}")
+        logger.debug(f"exit-trigger: {latest['date']} (pair={pair}) " f"enter={enter} exit={exit_}")
 
         return enter, exit_, exit_tag
 
@@ -878,9 +991,12 @@ class IStrategy(ABC, HyperStrategyMixin):
         if enter_long == 1 and not any([exit_long, enter_short]):
             enter_signal = SignalDirection.LONG
             enter_tag_value = latest.get(SignalTagType.ENTER_TAG.value, None)
-        if (self.config.get('trading_mode', TradingMode.SPOT) != TradingMode.SPOT
-                and self.can_short
-                and enter_short == 1 and not any([exit_short, enter_long])):
+        if (
+            self.config.get("trading_mode", TradingMode.SPOT) != TradingMode.SPOT
+            and self.can_short
+            and enter_short == 1
+            and not any([exit_short, enter_long])
+        ):
             enter_signal = SignalDirection.SHORT
             enter_tag_value = latest.get(SignalTagType.ENTER_TAG.value, None)
 
@@ -892,20 +1008,18 @@ class IStrategy(ABC, HyperStrategyMixin):
             latest_date=latest_date.datetime,
             current_time=datetime.now(timezone.utc),
             timeframe_seconds=timeframe_seconds,
-            enter=bool(enter_signal)
+            enter=bool(enter_signal),
         ):
             return None, enter_tag_value
 
-        logger.debug(f"entry trigger: {latest['date']} (pair={pair}) "
-                     f"enter={enter_long} enter_tag_value={enter_tag_value}")
+        logger.debug(
+            f"entry trigger: {latest['date']} (pair={pair}) "
+            f"enter={enter_long} enter_tag_value={enter_tag_value}"
+        )
         return enter_signal, enter_tag_value
 
     def ignore_expired_candle(
-        self,
-        latest_date: datetime,
-        current_time: datetime,
-        timeframe_seconds: int,
-        enter: bool
+        self, latest_date: datetime, current_time: datetime, timeframe_seconds: int, enter: bool
     ):
         if self.ignore_buying_expired_candle_after and enter:
             time_delta = current_time - (latest_date + timedelta(seconds=timeframe_seconds))
@@ -913,10 +1027,18 @@ class IStrategy(ABC, HyperStrategyMixin):
         else:
             return False
 
-    def should_exit(self, trade: Trade, rate: float, current_time: datetime, *,
-                    enter: bool, exit_: bool,
-                    low: float = None, high: float = None,
-                    force_stoploss: float = 0) -> List[ExitCheckTuple]:
+    def should_exit(
+        self,
+        trade: Trade,
+        rate: float,
+        current_time: datetime,
+        *,
+        enter: bool,
+        exit_: bool,
+        low: Optional[float] = None,
+        high: Optional[float] = None,
+        force_stoploss: float = 0,
+    ) -> List[ExitCheckTuple]:
         """
         This function evaluates if one of the conditions required to trigger an exit order
         has been reached, which can either be a stop-loss, ROI or exit-signal.
@@ -931,22 +1053,27 @@ class IStrategy(ABC, HyperStrategyMixin):
 
         trade.adjust_min_max_rates(high or current_rate, low or current_rate)
 
-        stoplossflag = self.stop_loss_reached(current_rate=current_rate, trade=trade,
-                                              current_time=current_time,
-                                              current_profit=current_profit,
-                                              force_stoploss=force_stoploss, low=low, high=high)
+        stoplossflag = self.stop_loss_reached(
+            current_rate=current_rate,
+            trade=trade,
+            current_time=current_time,
+            current_profit=current_profit,
+            force_stoploss=force_stoploss,
+            low=low,
+            high=high,
+        )
 
         # Set current rate to high for backtesting exits
         current_rate = (low if trade.is_short else high) or rate
         current_profit = trade.calc_profit_ratio(current_rate)
 
         # if enter signal and ignore_roi is set, we don't need to evaluate min_roi.
-        roi_reached = (not (enter and self.ignore_roi_if_entry_signal)
-                       and self.min_roi_reached(trade=trade, current_profit=current_profit,
-                                                current_time=current_time))
+        roi_reached = not (enter and self.ignore_roi_if_entry_signal) and self.min_roi_reached(
+            trade=trade, current_profit=current_profit, current_time=current_time
+        )
 
         exit_signal = ExitType.NONE
-        custom_reason = ''
+        custom_reason = ""
         # use provided rate in backtesting, not high/low.
         current_rate = rate
         current_profit = trade.calc_profit_ratio(current_rate)
@@ -956,27 +1083,34 @@ class IStrategy(ABC, HyperStrategyMixin):
                 exit_signal = ExitType.EXIT_SIGNAL
             else:
                 reason_cust = strategy_safe_wrapper(self.custom_exit, default_retval=False)(
-                    pair=trade.pair, trade=trade, current_time=current_time,
-                    current_rate=current_rate, current_profit=current_profit)
+                    pair=trade.pair,
+                    trade=trade,
+                    current_time=current_time,
+                    current_rate=current_rate,
+                    current_profit=current_profit,
+                )
                 if reason_cust:
                     exit_signal = ExitType.CUSTOM_EXIT
                     if isinstance(reason_cust, str):
                         custom_reason = reason_cust
                         if len(reason_cust) > CUSTOM_EXIT_MAX_LENGTH:
-                            logger.warning(f'Custom exit reason returned from '
-                                           f'custom_exit is too long and was trimmed'
-                                           f'to {CUSTOM_EXIT_MAX_LENGTH} characters.')
+                            logger.warning(
+                                f"Custom exit reason returned from "
+                                f"custom_exit is too long and was trimmed"
+                                f"to {CUSTOM_EXIT_MAX_LENGTH} characters."
+                            )
                             custom_reason = reason_cust[:CUSTOM_EXIT_MAX_LENGTH]
                     else:
-                        custom_reason = ''
-            if (
-                exit_signal == ExitType.CUSTOM_EXIT
-                or (exit_signal == ExitType.EXIT_SIGNAL
-                    and (not self.exit_profit_only or current_profit > self.exit_profit_offset))
+                        custom_reason = ""
+            if exit_signal == ExitType.CUSTOM_EXIT or (
+                exit_signal == ExitType.EXIT_SIGNAL
+                and (not self.exit_profit_only or current_profit > self.exit_profit_offset)
             ):
-                logger.debug(f"{trade.pair} - Sell signal received. "
-                             f"exit_type=ExitType.{exit_signal.name}" +
-                             (f", custom_reason={custom_reason}" if custom_reason else ""))
+                logger.debug(
+                    f"{trade.pair} - Sell signal received. "
+                    f"exit_type=ExitType.{exit_signal.name}"
+                    + (f", custom_reason={custom_reason}" if custom_reason else "")
+                )
                 exits.append(ExitCheckTuple(exit_type=exit_signal, exit_reason=custom_reason))
 
         # Sequence:
@@ -1001,10 +1135,16 @@ class IStrategy(ABC, HyperStrategyMixin):
 
         return exits
 
-    def stop_loss_reached(self, current_rate: float, trade: Trade,
-                          current_time: datetime, current_profit: float,
-                          force_stoploss: float, low: float = None,
-                          high: float = None) -> ExitCheckTuple:
+    def stop_loss_reached(
+        self,
+        current_rate: float,
+        trade: Trade,
+        current_time: datetime,
+        current_profit: float,
+        force_stoploss: float,
+        low: Optional[float] = None,
+        high: Optional[float] = None,
+    ) -> ExitCheckTuple:
         """
         Based on current profit of the trade and configured (trailing) stoploss,
         decides to exit or not
@@ -1017,17 +1157,20 @@ class IStrategy(ABC, HyperStrategyMixin):
         # Initiate stoploss with open_rate. Does nothing if stoploss is already set.
         trade.adjust_stop_loss(trade.open_rate, stop_loss_value, initial=True)
 
-        dir_correct = (trade.stop_loss < (low or current_rate)
-                       if not trade.is_short else
-                       trade.stop_loss > (high or current_rate)
-                       )
+        dir_correct = (
+            trade.stop_loss < (low or current_rate)
+            if not trade.is_short
+            else trade.stop_loss > (high or current_rate)
+        )
 
         if self.use_custom_stoploss and dir_correct:
-            stop_loss_value = strategy_safe_wrapper(self.custom_stoploss, default_retval=None
-                                                    )(pair=trade.pair, trade=trade,
-                                                      current_time=current_time,
-                                                      current_rate=current_rate,
-                                                      current_profit=current_profit)
+            stop_loss_value = strategy_safe_wrapper(self.custom_stoploss, default_retval=None)(
+                pair=trade.pair,
+                trade=trade,
+                current_time=current_time,
+                current_rate=current_rate,
+                current_profit=current_profit,
+            )
             # Sanity check - error cases will return None
             if stop_loss_value:
                 # logger.info(f"{trade.pair} {stop_loss_value=} {current_profit=}")
@@ -1035,8 +1178,8 @@ class IStrategy(ABC, HyperStrategyMixin):
             else:
                 logger.warning("CustomStoploss function did not return valid stoploss")
 
-        sl_lower_long = (trade.stop_loss < (low or current_rate) and not trade.is_short)
-        sl_higher_short = (trade.stop_loss > (high or current_rate) and trade.is_short)
+        sl_lower_long = trade.stop_loss < (low or current_rate) and not trade.is_short
+        sl_higher_short = trade.stop_loss > (high or current_rate) and trade.is_short
         if self.trailing_stop and (sl_lower_long or sl_higher_short):
             # trailing stoploss handling
             sl_offset = self.trailing_stop_positive_offset
@@ -1050,18 +1193,21 @@ class IStrategy(ABC, HyperStrategyMixin):
                 # Specific handling for trailing_stop_positive
                 if self.trailing_stop_positive is not None and bound_profit > sl_offset:
                     stop_loss_value = self.trailing_stop_positive
-                    logger.debug(f"{trade.pair} - Using positive stoploss: {stop_loss_value} "
-                                 f"offset: {sl_offset:.4g} profit: {current_profit:.2%}")
+                    logger.debug(
+                        f"{trade.pair} - Using positive stoploss: {stop_loss_value} "
+                        f"offset: {sl_offset:.4g} profit: {current_profit:.2%}"
+                    )
 
                 trade.adjust_stop_loss(bound or current_rate, stop_loss_value)
 
-        sl_higher_long = (trade.stop_loss >= (low or current_rate) and not trade.is_short)
-        sl_lower_short = (trade.stop_loss <= (high or current_rate) and trade.is_short)
+        sl_higher_long = trade.stop_loss >= (low or current_rate) and not trade.is_short
+        sl_lower_short = trade.stop_loss <= (high or current_rate) and trade.is_short
         # evaluate if the stoploss was hit if stoploss is not on exchange
         # in Dry-Run, this handles stoploss logic as well, as the logic will not be different to
         # regular stoploss handling.
-        if ((sl_higher_long or sl_lower_short) and
-                (not self.order_types.get('stoploss_on_exchange') or self.config['dry_run'])):
+        if (sl_higher_long or sl_lower_short) and (
+            not self.order_types.get("stoploss_on_exchange") or self.config["dry_run"]
+        ):
 
             exit_type = ExitType.STOP_LOSS
 
@@ -1073,14 +1219,14 @@ class IStrategy(ABC, HyperStrategyMixin):
                     f"{((high if trade.is_short else low) or current_rate):.6f}, "
                     f"stoploss is {trade.stop_loss:.6f}, "
                     f"initial stoploss was at {trade.initial_stop_loss:.6f}, "
-                    f"trade opened at {trade.open_rate:.6f}")
+                    f"trade opened at {trade.open_rate:.6f}"
+                )
                 new_stoploss = (
                     trade.stop_loss + trade.initial_stop_loss
-                    if trade.is_short else
-                    trade.stop_loss - trade.initial_stop_loss
+                    if trade.is_short
+                    else trade.stop_loss - trade.initial_stop_loss
                 )
-                logger.debug(f"{trade.pair} - Trailing stop saved "
-                             f"{new_stoploss:.6f}")
+                logger.debug(f"{trade.pair} - Trailing stop saved " f"{new_stoploss:.6f}")
 
             return ExitCheckTuple(exit_type=exit_type)
 
@@ -1114,29 +1260,28 @@ class IStrategy(ABC, HyperStrategyMixin):
         else:
             return current_profit > roi
 
-    def cg_check_timed_out(self, trade: Trade, order: Order,
-                           current_time: datetime) -> bool:
+    def cg_check_timed_out(self, trade: Trade, order: Order, current_time: datetime) -> bool:
         """
         CG Internal method.
         Check if timeout is active, and if the order is still open and timed out
         """
-        side = 'entry' if order.cg_order_side == trade.entry_side else 'exit'
+        side = "entry" if order.cg_order_side == trade.entry_side else "exit"
 
-        timeout = self.config.get('unfilledtimeout', {}).get(side)
+        timeout = self.config.get("unfilledtimeout", {}).get(side)
         if timeout is not None:
-            timeout_unit = self.config.get('unfilledtimeout', {}).get('unit', 'minutes')
+            timeout_unit = self.config.get("unfilledtimeout", {}).get("unit", "minutes")
             timeout_kwargs = {timeout_unit: -timeout}
             timeout_threshold = current_time + timedelta(**timeout_kwargs)
-            timedout = (order.status == 'open' and order.order_date_utc < timeout_threshold)
+            timedout = order.status == "open" and order.order_date_utc < timeout_threshold
             if timedout:
                 return True
-        time_method = (self.check_exit_timeout if order.side == trade.exit_side
-                       else self.check_entry_timeout)
+        time_method = (
+            self.check_exit_timeout if order.side == trade.exit_side else self.check_entry_timeout
+        )
 
-        return strategy_safe_wrapper(time_method,
-                                     default_retval=False)(
-                                        pair=trade.pair, trade=trade, order=order,
-                                        current_time=current_time)
+        return strategy_safe_wrapper(time_method, default_retval=False)(
+            pair=trade.pair, trade=trade, order=order, current_time=current_time
+        )
 
     def advise_all_indicators(self, data: Dict[str, DataFrame]) -> Dict[str, DataFrame]:
         """
@@ -1148,8 +1293,10 @@ class IStrategy(ABC, HyperStrategyMixin):
         Has positive effects on memory usage for whatever reason - also when
         using only one strategy.
         """
-        return {pair: self.advise_indicators(pair_data.copy(), {'pair': pair}).copy()
-                for pair, pair_data in data.items()}
+        return {
+            pair: self.advise_indicators(pair_data.copy(), {"pair": pair}).copy()
+            for pair, pair_data in data.items()
+        }
 
     def advise_indicators(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
         """
@@ -1164,7 +1311,8 @@ class IStrategy(ABC, HyperStrategyMixin):
         # call populate_indicators_Nm() which were tagged with @informative decorator.
         for inf_data, populate_fn in self._cg_informative:
             dataframe = _create_and_merge_informative_pair(
-                self, dataframe, metadata, inf_data, populate_fn)
+                self, dataframe, metadata, inf_data, populate_fn
+            )
 
         return self.populate_indicators(dataframe, metadata)
 
@@ -1181,8 +1329,8 @@ class IStrategy(ABC, HyperStrategyMixin):
         logger.debug(f"Populating enter signals for pair {metadata.get('pair')}.")
 
         df = self.populate_entry_trend(dataframe, metadata)
-        if 'enter_long' not in df.columns:
-            df = df.rename({'buy': 'enter_long', 'buy_tag': 'enter_tag'}, axis='columns')
+        if "enter_long" not in df.columns:
+            df = df.rename({"buy": "enter_long", "buy_tag": "enter_tag"}, axis="columns")
 
         return df
 
@@ -1197,6 +1345,6 @@ class IStrategy(ABC, HyperStrategyMixin):
         """
         logger.debug(f"Populating exit signals for pair {metadata.get('pair')}.")
         df = self.populate_exit_trend(dataframe, metadata)
-        if 'exit_long' not in df.columns:
-            df = df.rename({'sell': 'exit_long'}, axis='columns')
+        if "exit_long" not in df.columns:
+            df = df.rename({"sell": "exit_long"}, axis="columns")
         return df

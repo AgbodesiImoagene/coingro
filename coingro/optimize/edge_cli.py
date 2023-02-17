@@ -13,7 +13,6 @@ from coingro.edge import Edge
 from coingro.optimize.optimize_reports import generate_edge_table
 from coingro.resolvers import ExchangeResolver, StrategyResolver
 
-
 logger = logging.getLogger(__name__)
 
 
@@ -30,9 +29,9 @@ class EdgeCli:
         self.config = config
 
         # Ensure using dry-run
-        self.config['dry_run'] = True
-        self.config['stake_amount'] = constants.UNLIMITED_STAKE_AMOUNT
-        self.exchange = ExchangeResolver.load_exchange(self.config['exchange']['name'], self.config)
+        self.config["dry_run"] = True
+        self.config["stake_amount"] = constants.UNLIMITED_STAKE_AMOUNT
+        self.exchange = ExchangeResolver.load_exchange(self.config["exchange"]["name"], self.config)
         self.strategy = StrategyResolver.load_strategy(self.config)
         self.strategy.dp = DataProvider(config, self.exchange)
 
@@ -42,12 +41,13 @@ class EdgeCli:
         # Set refresh_pairs to false for edge-cli (it must be true for edge)
         self.edge._refresh_pairs = False
 
-        self.edge._timerange = TimeRange.parse_timerange(None if self.config.get(
-            'timerange') is None else str(self.config.get('timerange')))
+        self.edge._timerange = TimeRange.parse_timerange(
+            None if self.config.get("timerange") is None else str(self.config.get("timerange"))
+        )
         self.strategy.cg_bot_start()
 
     def start(self) -> None:
-        result = self.edge.calculate(self.config['exchange']['pair_whitelist'])
+        result = self.edge.calculate(self.config["exchange"]["pair_whitelist"])
         if result:
-            print('')  # blank line for readability
+            print("")  # blank line for readability
             print(generate_edge_table(self.edge._cached_pairs))

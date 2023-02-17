@@ -7,33 +7,38 @@ from typing import Any, Dict
 from coingro.exceptions import OperationalException
 from coingro.plugins.pairlist.IPairList import IPairList
 
-
 logger = logging.getLogger(__name__)
 
 
 class PriceFilter(IPairList):
-
-    def __init__(self, exchange, pairlistmanager,
-                 config: Dict[str, Any], pairlistconfig: Dict[str, Any],
-                 pairlist_pos: int) -> None:
+    def __init__(
+        self,
+        exchange,
+        pairlistmanager,
+        config: Dict[str, Any],
+        pairlistconfig: Dict[str, Any],
+        pairlist_pos: int,
+    ) -> None:
         super().__init__(exchange, pairlistmanager, config, pairlistconfig, pairlist_pos)
 
-        self._low_price_ratio = pairlistconfig.get('low_price_ratio', 0)
+        self._low_price_ratio = pairlistconfig.get("low_price_ratio", 0)
         if self._low_price_ratio < 0:
             raise OperationalException("PriceFilter requires low_price_ratio to be >= 0")
-        self._min_price = pairlistconfig.get('min_price', 0)
+        self._min_price = pairlistconfig.get("min_price", 0)
         if self._min_price < 0:
             raise OperationalException("PriceFilter requires min_price to be >= 0")
-        self._max_price = pairlistconfig.get('max_price', 0)
+        self._max_price = pairlistconfig.get("max_price", 0)
         if self._max_price < 0:
             raise OperationalException("PriceFilter requires max_price to be >= 0")
-        self._max_value = pairlistconfig.get('max_value', 0)
+        self._max_value = pairlistconfig.get("max_value", 0)
         if self._max_value < 0:
             raise OperationalException("PriceFilter requires max_value to be >= 0")
-        self._enabled = ((self._low_price_ratio > 0) or
-                         (self._min_price > 0) or
-                         (self._max_price > 0) or
-                         (self._max_value > 0))
+        self._enabled = (
+            (self._low_price_ratio > 0)
+            or (self._min_price > 0)
+            or (self._max_price > 0)
+            or (self._max_value > 0)
+        )
 
     @property
     def needstickers(self) -> bool:
@@ -70,29 +75,33 @@ class PriceFilter(IPairList):
         :param ticker: ticker dict as returned from ccxt.fetch_tickers()
         :return: True if the pair can stay, false if it should be removed
         """
-        if ticker.get('last', None) is None or ticker.get('last') == 0:
-            self.log_once(f"Removed {pair} from whitelist, because "
-                          "ticker['last'] is empty (Usually no trade in the last 24h).",
-                          logger.info)
+        if ticker.get("last", None) is None or ticker.get("last") == 0:
+            self.log_once(
+                f"Removed {pair} from whitelist, because "
+                "ticker['last'] is empty (Usually no trade in the last 24h).",
+                logger.info,
+            )
             return False
 
         # Perform low_price_ratio check.
         if self._low_price_ratio != 0:
-            compare = self._exchange.price_get_one_pip(pair, ticker['last'])
-            changeperc = compare / ticker['last']
+            compare = self._exchange.price_get_one_pip(pair, ticker["last"])
+            changeperc = compare / ticker["last"]
             if changeperc > self._low_price_ratio:
-                self.log_once(f"Removed {pair} from whitelist, "
-                              f"because 1 unit is {changeperc:.3%}", logger.info)
+                self.log_once(
+                    f"Removed {pair} from whitelist, " f"because 1 unit is {changeperc:.3%}",
+                    logger.info,
+                )
                 return False
 
         # Perform low_amount check
         if self._max_value != 0:
-            price = ticker['last']
+            price = ticker["last"]
             market = self._exchange.markets[pair]
-            limits = market['limits']
-            if (limits['amount']['min'] is not None):
-                min_amount = limits['amount']['min']
-                min_precision = market['precision']['amount']
+            limits = market["limits"]
+            if limits["amount"]["min"] is not None:
+                min_amount = limits["amount"]["min"]
+                min_precision = market["precision"]["amount"]
 
                 min_value = min_amount * price
                 if self._exchange.precisionMode == 4:
@@ -105,23 +114,31 @@ class PriceFilter(IPairList):
                 diff = next_value - min_value
 
                 if diff > self._max_value:
-                    self.log_once(f"Removed {pair} from whitelist, "
-                                  f"because min value change of {diff} > {self._max_value}.",
-                                  logger.info)
+                    self.log_once(
+                        f"Removed {pair} from whitelist, "
+                        f"because min value change of {diff} > {self._max_value}.",
+                        logger.info,
+                    )
                     return False
 
         # Perform min_price check.
         if self._min_price != 0:
-            if ticker['last'] < self._min_price:
-                self.log_once(f"Removed {pair} from whitelist, "
-                              f"because last price < {self._min_price:.8f}", logger.info)
+            if ticker["last"] < self._min_price:
+                self.log_once(
+                    f"Removed {pair} from whitelist, "
+                    f"because last price < {self._min_price:.8f}",
+                    logger.info,
+                )
                 return False
 
         # Perform max_price check.
         if self._max_price != 0:
-            if ticker['last'] > self._max_price:
-                self.log_once(f"Removed {pair} from whitelist, "
-                              f"because last price > {self._max_price:.8f}", logger.info)
+            if ticker["last"] > self._max_price:
+                self.log_once(
+                    f"Removed {pair} from whitelist, "
+                    f"because last price > {self._max_price:.8f}",
+                    logger.info,
+                )
                 return False
 
         return True

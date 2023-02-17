@@ -6,7 +6,6 @@ from coingro.enums import RunMode
 from .config_validation import validate_config_consistency
 from .configuration import Configuration
 
-
 logger = logging.getLogger(__name__)
 
 
@@ -21,7 +20,7 @@ def setup_utils_configuration(args: Dict[str, Any], method: RunMode) -> Dict[str
     config = configuration.get_config()
 
     # Ensure these modes are using Dry-run
-    config['dry_run'] = True
+    config["dry_run"] = True
     validate_config_consistency(config, preliminary=True)
 
     return config

@@ -17,15 +17,13 @@ from coingro.enums import CandleType, RunMode
 from coingro.exceptions import ExchangeError, OperationalException
 from coingro.exchange import Exchange, timeframe_to_seconds
 
-
 logger = logging.getLogger(__name__)
 
-NO_EXCHANGE_EXCEPTION = 'Exchange is not available to DataProvider.'
+NO_EXCHANGE_EXCEPTION = "Exchange is not available to DataProvider."
 MAX_DATAFRAME_CANDLES = 1000
 
 
 class DataProvider:
-
     def __init__(self, config: dict, exchange: Optional[Exchange], pairlists=None) -> None:
         self._config = config
         self._exchange = exchange
@@ -42,11 +40,7 @@ class DataProvider:
         self.__slice_index = limit_index
 
     def _set_cached_df(
-        self,
-        pair: str,
-        timeframe: str,
-        dataframe: DataFrame,
-        candle_type: CandleType
+        self, pair: str, timeframe: str, dataframe: DataFrame, candle_type: CandleType
     ) -> None:
         """
         Store cached Dataframe.
@@ -58,7 +52,9 @@ class DataProvider:
         :param candle_type: Any of the enum CandleType (must match trading mode!)
         """
         self.__cached_pairs[(pair, timeframe, candle_type)] = (
-            dataframe, datetime.now(timezone.utc))
+            dataframe,
+            datetime.now(timezone.utc),
+        )
 
     def add_pairlisthandler(self, pairlists) -> None:
         """
@@ -67,10 +63,7 @@ class DataProvider:
         self._pairlists = pairlists
 
     def historic_ohlcv(
-        self,
-        pair: str,
-        timeframe: str = None,
-        candle_type: str = ''
+        self, pair: str, timeframe: Optional[str] = None, candle_type: str = ""
     ) -> DataFrame:
         """
         Get stored historical candle (OHLCV) data
@@ -78,32 +71,34 @@ class DataProvider:
         :param timeframe: timeframe to get data for
         :param candle_type: '', mark, index, premiumIndex, or funding_rate
         """
-        _candle_type = CandleType.from_string(
-            candle_type) if candle_type != '' else self._config['candle_type_def']
+        _candle_type = (
+            CandleType.from_string(candle_type)
+            if candle_type != ""
+            else self._config["candle_type_def"]
+        )
         saved_pair = (pair, str(timeframe), _candle_type)
         if saved_pair not in self.__cached_pairs_backtesting:
-            timerange = TimeRange.parse_timerange(None if self._config.get(
-                'timerange') is None else str(self._config.get('timerange')))
+            timerange = TimeRange.parse_timerange(
+                None
+                if self._config.get("timerange") is None
+                else str(self._config.get("timerange"))
+            )
             # Move informative start time respecting startup_candle_count
             timerange.subtract_start(
-                timeframe_to_seconds(str(timeframe)) * self._config.get('startup_candle_count', 0)
+                timeframe_to_seconds(str(timeframe)) * self._config.get("startup_candle_count", 0)
             )
             self.__cached_pairs_backtesting[saved_pair] = load_pair_history(
                 pair=pair,
-                timeframe=timeframe or self._config['timeframe'],
-                datadir=self._config['datadir'],
+                timeframe=timeframe or self._config["timeframe"],
+                datadir=self._config["datadir"],
                 timerange=timerange,
-                data_format=self._config.get('dataformat_ohlcv', 'json'),
+                data_format=self._config.get("dataformat_ohlcv", "json"),
                 candle_type=_candle_type,
-
             )
         return self.__cached_pairs_backtesting[saved_pair].copy()
 
     def get_pair_dataframe(
-        self,
-        pair: str,
-        timeframe: str = None,
-        candle_type: str = ''
+        self, pair: str, timeframe: Optional[str] = None, candle_type: str = ""
     ) -> DataFrame:
         """
         Return pair candle (OHLCV) data, either live or cached historical -- depending
@@ -135,7 +130,7 @@ class DataProvider:
             combination.
             Returns empty dataframe and Epoch 0 (1970-01-01) if no dataframe was cached.
         """
-        pair_key = (pair, timeframe, self._config.get('candle_type_def', CandleType.SPOT))
+        pair_key = (pair, timeframe, self._config.get("candle_type_def", CandleType.SPOT))
         if pair_key in self.__cached_pairs:
             if self.runmode in (RunMode.DRY_RUN, RunMode.LIVE):
                 df, date = self.__cached_pairs[pair_key]
@@ -143,7 +138,7 @@ class DataProvider:
                 df, date = self.__cached_pairs[pair_key]
                 if self.__slice_index is not None:
                     max_index = self.__slice_index
-                    df = df.iloc[max(0, max_index - MAX_DATAFRAME_CANDLES):max_index]
+                    df = df.iloc[max(0, max_index - MAX_DATAFRAME_CANDLES) : max_index]
             return df, date
         else:
             return (DataFrame(), datetime.fromtimestamp(0, tz=timezone.utc))
@@ -154,7 +149,7 @@ class DataProvider:
         Get runmode of the bot
         can be "live", "dry-run", "backtest", "edgecli", "hyperopt" or "other".
         """
-        return RunMode(self._config.get('runmode', RunMode.OTHER))
+        return RunMode(self._config.get("runmode", RunMode.OTHER))
 
     def current_whitelist(self) -> List[str]:
         """
@@ -180,9 +175,11 @@ class DataProvider:
 
     # Exchange functions
 
-    def refresh(self,
-                pairlist: ListPairsWithTimeframes,
-                helping_pairs: ListPairsWithTimeframes = None) -> None:
+    def refresh(
+        self,
+        pairlist: ListPairsWithTimeframes,
+        helping_pairs: Optional[ListPairsWithTimeframes] = None,
+    ) -> None:
         """
         Refresh data, called with each cycle
         """
@@ -204,11 +201,7 @@ class DataProvider:
         return list(self._exchange._klines.keys())
 
     def ohlcv(
-        self,
-        pair: str,
-        timeframe: str = None,
-        copy: bool = True,
-        candle_type: str = ''
+        self, pair: str, timeframe: Optional[str] = None, copy: bool = True, candle_type: str = ""
     ) -> DataFrame:
         """
         Get candle (OHLCV) data for the given pair as DataFrame
@@ -222,11 +215,13 @@ class DataProvider:
         if self._exchange is None:
             raise OperationalException(NO_EXCHANGE_EXCEPTION)
         if self.runmode in (RunMode.DRY_RUN, RunMode.LIVE):
-            _candle_type = CandleType.from_string(
-                candle_type) if candle_type != '' else self._config['candle_type_def']
+            _candle_type = (
+                CandleType.from_string(candle_type)
+                if candle_type != ""
+                else self._config["candle_type_def"]
+            )
             return self._exchange.klines(
-                (pair, timeframe or self._config['timeframe'], _candle_type),
-                copy=copy
+                (pair, timeframe or self._config["timeframe"], _candle_type), copy=copy
             )
         else:
             return DataFrame()

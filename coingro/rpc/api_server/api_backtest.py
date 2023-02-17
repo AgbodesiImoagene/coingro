@@ -10,12 +10,14 @@ from coingro.configuration.config_validation import validate_config_consistency
 from coingro.data.btanalysis import get_backtest_resultlist, load_and_merge_backtest_result
 from coingro.enums import BacktestState
 from coingro.exceptions import DependencyException
-from coingro.rpc.api_server.api_schemas import (BacktestHistoryEntry, BacktestRequest,
-                                                BacktestResponse)
+from coingro.rpc.api_server.api_schemas import (
+    BacktestHistoryEntry,
+    BacktestRequest,
+    BacktestResponse,
+)
 from coingro.rpc.api_server.deps import get_config, is_webserver_mode
 from coingro.rpc.api_server.webserver import ApiServer
 from coingro.rpc.rpc import RPCException
-
 
 logger = logging.getLogger(__name__)
 
@@ -23,13 +25,17 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
-@router.post('/backtest', response_model=BacktestResponse, tags=['webserver', 'backtest'])
+@router.post("/backtest", response_model=BacktestResponse, tags=["webserver", "backtest"])
 # flake8: noqa: C901
-async def api_start_backtest(bt_settings: BacktestRequest, background_tasks: BackgroundTasks,
-                             config=Depends(get_config), ws_mode=Depends(is_webserver_mode)):
+async def api_start_backtest(
+    bt_settings: BacktestRequest,
+    background_tasks: BackgroundTasks,
+    config=Depends(get_config),
+    ws_mode=Depends(is_webserver_mode),
+):
     """Start backtesting if not done so already"""
     if ApiServer._bgtask_running:
-        raise RPCException('Bot Background task already running')
+        raise RPCException("Bot Background task already running")
 
     btconfig = deepcopy(config)
     settings = dict(bt_settings)
@@ -38,18 +44,19 @@ async def api_start_backtest(bt_settings: BacktestRequest, background_tasks: Bac
         if settings[setting] is not None:
             btconfig[setting] = settings[setting]
     try:
-        btconfig['stake_amount'] = float(btconfig['stake_amount'])
+        btconfig["stake_amount"] = float(btconfig["stake_amount"])
     except ValueError:
         pass
 
     # Force dry-run for backtesting
-    btconfig['dry_run'] = True
+    btconfig["dry_run"] = True
 
     # Start backtesting
     # Initialize backtesting object
     def run_backtest():
         from coingro.optimize.optimize_reports import generate_backtest_stats, store_backtest_stats
         from coingro.resolvers import StrategyResolver
+
         asyncio.set_event_loop(asyncio.new_event_loop())
         try:
             # Reload strategy
@@ -59,11 +66,12 @@ async def api_start_backtest(bt_settings: BacktestRequest, background_tasks: Bac
 
             if (
                 not ApiServer._bt
-                or lastconfig.get('timeframe') != strat.timeframe
-                or lastconfig.get('timeframe_detail') != btconfig.get('timeframe_detail')
-                or lastconfig.get('timerange') != btconfig['timerange']
+                or lastconfig.get("timeframe") != strat.timeframe
+                or lastconfig.get("timeframe_detail") != btconfig.get("timeframe_detail")
+                or lastconfig.get("timerange") != btconfig["timerange"]
             ):
                 from coingro.optimize.backtesting import Backtesting
+
                 ApiServer._bt = Backtesting(btconfig)
                 ApiServer._bt.load_bt_data_detail()
             else:
@@ -73,39 +81,46 @@ async def api_start_backtest(bt_settings: BacktestRequest, background_tasks: Bac
             if (
                 not ApiServer._bt_data
                 or not ApiServer._bt_timerange
-                or lastconfig.get('timeframe') != strat.timeframe
-                or lastconfig.get('timerange') != btconfig['timerange']
+                or lastconfig.get("timeframe") != strat.timeframe
+                or lastconfig.get("timerange") != btconfig["timerange"]
             ):
                 ApiServer._bt_data, ApiServer._bt_timerange = ApiServer._bt.load_bt_data()
 
-            lastconfig['timerange'] = btconfig['timerange']
-            lastconfig['timeframe'] = strat.timeframe
-            lastconfig['protections'] = btconfig.get('protections', [])
-            lastconfig['enable_protections'] = btconfig.get('enable_protections')
-            lastconfig['dry_run_wallet'] = btconfig.get('dry_run_wallet')
+            lastconfig["timerange"] = btconfig["timerange"]
+            lastconfig["timeframe"] = strat.timeframe
+            lastconfig["protections"] = btconfig.get("protections", [])
+            lastconfig["enable_protections"] = btconfig.get("enable_protections")
+            lastconfig["dry_run_wallet"] = btconfig.get("dry_run_wallet")
 
             ApiServer._bt.strategylist = [strat]
             ApiServer._bt.results = {}
             ApiServer._bt.load_prior_backtest()
 
             ApiServer._bt.abort = False
-            if (ApiServer._bt.results and
-                    strat.get_strategy_name() in ApiServer._bt.results['strategy']):
+            if (
+                ApiServer._bt.results
+                and strat.get_strategy_name() in ApiServer._bt.results["strategy"]
+            ):
                 # When previous result hash matches - reuse that result and skip backtesting.
-                logger.info(f'Reusing result of previous backtest for {strat.get_strategy_name()}')
+                logger.info(f"Reusing result of previous backtest for {strat.get_strategy_name()}")
             else:
                 min_date, max_date = ApiServer._bt.backtest_one_strategy(
-                    strat, ApiServer._bt_data, ApiServer._bt_timerange)
+                    strat, ApiServer._bt_data, ApiServer._bt_timerange
+                )
 
                 ApiServer._bt.results = generate_backtest_stats(
-                    ApiServer._bt_data, ApiServer._bt.all_results,
-                    min_date=min_date, max_date=max_date)
+                    ApiServer._bt_data,
+                    ApiServer._bt.all_results,
+                    min_date=min_date,
+                    max_date=max_date,
+                )
 
-            if btconfig.get('export', 'none') == 'trades':
+            if btconfig.get("export", "none") == "trades":
                 store_backtest_stats(
-                    btconfig['exportfilename'], ApiServer._bt.results,
-                    datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-                    )
+                    btconfig["exportfilename"],
+                    ApiServer._bt.results,
+                    datetime.now().strftime("%Y-%m-%d_%H-%M-%S"),
+                )
 
             logger.info("Backtest finished.")
 
@@ -127,13 +142,14 @@ async def api_start_backtest(bt_settings: BacktestRequest, background_tasks: Bac
     }
 
 
-@router.get('/backtest', response_model=BacktestResponse, tags=['webserver', 'backtest'])
+@router.get("/backtest", response_model=BacktestResponse, tags=["webserver", "backtest"])
 def api_get_backtest(ws_mode=Depends(is_webserver_mode)):
     """
     Get backtesting result.
     Returns Result after backtesting has been ran.
     """
     from coingro.persistence import LocalTrade
+
     if ApiServer._bgtask_running:
         return {
             "status": "running",
@@ -150,7 +166,7 @@ def api_get_backtest(ws_mode=Depends(is_webserver_mode)):
             "running": False,
             "step": "",
             "progress": 0,
-            "status_msg": "Backtest not yet executed"
+            "status_msg": "Backtest not yet executed",
         }
 
     return {
@@ -163,7 +179,7 @@ def api_get_backtest(ws_mode=Depends(is_webserver_mode)):
     }
 
 
-@router.delete('/backtest', response_model=BacktestResponse, tags=['webserver', 'backtest'])
+@router.delete("/backtest", response_model=BacktestResponse, tags=["webserver", "backtest"])
 def api_delete_backtest(ws_mode=Depends(is_webserver_mode)):
     """Reset backtesting"""
     if ApiServer._bgtask_running:
@@ -190,7 +206,7 @@ def api_delete_backtest(ws_mode=Depends(is_webserver_mode)):
     }
 
 
-@router.get('/backtest/abort', response_model=BacktestResponse, tags=['webserver', 'backtest'])
+@router.get("/backtest/abort", response_model=BacktestResponse, tags=["webserver", "backtest"])
 def api_backtest_abort(ws_mode=Depends(is_webserver_mode)):
     if not ApiServer._bgtask_running:
         return {
@@ -210,20 +226,26 @@ def api_backtest_abort(ws_mode=Depends(is_webserver_mode)):
     }
 
 
-@router.get('/backtest/history', response_model=List[BacktestHistoryEntry], tags=['webserver', 'backtest'])
+@router.get(
+    "/backtest/history", response_model=List[BacktestHistoryEntry], tags=["webserver", "backtest"]
+)
 def api_backtest_history(config=Depends(get_config), ws_mode=Depends(is_webserver_mode)):
     # Get backtest result history, read from metadata files
-    return get_backtest_resultlist(config['user_data_dir'] / 'backtest_results')
+    return get_backtest_resultlist(config["user_data_dir"] / "backtest_results")
 
 
-@router.get('/backtest/history/result', response_model=BacktestResponse, tags=['webserver', 'backtest'])
-def api_backtest_history_result(filename: str, strategy: str, config=Depends(get_config), ws_mode=Depends(is_webserver_mode)):
+@router.get(
+    "/backtest/history/result", response_model=BacktestResponse, tags=["webserver", "backtest"]
+)
+def api_backtest_history_result(
+    filename: str, strategy: str, config=Depends(get_config), ws_mode=Depends(is_webserver_mode)
+):
     # Get backtest result history, read from metadata files
-    fn = config['user_data_dir'] / 'backtest_results' / filename
+    fn = config["user_data_dir"] / "backtest_results" / filename
     results: Dict[str, Any] = {
-        'metadata': {},
-        'strategy': {},
-        'strategy_comparison': [],
+        "metadata": {},
+        "strategy": {},
+        "strategy_comparison": [],
     }
 
     load_and_merge_backtest_result(strategy, fn, results)

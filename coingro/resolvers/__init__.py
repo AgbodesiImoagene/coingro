@@ -2,6 +2,7 @@
 # isort: off
 from coingro.resolvers.iresolver import IResolver
 from coingro.resolvers.exchange_resolver import ExchangeResolver
+
 # isort: on
 # Don't import HyperoptResolver to avoid loading the whole Optimize tree
 # from coingro.resolvers.hyperopt_resolver import HyperOptResolver

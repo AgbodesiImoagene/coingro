@@ -11,24 +11,24 @@ def test_ttl_cache():
         cache1h = PeriodicCache(5, ttl=3600)
 
         assert cache.timer() == 1630472400.0
-        cache['a'] = 1235
-        cache1h['a'] = 555123
-        assert 'a' in cache
-        assert 'a' in cache1h
+        cache["a"] = 1235
+        cache1h["a"] = 555123
+        assert "a" in cache
+        assert "a" in cache1h
 
         t.move_to("2021-09-01 05:00:59 +00:00")
-        assert 'a' in cache
-        assert 'a' in cache1h
+        assert "a" in cache
+        assert "a" in cache1h
 
         # Cache expired
         t.move_to("2021-09-01 05:01:00 +00:00")
-        assert 'a' not in cache
-        assert 'a' in cache1h
+        assert "a" not in cache
+        assert "a" in cache1h
 
         t.move_to("2021-09-01 05:59:59 +00:00")
-        assert 'a' not in cache
-        assert 'a' in cache1h
+        assert "a" not in cache
+        assert "a" in cache1h
 
         t.move_to("2021-09-01 06:00:00 +00:00")
-        assert 'a' not in cache
-        assert 'a' not in cache1h
+        assert "a" not in cache
+        assert "a" not in cache1h

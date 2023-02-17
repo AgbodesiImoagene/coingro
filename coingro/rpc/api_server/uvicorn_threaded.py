@@ -14,6 +14,7 @@ def asyncio_setup() -> None:  # pragma: no cover
     if sys.version_info >= (3, 8) and sys.platform == "win32":
         import asyncio
         import selectors
+
         selector = selectors.SelectSelector()
         loop = asyncio.SelectorEventLoop(selector)
         asyncio.set_event_loop(loop)

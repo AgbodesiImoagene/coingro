@@ -4,7 +4,6 @@ from typing import Dict
 
 from coingro.exchange import Exchange
 
-
 logger = logging.getLogger(__name__)
 
 

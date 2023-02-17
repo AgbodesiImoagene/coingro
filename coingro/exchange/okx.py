@@ -11,7 +11,6 @@ from coingro.exchange import Exchange
 from coingro.exchange.common import retrier
 from coingro.exchange.exchange import date_minus_candles
 
-
 logger = logging.getLogger(__name__)
 
 
@@ -40,7 +39,8 @@ class Okx(Exchange):
     net_only = True
 
     def ohlcv_candle_limit(
-            self, timeframe: str, candle_type: CandleType, since_ms: Optional[int] = None) -> int:
+        self, timeframe: str, candle_type: CandleType, since_ms: Optional[int] = None
+    ) -> int:
         """
         Exchange ohlcv candle limit
         OKX has the following behaviour:
@@ -52,9 +52,8 @@ class Okx(Exchange):
         :param since_ms: Starting timestamp
         :return: Candle limit as integer
         """
-        if (
-            candle_type in (CandleType.FUTURES, CandleType.SPOT) and
-            (not since_ms or since_ms > (date_minus_candles(timeframe, 300).timestamp() * 1000))
+        if candle_type in (CandleType.FUTURES, CandleType.SPOT) and (
+            not since_ms or since_ms > (date_minus_candles(timeframe, 300).timestamp() * 1000)
         ):
             return 300
 
@@ -68,27 +67,28 @@ class Okx(Exchange):
         Must be overridden in child methods if required.
         """
         try:
-            if self.trading_mode == TradingMode.FUTURES and not self._config['dry_run']:
+            if self.trading_mode == TradingMode.FUTURES and not self._config["dry_run"]:
                 accounts = self._api.fetch_accounts()
                 if len(accounts) > 0:
-                    self.net_only = accounts[0].get('info', {}).get('posMode') == 'net_mode'
+                    self.net_only = accounts[0].get("info", {}).get("posMode") == "net_mode"
         except ccxt.DDoSProtection as e:
             raise DDosProtection(e) from e
         except (ccxt.NetworkError, ccxt.ExchangeError) as e:
             raise TemporaryError(
-                f'Could not set leverage due to {e.__class__.__name__}. Message: {e}') from e
+                f"Could not set leverage due to {e.__class__.__name__}. Message: {e}"
+            ) from e
         except ccxt.BaseError as e:
             raise OperationalException(e) from e
 
     def _get_posSide(self, side: BuySell, reduceOnly: bool):
         if self.net_only:
-            return 'net'
+            return "net"
         if not reduceOnly:
             # Enter
-            return 'long' if side == 'buy' else 'short'
+            return "long" if side == "buy" else "short"
         else:
             # Exit
-            return 'long' if side == 'sell' else 'short'
+            return "long" if side == "sell" else "short"
 
     def _get_params(
         self,
@@ -96,7 +96,7 @@ class Okx(Exchange):
         ordertype: str,
         leverage: float,
         reduceOnly: bool,
-        time_in_force: str = 'gtc',
+        time_in_force: str = "gtc",
     ) -> Dict:
         params = super()._get_params(
             side=side,
@@ -106,8 +106,8 @@ class Okx(Exchange):
             time_in_force=time_in_force,
         )
         if self.trading_mode == TradingMode.FUTURES and self.margin_mode:
-            params['tdMode'] = self.margin_mode.value
-            params['posSide'] = self._get_posSide(side, reduceOnly)
+            params["tdMode"] = self.margin_mode.value
+            params["posSide"] = self._get_posSide(side, reduceOnly)
         return params
 
     @retrier
@@ -121,27 +121,24 @@ class Okx(Exchange):
                     params={
                         "mgnMode": self.margin_mode.value,
                         "posSide": self._get_posSide(side, False),
-                    })
+                    },
+                )
             except ccxt.DDoSProtection as e:
                 raise DDosProtection(e) from e
             except (ccxt.NetworkError, ccxt.ExchangeError) as e:
                 raise TemporaryError(
-                    f'Could not set leverage due to {e.__class__.__name__}. Message: {e}') from e
+                    f"Could not set leverage due to {e.__class__.__name__}. Message: {e}"
+                ) from e
             except ccxt.BaseError as e:
                 raise OperationalException(e) from e
 
-    def get_max_pair_stake_amount(
-        self,
-        pair: str,
-        price: float,
-        leverage: float = 1.0
-    ) -> float:
+    def get_max_pair_stake_amount(self, pair: str, price: float, leverage: float = 1.0) -> float:
 
         if self.trading_mode == TradingMode.SPOT:
-            return float('inf')  # Not actually inf, but this probably won't matter for SPOT
+            return float("inf")  # Not actually inf, but this probably won't matter for SPOT
 
         if pair not in self._leverage_tiers:
-            return float('inf')
+            return float("inf")
 
         pair_tiers = self._leverage_tiers[pair]
-        return pair_tiers[-1]['max'] / leverage
+        return pair_tiers[-1]["max"] / leverage

@@ -10,14 +10,13 @@ from requests import RequestException, post
 from coingro.enums import RPCMessageType
 from coingro.rpc import RPC, RPCHandler
 
-
 logger = logging.getLogger(__name__)
 
-logger.debug('Included module rpc.webhook ...')
+logger.debug("Included module rpc.webhook ...")
 
 
 class Webhook(RPCHandler):
-    """  This class handles all webhook communication """
+    """This class handles all webhook communication"""
 
     def __init__(self, rpc: RPC, config: Dict[str, Any]) -> None:
         """
@@ -28,10 +27,10 @@ class Webhook(RPCHandler):
         """
         super().__init__(rpc, config)
 
-        self._url = self._config['webhook']['url']
-        self._format = self._config['webhook'].get('format', 'form')
-        self._retries = self._config['webhook'].get('retries', 0)
-        self._retry_delay = self._config['webhook'].get('retry_delay', 0.1)
+        self._url = self._config["webhook"]["url"]
+        self._format = self._config["webhook"].get("format", "form")
+        self._retries = self._config["webhook"].get("retries", 0)
+        self._retry_delay = self._config["webhook"].get("retry_delay", 0.1)
 
     def cleanup(self) -> None:
         """
@@ -41,36 +40,41 @@ class Webhook(RPCHandler):
         pass
 
     def send_msg(self, msg: Dict[str, Any]) -> None:
-        """ Send a message to telegram channel """
+        """Send a message to telegram channel"""
         try:
-            whconfig = self._config['webhook']
-            if msg['type'] in [RPCMessageType.ENTRY]:
-                valuedict = whconfig.get('webhookentry')
-            elif msg['type'] in [RPCMessageType.ENTRY_CANCEL]:
-                valuedict = whconfig.get('webhookentrycancel')
-            elif msg['type'] in [RPCMessageType.ENTRY_FILL]:
-                valuedict = whconfig.get('webhookentryfill')
-            elif msg['type'] == RPCMessageType.EXIT:
-                valuedict = whconfig.get('webhookexit')
-            elif msg['type'] == RPCMessageType.EXIT_FILL:
-                valuedict = whconfig.get('webhookexitfill')
-            elif msg['type'] == RPCMessageType.EXIT_CANCEL:
-                valuedict = whconfig.get('webhookexitcancel')
-            elif msg['type'] in (RPCMessageType.STATUS,
-                                 RPCMessageType.STARTUP,
-                                 RPCMessageType.WARNING):
-                valuedict = whconfig.get('webhookstatus')
+            whconfig = self._config["webhook"]
+            if msg["type"] in [RPCMessageType.ENTRY]:
+                valuedict = whconfig.get("webhookentry")
+            elif msg["type"] in [RPCMessageType.ENTRY_CANCEL]:
+                valuedict = whconfig.get("webhookentrycancel")
+            elif msg["type"] in [RPCMessageType.ENTRY_FILL]:
+                valuedict = whconfig.get("webhookentryfill")
+            elif msg["type"] == RPCMessageType.EXIT:
+                valuedict = whconfig.get("webhookexit")
+            elif msg["type"] == RPCMessageType.EXIT_FILL:
+                valuedict = whconfig.get("webhookexitfill")
+            elif msg["type"] == RPCMessageType.EXIT_CANCEL:
+                valuedict = whconfig.get("webhookexitcancel")
+            elif msg["type"] in (
+                RPCMessageType.STATUS,
+                RPCMessageType.STARTUP,
+                RPCMessageType.WARNING,
+            ):
+                valuedict = whconfig.get("webhookstatus")
             else:
-                raise NotImplementedError('Unknown message type: {}'.format(msg['type']))
+                raise NotImplementedError("Unknown message type: {}".format(msg["type"]))
             if not valuedict:
-                logger.info("Message type '%s' not configured for webhooks", msg['type'])
+                logger.info("Message type '%s' not configured for webhooks", msg["type"])
                 return
 
             payload = {key: value.format(**msg) for (key, value) in valuedict.items()}
             self._send_msg(payload)
         except KeyError as exc:
-            logger.exception("Problem calling Webhook. Please check your webhook configuration. "
-                             "Exception: %s", exc)
+            logger.exception(
+                "Problem calling Webhook. Please check your webhook configuration. "
+                "Exception: %s",
+                exc,
+            )
 
     def _send_msg(self, payload: dict) -> None:
         """do the actual call to the webhook"""
@@ -86,15 +90,16 @@ class Webhook(RPCHandler):
             attempts += 1
 
             try:
-                if self._format == 'form':
+                if self._format == "form":
                     response = post(self._url, data=payload)
-                elif self._format == 'json':
+                elif self._format == "json":
                     response = post(self._url, json=payload)
-                elif self._format == 'raw':
-                    response = post(self._url, data=payload['data'],
-                                    headers={'Content-Type': 'text/plain'})
+                elif self._format == "raw":
+                    response = post(
+                        self._url, data=payload["data"], headers={"Content-Type": "text/plain"}
+                    )
                 else:
-                    raise NotImplementedError('Unknown format: {}'.format(self._format))
+                    raise NotImplementedError("Unknown format: {}".format(self._format))
 
                 # Throw a RequestException if the post was not successful
                 response.raise_for_status()

@@ -18,7 +18,6 @@ from coingro.exceptions import OperationalException
 from coingro.resolvers import IResolver
 from coingro.strategy.interface import IStrategy
 
-
 logger = logging.getLogger(__name__)
 
 
@@ -26,62 +25,64 @@ class StrategyResolver(IResolver):
     """
     This class contains the logic to load custom strategy class
     """
+
     object_type = IStrategy
     object_type_str = "Strategy"
     user_subdir = USERPATH_STRATEGIES
     initial_search_path = None
 
     @staticmethod
-    def load_strategy(config: Dict[str, Any] = None) -> IStrategy:
+    def load_strategy(config: Optional[Dict[str, Any]] = None) -> IStrategy:
         """
         Load the custom class from config parameter
         :param config: configuration dictionary or None
         """
         config = config or {}
 
-        if not config.get('strategy'):
-            raise OperationalException("No strategy set. Please use `--strategy` to specify "
-                                       "the strategy class to use.")
+        if not config.get("strategy"):
+            raise OperationalException(
+                "No strategy set. Please use `--strategy` to specify " "the strategy class to use."
+            )
 
-        strategy_name = config['strategy']
+        strategy_name = config["strategy"]
         strategy: IStrategy = StrategyResolver._load_strategy(
-            strategy_name, config=config,
-            extra_dir=config.get('strategy_path'))
+            strategy_name, config=config, extra_dir=config.get("strategy_path")
+        )
         strategy.cg_load_params_from_file()
         # Set attributes
         # Check if we need to override configuration
         #             (Attribute name,                    default,     subkey)
-        attributes = [("minimal_roi",                     {"0": 10.0}),
-                      ("timeframe",                       None),
-                      ("stoploss",                        None),
-                      ("trailing_stop",                   None),
-                      ("trailing_stop_positive",          None),
-                      ("trailing_stop_positive_offset",   0.0),
-                      ("trailing_only_offset_is_reached", None),
-                      ("use_custom_stoploss",             None),
-                      ("process_only_new_candles",        None),
-                      ("order_types",                     None),
-                      ("order_time_in_force",             None),
-                      ("stake_currency",                  None),
-                      ("stake_amount",                    None),
-                      ("pairlists",                       None),
-                      ("protections",                     None),
-                      ("startup_candle_count",            None),
-                      ("unfilledtimeout",                 None),
-                      ("use_exit_signal",                 True),
-                      ("exit_profit_only",                False),
-                      ("ignore_roi_if_entry_signal",      False),
-                      ("exit_profit_offset",              0.0),
-                      ("disable_dataframe_checks",        False),
-                      ("ignore_buying_expired_candle_after",  0),
-                      ("position_adjustment_enable",      False),
-                      ("max_entry_position_adjustment",   -1),
-                      ("trading_mode",                    "spot"),
-                      ("margin_mode",                     ""),
-                      ]
+        attributes = [
+            ("minimal_roi", {"0": 10.0}),
+            ("timeframe", None),
+            ("stoploss", None),
+            ("trailing_stop", None),
+            ("trailing_stop_positive", None),
+            ("trailing_stop_positive_offset", 0.0),
+            ("trailing_only_offset_is_reached", None),
+            ("use_custom_stoploss", None),
+            ("process_only_new_candles", None),
+            ("order_types", None),
+            ("order_time_in_force", None),
+            ("stake_currency", None),
+            ("stake_amount", None),
+            ("pairlists", None),
+            ("protections", None),
+            ("startup_candle_count", None),
+            ("unfilledtimeout", None),
+            ("use_exit_signal", True),
+            ("exit_profit_only", False),
+            ("ignore_roi_if_entry_signal", False),
+            ("exit_profit_offset", 0.0),
+            ("disable_dataframe_checks", False),
+            ("ignore_buying_expired_candle_after", 0),
+            ("position_adjustment_enable", False),
+            ("max_entry_position_adjustment", -1),
+            ("trading_mode", "spot"),
+            ("margin_mode", ""),
+        ]
         for attribute, default in attributes:
-            StrategyResolver._override_attribute_helper(strategy, config,
-                                                        attribute, default)
+            StrategyResolver._override_attribute_helper(strategy, config, attribute, default)
 
         # Loop this list again to have output combined
         for attribute, _ in attributes:
@@ -94,8 +95,7 @@ class StrategyResolver(IResolver):
         return strategy
 
     @staticmethod
-    def _override_attribute_helper(strategy, config: Dict[str, Any],
-                                   attribute: str, default: Any):
+    def _override_attribute_helper(strategy, config: Dict[str, Any], attribute: str, default: Any):
         """
         Override attributes in the strategy.
         Prevalence:
@@ -103,12 +103,16 @@ class StrategyResolver(IResolver):
         - Strategy
         - default (if not None)
         """
-        if (attribute in config
-                and not isinstance(getattr(type(strategy), attribute, None), property)):
+        if attribute in config and not isinstance(
+            getattr(type(strategy), attribute, None), property
+        ):
             # Ensure Properties are not overwritten
             setattr(strategy, attribute, config[attribute])
-            logger.info("Override strategy '%s' with value in config file: %s.",
-                        attribute, config[attribute])
+            logger.info(
+                "Override strategy '%s' with value in config file: %s.",
+                attribute,
+                config[attribute],
+            )
         elif hasattr(strategy, attribute):
             val = getattr(strategy, attribute)
             # None's cannot exist in the config, so do not copy them
@@ -125,11 +129,14 @@ class StrategyResolver(IResolver):
         Normalize attributes to have the correct type.
         """
         # Sort and apply type conversions
-        if hasattr(strategy, 'minimal_roi'):
-            strategy.minimal_roi = dict(sorted(
-                {int(key): value for (key, value) in strategy.minimal_roi.items()}.items(),
-                key=lambda t: t[0]))
-        if hasattr(strategy, 'stoploss'):
+        if hasattr(strategy, "minimal_roi"):
+            strategy.minimal_roi = dict(
+                sorted(
+                    {int(key): value for (key, value) in strategy.minimal_roi.items()}.items(),
+                    key=lambda t: t[0],
+                )
+            )
+        if hasattr(strategy, "stoploss"):
             strategy.stoploss = float(strategy.stoploss)
         return strategy
 
@@ -139,86 +146,95 @@ class StrategyResolver(IResolver):
         validate_migrated_strategy_settings(strategy.config)
 
         if not all(k in strategy.order_types for k in REQUIRED_ORDERTYPES):
-            raise ImportError(f"Impossible to load Strategy '{strategy.__class__.__name__}'. "
-                              f"Order-types mapping is incomplete.")
+            raise ImportError(
+                f"Impossible to load Strategy '{strategy.__class__.__name__}'. "
+                f"Order-types mapping is incomplete."
+            )
         if not all(k in strategy.order_time_in_force for k in REQUIRED_ORDERTIF):
-            raise ImportError(f"Impossible to load Strategy '{strategy.__class__.__name__}'. "
-                              f"Order-time-in-force mapping is incomplete.")
-        trading_mode = strategy.config.get('trading_mode', TradingMode.SPOT)
+            raise ImportError(
+                f"Impossible to load Strategy '{strategy.__class__.__name__}'. "
+                f"Order-time-in-force mapping is incomplete."
+            )
+        trading_mode = strategy.config.get("trading_mode", TradingMode.SPOT)
 
-        if (strategy.can_short and trading_mode == TradingMode.SPOT):
+        if strategy.can_short and trading_mode == TradingMode.SPOT:
             raise ImportError(
                 "Short strategies cannot run in spot markets. Please make sure that this "
                 "is the correct strategy and that your trading mode configuration is correct. "
                 "You can run this strategy in spot markets by setting `can_short=False`"
                 " in your strategy. Please note that short signals will be ignored in that case."
-                )
+            )
 
     @staticmethod
     def validate_strategy(strategy: IStrategy) -> IStrategy:
-        if strategy.config.get('trading_mode', TradingMode.SPOT) != TradingMode.SPOT:
+        if strategy.config.get("trading_mode", TradingMode.SPOT) != TradingMode.SPOT:
             # Require new method
-            warn_deprecated_setting(strategy, 'sell_profit_only', 'exit_profit_only', True)
-            warn_deprecated_setting(strategy, 'sell_profit_offset', 'exit_profit_offset', True)
-            warn_deprecated_setting(strategy, 'use_sell_signal', 'use_exit_signal', True)
-            warn_deprecated_setting(strategy, 'ignore_roi_if_buy_signal',
-                                    'ignore_roi_if_entry_signal', True)
+            warn_deprecated_setting(strategy, "sell_profit_only", "exit_profit_only", True)
+            warn_deprecated_setting(strategy, "sell_profit_offset", "exit_profit_offset", True)
+            warn_deprecated_setting(strategy, "use_sell_signal", "use_exit_signal", True)
+            warn_deprecated_setting(
+                strategy, "ignore_roi_if_buy_signal", "ignore_roi_if_entry_signal", True
+            )
 
-            if not check_override(strategy, IStrategy, 'populate_entry_trend'):
+            if not check_override(strategy, IStrategy, "populate_entry_trend"):
                 raise OperationalException("`populate_entry_trend` must be implemented.")
-            if not check_override(strategy, IStrategy, 'populate_exit_trend'):
+            if not check_override(strategy, IStrategy, "populate_exit_trend"):
                 raise OperationalException("`populate_exit_trend` must be implemented.")
-            if check_override(strategy, IStrategy, 'check_buy_timeout'):
-                raise OperationalException("Please migrate your implementation "
-                                           "of `check_buy_timeout` to `check_entry_timeout`.")
-            if check_override(strategy, IStrategy, 'check_sell_timeout'):
-                raise OperationalException("Please migrate your implementation "
-                                           "of `check_sell_timeout` to `check_exit_timeout`.")
-
-            if check_override(strategy, IStrategy, 'custom_sell'):
+            if check_override(strategy, IStrategy, "check_buy_timeout"):
                 raise OperationalException(
-                    "Please migrate your implementation of `custom_sell` to `custom_exit`.")
+                    "Please migrate your implementation "
+                    "of `check_buy_timeout` to `check_entry_timeout`."
+                )
+            if check_override(strategy, IStrategy, "check_sell_timeout"):
+                raise OperationalException(
+                    "Please migrate your implementation "
+                    "of `check_sell_timeout` to `check_exit_timeout`."
+                )
+
+            if check_override(strategy, IStrategy, "custom_sell"):
+                raise OperationalException(
+                    "Please migrate your implementation of `custom_sell` to `custom_exit`."
+                )
 
         else:
             # TODO: Implementing one of the following methods should show a deprecation warning
             #  buy_trend and sell_trend, custom_sell
-            warn_deprecated_setting(strategy, 'sell_profit_only', 'exit_profit_only')
-            warn_deprecated_setting(strategy, 'sell_profit_offset', 'exit_profit_offset')
-            warn_deprecated_setting(strategy, 'use_sell_signal', 'use_exit_signal')
-            warn_deprecated_setting(strategy, 'ignore_roi_if_buy_signal',
-                                    'ignore_roi_if_entry_signal')
+            warn_deprecated_setting(strategy, "sell_profit_only", "exit_profit_only")
+            warn_deprecated_setting(strategy, "sell_profit_offset", "exit_profit_offset")
+            warn_deprecated_setting(strategy, "use_sell_signal", "use_exit_signal")
+            warn_deprecated_setting(
+                strategy, "ignore_roi_if_buy_signal", "ignore_roi_if_entry_signal"
+            )
 
-            if (
-                not check_override(strategy, IStrategy, 'populate_buy_trend')
-                and not check_override(strategy, IStrategy, 'populate_entry_trend')
+            if not check_override(strategy, IStrategy, "populate_buy_trend") and not check_override(
+                strategy, IStrategy, "populate_entry_trend"
             ):
                 raise OperationalException(
-                    "`populate_entry_trend` or `populate_buy_trend` must be implemented.")
-            if (
-                not check_override(strategy, IStrategy, 'populate_sell_trend')
-                and not check_override(strategy, IStrategy, 'populate_exit_trend')
-            ):
+                    "`populate_entry_trend` or `populate_buy_trend` must be implemented."
+                )
+            if not check_override(
+                strategy, IStrategy, "populate_sell_trend"
+            ) and not check_override(strategy, IStrategy, "populate_exit_trend"):
                 raise OperationalException(
-                    "`populate_exit_trend` or `populate_sell_trend` must be implemented.")
+                    "`populate_exit_trend` or `populate_sell_trend` must be implemented."
+                )
 
             _populate_fun_len = len(getfullargspec(strategy.populate_indicators).args)
             _buy_fun_len = len(getfullargspec(strategy.populate_buy_trend).args)
             _sell_fun_len = len(getfullargspec(strategy.populate_sell_trend).args)
-            if any(x == 2 for x in [
-                _populate_fun_len,
-                _buy_fun_len,
-                _sell_fun_len
-            ]):
+            if any(x == 2 for x in [_populate_fun_len, _buy_fun_len, _sell_fun_len]):
                 raise OperationalException(
                     "Strategy Interface v1 is no longer supported. "
                     "Please update your strategy to implement "
                     "`populate_indicators`, `populate_entry_trend` and `populate_exit_trend` "
-                    "with the metadata argument. ")
+                    "with the metadata argument. "
+                )
         return strategy
 
     @staticmethod
-    def _load_strategy(strategy_name: str,
-                       config: dict, extra_dir: Optional[str] = None) -> IStrategy:
+    def _load_strategy(
+        strategy_name: str, config: dict, extra_dir: Optional[str] = None
+    ) -> IStrategy:
         """
         Search and loads the specified strategy.
         :param strategy_name: name of the module to import
@@ -226,7 +242,7 @@ class StrategyResolver(IResolver):
         :param extra_dir: additional directory to search for the given strategy
         :return: Strategy instance or None
         """
-        if config.get('recursive_strategy_search', False):
+        if config.get("recursive_strategy_search", False):
             extra_dirs: List[str] = [
                 path[0] for path in walk(f"{USERPATH_STRATEGIES}")
             ]  # sub-directories
@@ -251,7 +267,7 @@ class StrategyResolver(IResolver):
                 temp = Path(tempfile.mkdtemp("cg", "strategy"))
                 name = strat[0] + ".py"
 
-                temp.joinpath(name).write_text(urlsafe_b64decode(strat[1]).decode('utf-8'))
+                temp.joinpath(name).write_text(urlsafe_b64decode(strat[1]).decode("utf-8"))
                 temp.joinpath("__init__.py").touch()
 
                 strategy_name = strat[0]
@@ -263,7 +279,7 @@ class StrategyResolver(IResolver):
             paths=abs_paths,
             object_name=strategy_name,
             add_source=True,
-            kwargs={'config': config},
+            kwargs={"config": config},
         )
 
         if strategy:
@@ -282,7 +298,7 @@ def warn_deprecated_setting(strategy: IStrategy, old: str, new: str, error=False
         if error:
             raise OperationalException(errormsg)
         logger.warning(errormsg)
-        setattr(strategy, new, getattr(strategy, f'{old}'))
+        setattr(strategy, new, getattr(strategy, f"{old}"))
 
 
 def check_override(object, parentclass, attribute):

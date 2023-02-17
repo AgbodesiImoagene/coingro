@@ -14,37 +14,34 @@ import logging
 import re
 import sys
 from pathlib import Path
+from typing import Optional
 from urllib.parse import urlencode, urlparse, urlunparse
 
 import rapidjson
 import requests
 from requests.exceptions import ConnectionError
 
-
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
 )
 logger = logging.getLogger("ft_rest_client")
 
 
-class CgRestClient():
-
+class CgRestClient:
     def __init__(self, serverurl, username=None, password=None):
 
         self._serverurl = serverurl
         self._session = requests.Session()
         self._session.auth = (username, password)
 
-    def _call(self, method, apipath, params: dict = None, data=None, files=None):
+    def _call(self, method, apipath, params: Optional[dict] = None, data=None, files=None):
 
-        if str(method).upper() not in ('GET', 'POST', 'PUT', 'DELETE'):
-            raise ValueError(f'invalid method <{method}>')
+        if str(method).upper() not in ("GET", "POST", "PUT", "DELETE"):
+            raise ValueError(f"invalid method <{method}>")
         basepath = f"{self._serverurl}/api/v1/{apipath}"
 
-        hd = {"Accept": "application/json",
-              "Content-Type": "application/json"
-              }
+        hd = {"Accept": "application/json", "Content-Type": "application/json"}
 
         # Split url
         schema, netloc, path, par, query, fragment = urlparse(basepath)
@@ -60,13 +57,13 @@ class CgRestClient():
         except ConnectionError:
             logger.warning("Connection error")
 
-    def _get(self, apipath, params: dict = None):
+    def _get(self, apipath, params: Optional[dict] = None):
         return self._call("GET", apipath, params=params)
 
-    def _delete(self, apipath, params: dict = None):
+    def _delete(self, apipath, params: Optional[dict] = None):
         return self._call("DELETE", apipath, params=params)
 
-    def _post(self, apipath, params: dict = None, data: dict = None):
+    def _post(self, apipath, params: Optional[dict] = None, data: Optional[dict] = None):
         return self._call("POST", apipath, params=params, data=data)
 
     def start(self):
@@ -187,7 +184,7 @@ class CgRestClient():
         configstatus = self.show_config()
         if not configstatus:
             return {"status": "not_running"}
-        elif configstatus['state'] == "running":
+        elif configstatus["state"] == "running":
             return {"status": "pong"}
         else:
             return {"status": "not_running"}
@@ -209,9 +206,9 @@ class CgRestClient():
         """
         params = {}
         if limit:
-            params['limit'] = limit
+            params["limit"] = limit
         if offset:
-            params['offset'] = offset
+            params["offset"] = offset
         return self._get("trades", params)
 
     def trade(self, trade_id):
@@ -256,9 +253,7 @@ class CgRestClient():
         :param price: Optional - price to buy
         :return: json object of the trade
         """
-        data = {"pair": pair,
-                "price": price
-                }
+        data = {"pair": pair, "price": price}
         return self._post("forcebuy", data=data)
 
     def forceenter(self, pair, side, price=None):
@@ -269,10 +264,11 @@ class CgRestClient():
         :param price: Optional - price to buy
         :return: json object of the trade
         """
-        data = {"pair": pair,
-                "side": side,
-                "price": price,
-                }
+        data = {
+            "pair": pair,
+            "side": side,
+            "price": price,
+        }
         return self._post("forceenter", data=data)
 
     def forceexit(self, tradeid):
@@ -313,10 +309,13 @@ class CgRestClient():
         :param stake_currency: Only pairs that include this timeframe
         :return: json object
         """
-        return self._get("available_pairs", params={
-            "stake_currency": stake_currency if timeframe else '',
-            "timeframe": timeframe if timeframe else '',
-        })
+        return self._get(
+            "available_pairs",
+            params={
+                "stake_currency": stake_currency if timeframe else "",
+                "timeframe": timeframe if timeframe else "",
+            },
+        )
 
     def pair_candles(self, pair, timeframe, limit=None):
         """Return live dataframe for <pair><timeframe>.
@@ -326,11 +325,14 @@ class CgRestClient():
         :param limit: Limit result to the last n candles.
         :return: json object
         """
-        return self._get("pair_candles", params={
-            "pair": pair,
-            "timeframe": timeframe,
-            "limit": limit,
-        })
+        return self._get(
+            "pair_candles",
+            params={
+                "pair": pair,
+                "timeframe": timeframe,
+                "limit": limit,
+            },
+        )
 
     def pair_history(self, pair, timeframe, strategy, timerange=None):
         """Return historic, analyzed dataframe
@@ -341,12 +343,15 @@ class CgRestClient():
         :param timerange: Timerange to get data for (same format than --timerange endpoints)
         :return: json object
         """
-        return self._get("pair_history", params={
-            "pair": pair,
-            "timeframe": timeframe,
-            "strategy": strategy,
-            "timerange": timerange if timerange else '',
-        })
+        return self._get(
+            "pair_history",
+            params={
+                "pair": pair,
+                "timeframe": timeframe,
+                "strategy": strategy,
+                "timerange": timerange if timerange else "",
+            },
+        )
 
     def sysinfo(self):
         """Provides system information (CPU, RAM usage)
@@ -377,13 +382,9 @@ class CgRestClient():
         """
         return self._get("settings_options")
 
-    def update_exchange(self,
-                        dry_run=None,
-                        name=None,
-                        key=None,
-                        secret=None,
-                        password=None,
-                        uid=None):
+    def update_exchange(
+        self, dry_run=None, name=None, key=None, secret=None, password=None, uid=None
+    ):
         """Update exchange configuration
 
         :param dry_run: Boolean indicating if the bot run in dry-run mode.
@@ -394,23 +395,28 @@ class CgRestClient():
         :param uid: UID (depends on exchange).
         :return: json object
         """
-        return self._post("exchange", data={
-            "dry_run": dry_run,
-            "name": name,
-            "key": key,
-            "secret": secret,
-            "password": password,
-            "uid": uid,
-        })
+        return self._post(
+            "exchange",
+            data={
+                "dry_run": dry_run,
+                "name": name,
+                "key": key,
+                "secret": secret,
+                "password": password,
+                "uid": uid,
+            },
+        )
 
-    def update_strategy(self,
-                        strategy=None,
-                        minimal_roi=None,
-                        stoploss=None,
-                        trailing_stop=None,
-                        trailing_stop_positive=None,
-                        trailing_stop_positive_offset=None,
-                        trailing_only_offset_is_reached=None):
+    def update_strategy(
+        self,
+        strategy=None,
+        minimal_roi=None,
+        stoploss=None,
+        trailing_stop=None,
+        trailing_stop_positive=None,
+        trailing_stop_positive_offset=None,
+        trailing_only_offset_is_reached=None,
+    ):
         """Update strategy configuration
 
         :param strategy: The strategy the bot should use.
@@ -424,26 +430,34 @@ class CgRestClient():
         :param trailing_only_offset_is_reached: Should the positive offset be used.
         :return: json object
         """
-        minimal_roi_list = [{"time_limit_mins": int(mins), "profit": roi}
-                            for mins, roi in minimal_roi] if minimal_roi else None
-        return self._post("strategy", data={
-            "strategy": strategy,
-            "minimal_roi": minimal_roi_list,
-            "stoploss": stoploss,
-            "trailing_stop": trailing_stop,
-            "trailing_stop_positive": trailing_stop_positive,
-            "trailing_stop_positive_offset": trailing_stop_positive_offset,
-            "trailing_only_offset_is_reached": trailing_only_offset_is_reached,
-        })
+        minimal_roi_list = (
+            [{"time_limit_mins": int(mins), "profit": roi} for mins, roi in minimal_roi]
+            if minimal_roi
+            else None
+        )
+        return self._post(
+            "strategy",
+            data={
+                "strategy": strategy,
+                "minimal_roi": minimal_roi_list,
+                "stoploss": stoploss,
+                "trailing_stop": trailing_stop,
+                "trailing_stop_positive": trailing_stop_positive,
+                "trailing_stop_positive_offset": trailing_stop_positive_offset,
+                "trailing_only_offset_is_reached": trailing_only_offset_is_reached,
+            },
+        )
 
-    def update_settings(self,
-                        max_open_trades=None,
-                        stake_currency=None,
-                        stake_amount=None,
-                        tradable_balance_ratio=None,
-                        fiat_display_currency=None,
-                        available_capital=None,
-                        dry_run_wallet=None):
+    def update_settings(
+        self,
+        max_open_trades=None,
+        stake_currency=None,
+        stake_amount=None,
+        tradable_balance_ratio=None,
+        fiat_display_currency=None,
+        available_capital=None,
+        dry_run_wallet=None,
+    ):
         """Update general configuration
 
         :param max_open_trades: Maximum number of trades that can be open simultaneously
@@ -458,15 +472,18 @@ class CgRestClient():
             (only used in dry-run mode).
         :return: json object
         """
-        return self._post("settings", data={
-            "max_open_trades": max_open_trades,
-            "stake_currency": stake_currency,
-            "stake_amount": stake_amount,
-            "tradable_balance_ratio": tradable_balance_ratio,
-            "fiat_display_currency": fiat_display_currency,
-            "available_capital": available_capital,
-            "dry_run_wallet": dry_run_wallet,
-        })
+        return self._post(
+            "settings",
+            data={
+                "max_open_trades": max_open_trades,
+                "stake_currency": stake_currency,
+                "stake_amount": stake_amount,
+                "tradable_balance_ratio": tradable_balance_ratio,
+                "fiat_display_currency": fiat_display_currency,
+                "available_capital": available_capital,
+                "dry_run_wallet": dry_run_wallet,
+            },
+        )
 
     def reset_original_config(self):
         """Reset the configuration to its original state
@@ -480,41 +497,47 @@ class CgRestClient():
 
         :return: json object
         """
-        if timeunit not in ['weeks', 'months']:
-            timeunit = 'days'
-        return self._get("timeunit_profit", params={
-                'timeunit': timeunit,
-                'timescale': timescale,
-            })
+        if timeunit not in ["weeks", "months"]:
+            timeunit = "days"
+        return self._get(
+            "timeunit_profit",
+            params={
+                "timeunit": timeunit,
+                "timescale": timescale,
+            },
+        )
 
 
 def add_arguments():
     parser = argparse.ArgumentParser()
-    parser.add_argument("command",
-                        help="Positional argument defining the command to execute.",
-                        nargs="?"
-                        )
+    parser.add_argument(
+        "command", help="Positional argument defining the command to execute.", nargs="?"
+    )
 
-    parser.add_argument('--show',
-                        help='Show possible methods with this client',
-                        dest='show',
-                        action='store_true',
-                        default=False
-                        )
+    parser.add_argument(
+        "--show",
+        help="Show possible methods with this client",
+        dest="show",
+        action="store_true",
+        default=False,
+    )
 
-    parser.add_argument('-c', '--config',
-                        help='Specify configuration file (default: %(default)s). ',
-                        dest='config',
-                        type=str,
-                        metavar='PATH',
-                        default='user_data/config/config.json'
-                        )
+    parser.add_argument(
+        "-c",
+        "--config",
+        help="Specify configuration file (default: %(default)s). ",
+        dest="config",
+        type=str,
+        metavar="PATH",
+        default="user_data/config/config.json",
+    )
 
-    parser.add_argument("command_arguments",
-                        help="Positional arguments for the parameters for [command]",
-                        nargs="*",
-                        default=[]
-                        )
+    parser.add_argument(
+        "command_arguments",
+        help="Positional arguments for the parameters for [command]",
+        nargs="*",
+        default=[],
+    )
 
     args = parser.parse_args()
     return vars(args)
@@ -524,8 +547,9 @@ def load_config(configfile):
     file = Path(configfile)
     if file.is_file():
         with file.open("r") as f:
-            config = rapidjson.load(f, parse_mode=rapidjson.PM_COMMENTS |
-                                    rapidjson.PM_TRAILING_COMMAS)
+            config = rapidjson.load(
+                f, parse_mode=rapidjson.PM_COMMENTS | rapidjson.PM_TRAILING_COMMAS
+            )
         return config
     else:
         logger.warning(f"Could not load config file {file}.")
@@ -537,8 +561,8 @@ def print_commands():
     client = CgRestClient(None)
     print("Possible commands:\n")
     for x, y in inspect.getmembers(client):
-        if not x.startswith('_'):
-            doc = re.sub(':return:.*', '', getattr(client, x).__doc__, flags=re.MULTILINE).rstrip()
+        if not x.startswith("_"):
+            doc = re.sub(":return:.*", "", getattr(client, x).__doc__, flags=re.MULTILINE).rstrip()
             print(f"{x}\n\t{doc}\n")
 
 
@@ -548,16 +572,16 @@ def main(args):
         print_commands()
         sys.exit()
 
-    config = load_config(args['config'])
-    url = config.get('api_server', {}).get('listen_ip_address', '127.0.0.1')
-    port = config.get('api_server', {}).get('listen_port', '8080')
-    username = config.get('api_server', {}).get('username')
-    password = config.get('api_server', {}).get('password')
+    config = load_config(args["config"])
+    url = config.get("api_server", {}).get("listen_ip_address", "127.0.0.1")
+    port = config.get("api_server", {}).get("listen_port", "8080")
+    username = config.get("api_server", {}).get("username")
+    password = config.get("api_server", {}).get("password")
 
     server_url = f"http://{url}:{port}"
     client = CgRestClient(server_url, username, password)
 
-    m = [x for x, y in inspect.getmembers(client) if not x.startswith('_')]
+    m = [x for x, y in inspect.getmembers(client) if not x.startswith("_")]
     command = args["command"]
     if command not in m:
         logger.error(f"Command {command} not defined")

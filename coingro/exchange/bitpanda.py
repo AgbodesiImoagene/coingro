@@ -5,7 +5,6 @@ from typing import Dict, List, Optional
 
 from coingro.exchange import Exchange
 
-
 logger = logging.getLogger(__name__)
 
 
@@ -15,8 +14,9 @@ class Bitpanda(Exchange):
     with this exchange.
     """
 
-    def get_trades_for_order(self, order_id: str, pair: str, since: datetime,
-                             params: Optional[Dict] = None) -> List:
+    def get_trades_for_order(
+        self, order_id: str, pair: str, since: datetime, params: Optional[Dict] = None
+    ) -> List:
         """
         Fetch Orders using the "fetch_my_trades" endpoint and filter them by order-id.
         The "since" argument passed in is coming from the database and is in UTC,
@@ -33,5 +33,5 @@ class Bitpanda(Exchange):
         :param pair: Pair the order is for
         :param since: datetime object of the order creation time. Assumes object is in UTC.
         """
-        params = {'to': int(datetime.now(timezone.utc).timestamp() * 1000)}
+        params = {"to": int(datetime.now(timezone.utc).timestamp() * 1000)}
         return super().get_trades_for_order(order_id, pair, since, params)

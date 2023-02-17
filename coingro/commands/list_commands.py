@@ -17,7 +17,6 @@ from coingro.exchange import market_is_active, validate_exchanges
 from coingro.misc import parse_db_uri_for_logging, plural
 from coingro.resolvers import ExchangeResolver, StrategyResolver
 
-
 logger = logging.getLogger(__name__)
 
 
@@ -27,18 +26,18 @@ def start_list_exchanges(args: Dict[str, Any]) -> None:
     :param args: Cli args from Arguments()
     :return: None
     """
-    exchanges = validate_exchanges(args['list_exchanges_all'])
+    exchanges = validate_exchanges(args["list_exchanges_all"])
 
-    if args['print_one_column']:
-        print('\n'.join([e[0] for e in exchanges]))
+    if args["print_one_column"]:
+        print("\n".join([e[0] for e in exchanges]))
     else:
-        if args['list_exchanges_all']:
+        if args["list_exchanges_all"]:
             print("All exchanges supported by the ccxt library:")
         else:
             print("Exchanges available for Coingro:")
             exchanges = [e for e in exchanges if e[1] is not False]
 
-        print(tabulate(exchanges, headers=['Exchange name', 'Valid', 'reason']))
+        print(tabulate(exchanges, headers=["Exchange name", "Valid", "reason"]))
 
 
 def _print_objs_tabular(objs: List, print_colorized: bool, base_dir: Path) -> None:
@@ -48,26 +47,35 @@ def _print_objs_tabular(objs: List, print_colorized: bool, base_dir: Path) -> No
         yellow = Fore.YELLOW
         reset = Style.RESET_ALL
     else:
-        red = ''
-        yellow = ''
-        reset = ''
+        red = ""
+        yellow = ""
+        reset = ""
 
-    names = [s['name'] for s in objs]
-    objs_to_print = [{
-        'name': s['name'] if s['name'] else "--",
-        'location': s['location'].relative_to(base_dir),
-        'status': (red + "LOAD FAILED" + reset if s['class'] is None
-                   else "OK" if names.count(s['name']) == 1
-                   else yellow + "DUPLICATE NAME" + reset)
-    } for s in objs]
+    names = [s["name"] for s in objs]
+    objs_to_print = [
+        {
+            "name": s["name"] if s["name"] else "--",
+            "location": s["location"].relative_to(base_dir),
+            "status": (
+                red + "LOAD FAILED" + reset
+                if s["class"] is None
+                else "OK"
+                if names.count(s["name"]) == 1
+                else yellow + "DUPLICATE NAME" + reset
+            ),
+        }
+        for s in objs
+    ]
     for idx, s in enumerate(objs):
-        if 'hyperoptable' in s:
-            objs_to_print[idx].update({
-                'hyperoptable': "Yes" if s['hyperoptable']['count'] > 0 else "No",
-                'buy-Params': len(s['hyperoptable'].get('buy', [])),
-                'sell-Params': len(s['hyperoptable'].get('sell', [])),
-            })
-    print(tabulate(objs_to_print, headers='keys', tablefmt='psql', stralign='right'))
+        if "hyperoptable" in s:
+            objs_to_print[idx].update(
+                {
+                    "hyperoptable": "Yes" if s["hyperoptable"]["count"] > 0 else "No",
+                    "buy-Params": len(s["hyperoptable"].get("buy", [])),
+                    "sell-Params": len(s["hyperoptable"].get("sell", [])),
+                }
+            )
+    print(tabulate(objs_to_print, headers="keys", tablefmt="psql", stralign="right"))
 
 
 def start_list_strategies(args: Dict[str, Any]) -> None:
@@ -76,21 +84,22 @@ def start_list_strategies(args: Dict[str, Any]) -> None:
     """
     config = setup_utils_configuration(args, RunMode.UTIL_NO_EXCHANGE)
 
-    directory = Path(config.get('strategy_path', USERPATH_STRATEGIES))
+    directory = Path(config.get("strategy_path", USERPATH_STRATEGIES))
     strategy_objs = StrategyResolver.search_all_objects(
-        directory, not args['print_one_column'], config.get('recursive_strategy_search', False))
+        directory, not args["print_one_column"], config.get("recursive_strategy_search", False)
+    )
     # Sort alphabetically
-    strategy_objs = sorted(strategy_objs, key=lambda x: x['name'])
+    strategy_objs = sorted(strategy_objs, key=lambda x: x["name"])
     for obj in strategy_objs:
-        if obj['class']:
-            obj['hyperoptable'] = obj['class'].detect_all_parameters()
+        if obj["class"]:
+            obj["hyperoptable"] = obj["class"].detect_all_parameters()
         else:
-            obj['hyperoptable'] = {'count': 0}
+            obj["hyperoptable"] = {"count": 0}
 
-    if args['print_one_column']:
-        print('\n'.join([s['name'] for s in strategy_objs]))
+    if args["print_one_column"]:
+        print("\n".join([s["name"] for s in strategy_objs]))
     else:
-        _print_objs_tabular(strategy_objs, config.get('print_colorized', False), directory)
+        _print_objs_tabular(strategy_objs, config.get("print_colorized", False), directory)
 
 
 def start_list_timeframes(args: Dict[str, Any]) -> None:
@@ -99,16 +108,18 @@ def start_list_timeframes(args: Dict[str, Any]) -> None:
     """
     config = setup_utils_configuration(args, RunMode.UTIL_EXCHANGE)
     # Do not use timeframe set in the config
-    config['timeframe'] = None
+    config["timeframe"] = None
 
     # Init exchange
-    exchange = ExchangeResolver.load_exchange(config['exchange']['name'], config, validate=False)
+    exchange = ExchangeResolver.load_exchange(config["exchange"]["name"], config, validate=False)
 
-    if args['print_one_column']:
-        print('\n'.join(exchange.timeframes))
+    if args["print_one_column"]:
+        print("\n".join(exchange.timeframes))
     else:
-        print(f"Timeframes available for the exchange `{exchange.name}`: "
-              f"{', '.join(exchange.timeframes)}")
+        print(
+            f"Timeframes available for the exchange `{exchange.name}`: "
+            f"{', '.join(exchange.timeframes)}"
+        )
 
 
 def start_list_markets(args: Dict[str, Any], pairs_only: bool = False) -> None:
@@ -121,54 +132,78 @@ def start_list_markets(args: Dict[str, Any], pairs_only: bool = False) -> None:
     config = setup_utils_configuration(args, RunMode.UTIL_EXCHANGE)
 
     # Init exchange
-    exchange = ExchangeResolver.load_exchange(config['exchange']['name'], config, validate=False)
+    exchange = ExchangeResolver.load_exchange(config["exchange"]["name"], config, validate=False)
 
     # By default only active pairs/markets are to be shown
-    active_only = not args.get('list_pairs_all', False)
+    active_only = not args.get("list_pairs_all", False)
 
-    base_currencies = args.get('base_currencies', [])
-    quote_currencies = args.get('quote_currencies', [])
+    base_currencies = args.get("base_currencies", [])
+    quote_currencies = args.get("quote_currencies", [])
 
     try:
-        pairs = exchange.get_markets(base_currencies=base_currencies,
-                                     quote_currencies=quote_currencies,
-                                     tradable_only=pairs_only,
-                                     active_only=active_only)
+        pairs = exchange.get_markets(
+            base_currencies=base_currencies,
+            quote_currencies=quote_currencies,
+            tradable_only=pairs_only,
+            active_only=active_only,
+        )
         # Sort the pairs/markets by symbol
         pairs = dict(sorted(pairs.items()))
     except Exception as e:
         raise OperationalException(f"Cannot get markets. Reason: {e}") from e
 
     else:
-        summary_str = ((f"Exchange {exchange.name} has {len(pairs)} ") +
-                       ("active " if active_only else "") +
-                       (plural(len(pairs), "pair" if pairs_only else "market")) +
-                       (f" with {', '.join(base_currencies)} as base "
-                        f"{plural(len(base_currencies), 'currency', 'currencies')}"
-                        if base_currencies else "") +
-                       (" and" if base_currencies and quote_currencies else "") +
-                       (f" with {', '.join(quote_currencies)} as quote "
-                        f"{plural(len(quote_currencies), 'currency', 'currencies')}"
-                        if quote_currencies else ""))
+        summary_str = (
+            (f"Exchange {exchange.name} has {len(pairs)} ")
+            + ("active " if active_only else "")
+            + (plural(len(pairs), "pair" if pairs_only else "market"))
+            + (
+                f" with {', '.join(base_currencies)} as base "
+                f"{plural(len(base_currencies), 'currency', 'currencies')}"
+                if base_currencies
+                else ""
+            )
+            + (" and" if base_currencies and quote_currencies else "")
+            + (
+                f" with {', '.join(quote_currencies)} as quote "
+                f"{plural(len(quote_currencies), 'currency', 'currencies')}"
+                if quote_currencies
+                else ""
+            )
+        )
 
-        headers = ["Id", "Symbol", "Base", "Quote", "Active",
-                   "Spot", "Margin", "Future", "Leverage"]
+        headers = [
+            "Id",
+            "Symbol",
+            "Base",
+            "Quote",
+            "Active",
+            "Spot",
+            "Margin",
+            "Future",
+            "Leverage",
+        ]
 
-        tabular_data = [{
-                'Id': v['id'],
-                'Symbol': v['symbol'],
-                'Base': v['base'],
-                'Quote': v['quote'],
-                'Active': market_is_active(v),
-                'Spot': 'Spot' if exchange.market_is_spot(v) else '',
-                'Margin': 'Margin' if exchange.market_is_margin(v) else '',
-                'Future': 'Future' if exchange.market_is_future(v) else '',
-                'Leverage': exchange.get_max_leverage(v['symbol'], 20)
-            } for _, v in pairs.items()]
+        tabular_data = [
+            {
+                "Id": v["id"],
+                "Symbol": v["symbol"],
+                "Base": v["base"],
+                "Quote": v["quote"],
+                "Active": market_is_active(v),
+                "Spot": "Spot" if exchange.market_is_spot(v) else "",
+                "Margin": "Margin" if exchange.market_is_margin(v) else "",
+                "Future": "Future" if exchange.market_is_future(v) else "",
+                "Leverage": exchange.get_max_leverage(v["symbol"], 20),
+            }
+            for _, v in pairs.items()
+        ]
 
-        if (args.get('print_one_column', False) or
-                args.get('list_pairs_print_json', False) or
-                args.get('print_csv', False)):
+        if (
+            args.get("print_one_column", False)
+            or args.get("list_pairs_print_json", False)
+            or args.get("print_csv", False)
+        ):
             # Print summary string in the log in case of machine-readable
             # regular formats.
             logger.info(f"{summary_str}.")
@@ -178,24 +213,26 @@ def start_list_markets(args: Dict[str, Any], pairs_only: bool = False) -> None:
             print()
 
         if pairs:
-            if args.get('print_list', False):
+            if args.get("print_list", False):
                 # print data as a list, with human-readable summary
                 print(f"{summary_str}: {', '.join(pairs.keys())}.")
-            elif args.get('print_one_column', False):
-                print('\n'.join(pairs.keys()))
-            elif args.get('list_pairs_print_json', False):
+            elif args.get("print_one_column", False):
+                print("\n".join(pairs.keys()))
+            elif args.get("list_pairs_print_json", False):
                 print(rapidjson.dumps(list(pairs.keys()), default=str))
-            elif args.get('print_csv', False):
+            elif args.get("print_csv", False):
                 writer = csv.DictWriter(sys.stdout, fieldnames=headers)
                 writer.writeheader()
                 writer.writerows(tabular_data)
             else:
                 # print data as a table, with the human-readable summary
                 print(f"{summary_str}:")
-                print(tabulate(tabular_data, headers='keys', tablefmt='psql', stralign='right'))
-        elif not (args.get('print_one_column', False) or
-                  args.get('list_pairs_print_json', False) or
-                  args.get('print_csv', False)):
+                print(tabulate(tabular_data, headers="keys", tablefmt="psql", stralign="right"))
+        elif not (
+            args.get("print_one_column", False)
+            or args.get("list_pairs_print_json", False)
+            or args.get("print_csv", False)
+        ):
             print(f"{summary_str}.")
 
 
@@ -206,21 +243,22 @@ def start_show_trades(args: Dict[str, Any]) -> None:
     import json
 
     from coingro.persistence import Trade, init_db
+
     config = setup_utils_configuration(args, RunMode.UTIL_NO_EXCHANGE)
 
-    if 'db_url' not in config:
+    if "db_url" not in config:
         raise OperationalException("--db-url is required for this command.")
 
     logger.info(f'Using DB: "{parse_db_uri_for_logging(config["db_url"])}"')
-    init_db(config['db_url'], config['dry_run'])
+    init_db(config["db_url"], config["dry_run"])
     tfilter = []
 
-    if config.get('trade_ids'):
-        tfilter.append(Trade.id.in_(config['trade_ids']))
+    if config.get("trade_ids"):
+        tfilter.append(Trade.id.in_(config["trade_ids"]))
 
     trades = Trade.get_trades(tfilter).all()
     logger.info(f"Printing {len(trades)} Trades: ")
-    if config.get('print_json', False):
+    if config.get("print_json", False):
         print(json.dumps([trade.to_json() for trade in trades], indent=4))
     else:
         for trade in trades:

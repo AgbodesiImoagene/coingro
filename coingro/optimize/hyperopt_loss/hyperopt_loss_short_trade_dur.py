@@ -9,7 +9,6 @@ from pandas import DataFrame
 
 from coingro.optimize.hyperopt import IHyperOptLoss
 
-
 # Set TARGET_TRADES to suit your number concurrent trades so its realistic
 # to the number of days
 TARGET_TRADES = 600
@@ -32,8 +31,7 @@ class ShortTradeDurHyperOptLoss(IHyperOptLoss):
     """
 
     @staticmethod
-    def hyperopt_loss_function(results: DataFrame, trade_count: int,
-                               *args, **kwargs) -> float:
+    def hyperopt_loss_function(results: DataFrame, trade_count: int, *args, **kwargs) -> float:
         """
         Objective function, returns smaller number for better results
         This is the Default algorithm
@@ -42,10 +40,10 @@ class ShortTradeDurHyperOptLoss(IHyperOptLoss):
         * 0.25: Avoiding trade loss
         * 1.0 to total profit, compared to the expected value (`EXPECTED_MAX_PROFIT`) defined above
         """
-        total_profit = results['profit_ratio'].sum()
-        trade_duration = results['trade_duration'].mean()
+        total_profit = results["profit_ratio"].sum()
+        trade_duration = results["trade_duration"].mean()
 
-        trade_loss = 1 - 0.25 * exp(-(trade_count - TARGET_TRADES) ** 2 / 10 ** 5.8)
+        trade_loss = 1 - 0.25 * exp(-((trade_count - TARGET_TRADES) ** 2) / 10**5.8)
         profit_loss = max(0, 1 - total_profit / EXPECTED_MAX_PROFIT)
         duration_loss = 0.4 * min(trade_duration / MAX_ACCEPTED_TRADE_DURATION, 1)
         result = trade_loss + profit_loss + duration_loss

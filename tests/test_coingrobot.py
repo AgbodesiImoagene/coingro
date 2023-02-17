@@ -14,21 +14,53 @@ from pandas import DataFrame
 
 from coingro.coingrobot import CoingroBot
 from coingro.constants import CANCEL_REASON, MATH_CLOSE_PREC, UNLIMITED_STAKE_AMOUNT
-from coingro.enums import (CandleType, ExitCheckTuple, ExitType, RPCMessageType, RunMode,
-                           SignalDirection, State)
-from coingro.exceptions import (DependencyException, ExchangeError, InsufficientFundsError,
-                                InvalidOrderException, OperationalException, PricingError,
-                                TemporaryError)
+from coingro.enums import (
+    CandleType,
+    ExitCheckTuple,
+    ExitType,
+    RPCMessageType,
+    RunMode,
+    SignalDirection,
+    State,
+)
+from coingro.exceptions import (
+    DependencyException,
+    ExchangeError,
+    InsufficientFundsError,
+    InvalidOrderException,
+    OperationalException,
+    PricingError,
+    TemporaryError,
+)
 from coingro.persistence import Order, PairLocks, Trade
 from coingro.persistence.models import PairLock
 from coingro.plugins.protections.iprotection import ProtectionReturn
 from coingro.worker import Worker
-from tests.conftest import (create_mock_trades, get_patched_coingrobot, get_patched_worker, log_has,
-                            log_has_re, patch_edge, patch_exchange, patch_get_signal, patch_wallet,
-                            patch_whitelist)
-from tests.conftest_trades import (MOCK_TRADE_COUNT, entry_side, exit_side, mock_order_1,
-                                   mock_order_2, mock_order_2_sell, mock_order_3, mock_order_3_sell,
-                                   mock_order_4, mock_order_5_stoploss, mock_order_6_sell)
+from tests.conftest import (
+    create_mock_trades,
+    get_patched_coingrobot,
+    get_patched_worker,
+    log_has,
+    log_has_re,
+    patch_edge,
+    patch_exchange,
+    patch_get_signal,
+    patch_wallet,
+    patch_whitelist,
+)
+from tests.conftest_trades import (
+    MOCK_TRADE_COUNT,
+    entry_side,
+    exit_side,
+    mock_order_1,
+    mock_order_2,
+    mock_order_2_sell,
+    mock_order_3,
+    mock_order_3_sell,
+    mock_order_4,
+    mock_order_5_stoploss,
+    mock_order_6_sell,
+)
 
 
 def patch_RPCManager(mocker) -> MagicMock:
@@ -37,8 +69,8 @@ def patch_RPCManager(mocker) -> MagicMock:
     :param mocker: mocker to patch RPCManager class
     :return: RPCManager.send_msg MagicMock to track if this method is called
     """
-    mocker.patch('coingro.rpc.telegram.Telegram', MagicMock())
-    rpc_mock = mocker.patch('coingro.coingrobot.RPCManager.send_msg', MagicMock())
+    mocker.patch("coingro.rpc.telegram.Telegram", MagicMock())
+    rpc_mock = mocker.patch("coingro.coingrobot.RPCManager.send_msg", MagicMock())
     return rpc_mock
 
 
@@ -46,76 +78,72 @@ def patch_RPCManager(mocker) -> MagicMock:
 
 
 def test_coingrobot_state(mocker, default_conf_usdt, markets) -> None:
-    mocker.patch('coingro.exchange.Exchange.markets', PropertyMock(return_value=markets))
+    mocker.patch("coingro.exchange.Exchange.markets", PropertyMock(return_value=markets))
     coingro = get_patched_coingrobot(mocker, default_conf_usdt)
     assert coingro.state is State.RUNNING
 
-    default_conf_usdt.pop('initial_state')
+    default_conf_usdt.pop("initial_state")
     coingro = CoingroBot(default_conf_usdt)
     assert coingro.state is State.STOPPED
 
 
 def test_process_stopped(mocker, default_conf_usdt) -> None:
-
     coingro = get_patched_coingrobot(mocker, default_conf_usdt)
-    coo_mock = mocker.patch('coingro.coingrobot.CoingroBot.cancel_all_open_orders')
+    coo_mock = mocker.patch("coingro.coingrobot.CoingroBot.cancel_all_open_orders")
     coingro.process_stopped()
     assert coo_mock.call_count == 0
 
-    default_conf_usdt['cancel_open_orders_on_exit'] = True
+    default_conf_usdt["cancel_open_orders_on_exit"] = True
     coingro = get_patched_coingrobot(mocker, default_conf_usdt)
     coingro.process_stopped()
     assert coo_mock.call_count == 1
 
 
 def test_bot_cleanup(mocker, default_conf_usdt, caplog) -> None:
-    mock_cleanup = mocker.patch('coingro.coingrobot.cleanup_db')
-    coo_mock = mocker.patch('coingro.coingrobot.CoingroBot.cancel_all_open_orders')
+    mock_cleanup = mocker.patch("coingro.coingrobot.cleanup_db")
+    coo_mock = mocker.patch("coingro.coingrobot.CoingroBot.cancel_all_open_orders")
     coingro = get_patched_coingrobot(mocker, default_conf_usdt)
     coingro.cleanup()
-    assert log_has('Cleaning up modules ...', caplog)
+    assert log_has("Cleaning up modules ...", caplog)
     assert mock_cleanup.call_count == 1
     assert coo_mock.call_count == 0
 
-    coingro.config['cancel_open_orders_on_exit'] = True
+    coingro.config["cancel_open_orders_on_exit"] = True
     coingro.cleanup()
     assert coo_mock.call_count == 1
 
 
-@pytest.mark.parametrize('runmode', [
-    RunMode.DRY_RUN,
-    RunMode.LIVE
-])
+@pytest.mark.parametrize("runmode", [RunMode.DRY_RUN, RunMode.LIVE])
 def test_order_dict(default_conf_usdt, mocker, runmode, caplog) -> None:
     patch_RPCManager(mocker)
     patch_exchange(mocker)
     conf = default_conf_usdt.copy()
-    conf['runmode'] = runmode
-    conf['order_types'] = {
-        'entry': 'market',
-        'exit': 'limit',
-        'stoploss': 'limit',
-        'stoploss_on_exchange': True,
+    conf["runmode"] = runmode
+    conf["order_types"] = {
+        "entry": "market",
+        "exit": "limit",
+        "stoploss": "limit",
+        "stoploss_on_exchange": True,
     }
-    conf['entry_pricing']['price_side'] = 'ask'
+    conf["entry_pricing"]["price_side"] = "ask"
 
     coingro = CoingroBot(conf)
     if runmode == RunMode.LIVE:
         assert not log_has_re(".*stoploss_on_exchange .* dry-run", caplog)
-    assert coingro.strategy.order_types['stoploss_on_exchange']
+    assert coingro.strategy.order_types["stoploss_on_exchange"]
 
     caplog.clear()
     # is left untouched
     conf = default_conf_usdt.copy()
-    conf['runmode'] = runmode
-    conf['order_types'] = {
-        'entry': 'market',
-        'exit': 'limit',
-        'stoploss': 'limit',
-        'stoploss_on_exchange': False,
+    conf["runmode"] = runmode
+    conf["order_types"] = {
+        "entry": "market",
+        "exit": "limit",
+        "stoploss": "limit",
+        "stoploss_on_exchange": False,
     }
     coingro = CoingroBot(conf)
-    assert not coingro.strategy.order_types['stoploss_on_exchange']
+    assert not coingro.strategy.order_types["stoploss_on_exchange"]
     assert not log_has_re(".*stoploss_on_exchange .* dry-run", caplog)
 
 
@@ -125,49 +153,60 @@ def test_get_trade_stake_amount(default_conf_usdt, mocker) -> None:
 
     coingro = CoingroBot(default_conf_usdt)
 
-    result = coingro.wallets.get_trade_stake_amount('ETH/USDT')
-    assert result == default_conf_usdt['stake_amount']
+    result = coingro.wallets.get_trade_stake_amount("ETH/USDT")
+    assert result == default_conf_usdt["stake_amount"]
 
 
-@pytest.mark.parametrize("amend_last,wallet,max_open,lsamr,expected", [
-                        (False, 120, 2, 0.5, [60, None]),
-                        (True, 120, 2, 0.5, [60, 58.8]),
-                        (False, 180, 3, 0.5, [60, 60, None]),
-                        (True, 180, 3, 0.5, [60, 60, 58.2]),
-                        (False, 122, 3, 0.5, [60, 60, None]),
-                        (True, 122, 3, 0.5, [60, 60, 0.0]),
-                        (True, 167, 3, 0.5, [60, 60, 45.33]),
-                        (True, 122, 3, 1, [60, 60, 0.0]),
-])
+@pytest.mark.parametrize(
+    "amend_last,wallet,max_open,lsamr,expected",
+    [
+        (False, 120, 2, 0.5, [60, None]),
+        (True, 120, 2, 0.5, [60, 58.8]),
+        (False, 180, 3, 0.5, [60, 60, None]),
+        (True, 180, 3, 0.5, [60, 60, 58.2]),
+        (False, 122, 3, 0.5, [60, 60, None]),
+        (True, 122, 3, 0.5, [60, 60, 0.0]),
+        (True, 167, 3, 0.5, [60, 60, 45.33]),
+        (True, 122, 3, 1, [60, 60, 0.0]),
+    ],
+)
 def test_check_available_stake_amount(
-    default_conf_usdt, ticker_usdt, mocker, fee, limit_buy_order_usdt_open,
-    amend_last, wallet, max_open, lsamr, expected
+    default_conf_usdt,
+    ticker_usdt,
+    mocker,
+    fee,
+    limit_buy_order_usdt_open,
+    amend_last,
+    wallet,
+    max_open,
+    lsamr,
+    expected,
 ) -> None:
     patch_RPCManager(mocker)
     patch_exchange(mocker)
     mocker.patch.multiple(
-        'coingro.exchange.Exchange',
+        "coingro.exchange.Exchange",
         fetch_ticker=ticker_usdt,
         create_order=MagicMock(return_value=limit_buy_order_usdt_open),
-        get_fee=fee
+        get_fee=fee,
     )
-    default_conf_usdt['dry_run_wallet'] = wallet
+    default_conf_usdt["dry_run_wallet"] = wallet
 
-    default_conf_usdt['amend_last_stake_amount'] = amend_last
-    default_conf_usdt['last_stake_amount_min_ratio'] = lsamr
+    default_conf_usdt["amend_last_stake_amount"] = amend_last
+    default_conf_usdt["last_stake_amount_min_ratio"] = lsamr
 
     coingro = CoingroBot(default_conf_usdt)
 
     for i in range(0, max_open):
 
         if expected[i] is not None:
-            limit_buy_order_usdt_open['id'] = str(i)
-            result = coingro.wallets.get_trade_stake_amount('ETH/USDT')
+            limit_buy_order_usdt_open["id"] = str(i)
+            result = coingro.wallets.get_trade_stake_amount("ETH/USDT")
             assert pytest.approx(result) == expected[i]
-            coingro.execute_entry('ETH/USDT', result)
+            coingro.execute_entry("ETH/USDT", result)
         else:
             with pytest.raises(DependencyException):
-                coingro.wallets.get_trade_stake_amount('ETH/USDT')
+                coingro.wallets.get_trade_stake_amount("ETH/USDT")
 
 
 def test_edge_called_in_process(mocker, edge_conf) -> None:
@@ -178,45 +217,53 @@ def test_edge_called_in_process(mocker, edge_conf) -> None:
     coingro = CoingroBot(edge_conf)
     patch_get_signal(coingro)
     coingro.process()
-    assert coingro.active_pair_whitelist == ['NEO/BTC', 'LTC/BTC']
+    assert coingro.active_pair_whitelist == ["NEO/BTC", "LTC/BTC"]
 
 
 def test_edge_overrides_stake_amount(mocker, edge_conf) -> None:
     patch_RPCManager(mocker)
     patch_exchange(mocker)
     patch_edge(mocker)
-    edge_conf['dry_run_wallet'] = 999.9
+    edge_conf["dry_run_wallet"] = 999.9
     coingro = CoingroBot(edge_conf)
 
-    assert coingro.wallets.get_trade_stake_amount(
-        'NEO/BTC', coingro.edge) == (999.9 * 0.5 * 0.01) / 0.20
-    assert coingro.wallets.get_trade_stake_amount(
-        'LTC/BTC', coingro.edge) == (999.9 * 0.5 * 0.01) / 0.21
+    assert (
+        coingro.wallets.get_trade_stake_amount("NEO/BTC", coingro.edge)
+        == (999.9 * 0.5 * 0.01) / 0.20
+    )
+    assert (
+        coingro.wallets.get_trade_stake_amount("LTC/BTC", coingro.edge)
+        == (999.9 * 0.5 * 0.01) / 0.21
+    )
 
 
-@pytest.mark.parametrize('buy_price_mult,ignore_strat_sl', [
-    (0.79, False),   # Override stoploss
-    (0.85, True),    # Override strategy stoploss
-])
-def test_edge_overrides_stoploss(limit_order, fee, caplog, mocker,
-                                 buy_price_mult, ignore_strat_sl, edge_conf) -> None:
+@pytest.mark.parametrize(
+    "buy_price_mult,ignore_strat_sl",
+    [
+        (0.79, False),  # Override stoploss
+        (0.85, True),  # Override strategy stoploss
+    ],
+)
+def test_edge_overrides_stoploss(
+    limit_order, fee, caplog, mocker, buy_price_mult, ignore_strat_sl, edge_conf
+) -> None:
     patch_RPCManager(mocker)
     patch_exchange(mocker)
     patch_edge(mocker)
-    edge_conf['max_open_trades'] = float('inf')
+    edge_conf["max_open_trades"] = float("inf")
 
     # Strategy stoploss is -0.1 but Edge imposes a stoploss at -0.2
     # Thus, if price falls 21%, stoploss should be triggered
     #
     # mocking the ticker: price is falling ...
-    enter_price = limit_order['buy']['price']
+    enter_price = limit_order["buy"]["price"]
     ticker_val = {
-            'bid': enter_price,
-            'ask': enter_price,
-            'last': enter_price,
-        }
+        "bid": enter_price,
+        "ask": enter_price,
+        "last": enter_price,
+    }
     mocker.patch.multiple(
-        'coingro.exchange.Exchange',
+        "coingro.exchange.Exchange",
         fetch_ticker=MagicMock(return_value=ticker_val),
         get_fee=fee,
     )
@@ -224,23 +271,25 @@ def test_edge_overrides_stoploss(limit_order, fee, caplog, mocker,
 
     # Create a trade with "limit_buy_order_usdt" price
     coingro = CoingroBot(edge_conf)
-    coingro.active_pair_whitelist = ['NEO/BTC']
+    coingro.active_pair_whitelist = ["NEO/BTC"]
     patch_get_signal(coingro)
     coingro.strategy.min_roi_reached = MagicMock(return_value=False)
     coingro.enter_positions()
     trade = Trade.query.first()
     caplog.clear()
     #############################################
-    ticker_val.update({
-            'bid': enter_price * buy_price_mult,
-            'ask': enter_price * buy_price_mult,
-            'last': enter_price * buy_price_mult,
-    })
+    ticker_val.update(
+        {
+            "bid": enter_price * buy_price_mult,
+            "ask": enter_price * buy_price_mult,
+            "last": enter_price * buy_price_mult,
+        }
+    )
 
     # stoploss shoud be hit
     assert coingro.handle_trade(trade) is not ignore_strat_sl
     if not ignore_strat_sl:
-        assert log_has_re('Exit for NEO/BTC detected. Reason: stop_loss.*', caplog)
+        assert log_has_re("Exit for NEO/BTC detected. Reason: stop_loss.*", caplog)
         assert trade.exit_reason == ExitType.STOP_LOSS.value
         # Test compatibility ...
         assert trade.sell_reason == ExitType.STOP_LOSS.value
@@ -249,9 +298,9 @@ def test_edge_overrides_stoploss(limit_order, fee, caplog, mocker,
 def test_total_open_trades_stakes(mocker, default_conf_usdt, ticker_usdt, fee) -> None:
     patch_RPCManager(mocker)
     patch_exchange(mocker)
-    default_conf_usdt['max_open_trades'] = 2
+    default_conf_usdt["max_open_trades"] = 2
     mocker.patch.multiple(
-        'coingro.exchange.Exchange',
+        "coingro.exchange.Exchange",
         fetch_ticker=ticker_usdt,
         get_fee=fee,
         _is_dry_limit_order_filled=MagicMock(return_value=False),
@@ -277,26 +326,24 @@ def test_total_open_trades_stakes(mocker, default_conf_usdt, ticker_usdt, fee) -
     assert Trade.total_open_trades_stakes() == 120.0
 
 
-@pytest.mark.parametrize("is_short,open_rate", [
-    (False, 2.0),
-    (True, 2.2)
-])
-def test_create_trade(default_conf_usdt, ticker_usdt, limit_order,
-                      fee, mocker, is_short, open_rate) -> None:
+@pytest.mark.parametrize("is_short,open_rate", [(False, 2.0), (True, 2.2)])
+def test_create_trade(
+    default_conf_usdt, ticker_usdt, limit_order, fee, mocker, is_short, open_rate
+) -> None:
     patch_RPCManager(mocker)
     patch_exchange(mocker)
     mocker.patch.multiple(
-        'coingro.exchange.Exchange',
+        "coingro.exchange.Exchange",
         fetch_ticker=ticker_usdt,
         get_fee=fee,
         _is_dry_limit_order_filled=MagicMock(return_value=False),
     )
 
     # Save state of current whitelist
-    whitelist = deepcopy(default_conf_usdt['exchange']['pair_whitelist'])
+    whitelist = deepcopy(default_conf_usdt["exchange"]["pair_whitelist"])
     coingro = CoingroBot(default_conf_usdt)
     patch_get_signal(coingro, enter_short=is_short, enter_long=not is_short)
-    coingro.create_trade('ETH/USDT')
+    coingro.create_trade("ETH/USDT")
 
     trade = Trade.query.first()
     trade.is_short = is_short
@@ -304,91 +351,112 @@ def test_create_trade(default_conf_usdt, ticker_usdt, limit_order,
     assert pytest.approx(trade.stake_amount) == 60.0
     assert trade.is_open
     assert trade.open_date is not None
-    assert trade.exchange == 'binance'
+    assert trade.exchange == "binance"
 
     # Simulate fulfilled LIMIT_BUY order for trade
     oobj = Order.parse_from_ccxt_object(
-        limit_order[entry_side(is_short)], 'ADA/USDT', entry_side(is_short))
+        limit_order[entry_side(is_short)], "ADA/USDT", entry_side(is_short)
+    )
     trade.update_trade(oobj)
 
     assert trade.open_rate == open_rate
     assert trade.amount == 30.0
 
-    assert whitelist == default_conf_usdt['exchange']['pair_whitelist']
+    assert whitelist == default_conf_usdt["exchange"]["pair_whitelist"]
 
 
 def test_create_trade_no_stake_amount(default_conf_usdt, ticker_usdt, fee, mocker) -> None:
     patch_RPCManager(mocker)
     patch_exchange(mocker)
-    patch_wallet(mocker, free=default_conf_usdt['stake_amount'] * 0.5)
+    patch_wallet(mocker, free=default_conf_usdt["stake_amount"] * 0.5)
     mocker.patch.multiple(
-        'coingro.exchange.Exchange',
+        "coingro.exchange.Exchange",
         fetch_ticker=ticker_usdt,
         get_fee=fee,
     )
     coingro = CoingroBot(default_conf_usdt)
     patch_get_signal(coingro)
 
-    with pytest.raises(DependencyException, match=r'.*stake amount.*'):
-        coingro.create_trade('ETH/USDT')
+    with pytest.raises(DependencyException, match=r".*stake amount.*"):
+        coingro.create_trade("ETH/USDT")
 
 
 @pytest.mark.parametrize("is_short", [False, True])
-@pytest.mark.parametrize('stake_amount,create,amount_enough,max_open_trades', [
-    (5.0, True, True, 99),
-    (0.049, True, False, 99),  # Amount will be adjusted to min - which is 0.051
-    (0, False, True, 99),
-    (UNLIMITED_STAKE_AMOUNT, False, True, 0),
-])
+@pytest.mark.parametrize(
+    "stake_amount,create,amount_enough,max_open_trades",
+    [
+        (5.0, True, True, 99),
+        (0.049, True, False, 99),  # Amount will be adjusted to min - which is 0.051
+        (0, False, True, 99),
+        (UNLIMITED_STAKE_AMOUNT, False, True, 0),
+    ],
+)
 def test_create_trade_minimal_amount(
-    default_conf_usdt, ticker_usdt, limit_order_open, fee, mocker,
-    stake_amount, create, amount_enough, max_open_trades, caplog, is_short
+    default_conf_usdt,
+    ticker_usdt,
+    limit_order_open,
+    fee,
+    mocker,
+    stake_amount,
+    create,
+    amount_enough,
+    max_open_trades,
+    caplog,
+    is_short,
 ) -> None:
     patch_RPCManager(mocker)
     patch_exchange(mocker)
     enter_mock = MagicMock(return_value=limit_order_open[entry_side(is_short)])
     mocker.patch.multiple(
-        'coingro.exchange.Exchange',
+        "coingro.exchange.Exchange",
         fetch_ticker=ticker_usdt,
         create_order=enter_mock,
         get_fee=fee,
     )
-    default_conf_usdt['max_open_trades'] = max_open_trades
+    default_conf_usdt["max_open_trades"] = max_open_trades
     coingro = CoingroBot(default_conf_usdt)
-    coingro.config['stake_amount'] = stake_amount
+    coingro.config["stake_amount"] = stake_amount
     patch_get_signal(coingro, enter_short=is_short, enter_long=not is_short)
 
     if create:
-        assert coingro.create_trade('ETH/USDT')
+        assert coingro.create_trade("ETH/USDT")
         if amount_enough:
-            rate, amount = enter_mock.call_args[1]['rate'], enter_mock.call_args[1]['amount']
-            assert rate * amount <= default_conf_usdt['stake_amount']
+            rate, amount = enter_mock.call_args[1]["rate"], enter_mock.call_args[1]["amount"]
+            assert rate * amount <= default_conf_usdt["stake_amount"]
         else:
-            assert log_has_re(
-                r"Stake amount for pair .* is too small.*",
-                caplog
-            )
+            assert log_has_re(r"Stake amount for pair .* is too small.*", caplog)
     else:
-        assert not coingro.create_trade('ETH/USDT')
+        assert not coingro.create_trade("ETH/USDT")
         if not max_open_trades:
-            assert coingro.wallets.get_trade_stake_amount('ETH/USDT', coingro.edge) == 0
+            assert coingro.wallets.get_trade_stake_amount("ETH/USDT", coingro.edge) == 0
 
 
-@pytest.mark.parametrize('whitelist,positions', [
-    (["ETH/USDT"], 1),  # No pairs left
-    ([], 0),  # No pairs in whitelist
-])
-def test_enter_positions_no_pairs_left(default_conf_usdt, ticker_usdt, limit_buy_order_usdt_open,
-                                       fee, whitelist, positions, mocker, caplog) -> None:
+@pytest.mark.parametrize(
+    "whitelist,positions",
+    [
+        (["ETH/USDT"], 1),  # No pairs left
+        ([], 0),  # No pairs in whitelist
+    ],
+)
+def test_enter_positions_no_pairs_left(
+    default_conf_usdt,
+    ticker_usdt,
+    limit_buy_order_usdt_open,
+    fee,
+    whitelist,
+    positions,
+    mocker,
+    caplog,
+) -> None:
     patch_RPCManager(mocker)
     patch_exchange(mocker)
     mocker.patch.multiple(
-        'coingro.exchange.Exchange',
+        "coingro.exchange.Exchange",
         fetch_ticker=ticker_usdt,
         create_order=MagicMock(return_value=limit_buy_order_usdt_open),
         get_fee=fee,
     )
-    default_conf_usdt['exchange']['pair_whitelist'] = whitelist
+    default_conf_usdt["exchange"]["pair_whitelist"] = whitelist
     coingro = CoingroBot(default_conf_usdt)
     patch_get_signal(coingro)
 
@@ -405,14 +473,15 @@ def test_enter_positions_no_pairs_left(default_conf_usdt, ticker_usdt, limit_buy
 
 
 @pytest.mark.usefixtures("init_persistence")
-def test_enter_positions_global_pairlock(default_conf_usdt, ticker_usdt, limit_buy_order_usdt, fee,
-                                         mocker, caplog) -> None:
+def test_enter_positions_global_pairlock(
+    default_conf_usdt, ticker_usdt, limit_buy_order_usdt, fee, mocker, caplog
+) -> None:
     patch_RPCManager(mocker)
     patch_exchange(mocker)
     mocker.patch.multiple(
-        'coingro.exchange.Exchange',
+        "coingro.exchange.Exchange",
         fetch_ticker=ticker_usdt,
-        create_order=MagicMock(return_value={'id': limit_buy_order_usdt['id']}),
+        create_order=MagicMock(return_value={"id": limit_buy_order_usdt["id"]}),
         get_fee=fee,
     )
     coingro = CoingroBot(default_conf_usdt)
@@ -425,68 +494,75 @@ def test_enter_positions_global_pairlock(default_conf_usdt, ticker_usdt, limit_b
     assert not log_has_re(message, caplog)
     caplog.clear()
 
-    PairLocks.lock_pair('*', arrow.utcnow().shift(minutes=20).datetime, 'Just because', side='*')
+    PairLocks.lock_pair("*", arrow.utcnow().shift(minutes=20).datetime, "Just because", side="*")
     n = coingro.enter_positions()
     assert n == 0
     assert log_has_re(message, caplog)
 
 
-@pytest.mark.parametrize('is_short', [False, True])
+@pytest.mark.parametrize("is_short", [False, True])
 def test_handle_protections(mocker, default_conf_usdt, fee, is_short):
-    default_conf_usdt['protections'] = [
+    default_conf_usdt["protections"] = [
         {"method": "CooldownPeriod", "stop_duration": 60},
         {
             "method": "StoplossGuard",
             "lookback_period_candles": 24,
             "trade_limit": 4,
             "stop_duration_candles": 4,
-            "only_per_pair": False
-        }
+            "only_per_pair": False,
+        },
     ]
 
     coingro = get_patched_coingrobot(mocker, default_conf_usdt)
     coingro.protections._protection_handlers[1].global_stop = MagicMock(
-        return_value=ProtectionReturn(True, arrow.utcnow().shift(hours=1).datetime, "asdf"))
+        return_value=ProtectionReturn(True, arrow.utcnow().shift(hours=1).datetime, "asdf")
+    )
     create_mock_trades(fee, is_short)
-    coingro.handle_protections('ETC/BTC', '*')
+    coingro.handle_protections("ETC/BTC", "*")
     send_msg_mock = coingro.rpc.send_msg
     assert send_msg_mock.call_count == 2
-    assert send_msg_mock.call_args_list[0][0][0]['type'] == RPCMessageType.PROTECTION_TRIGGER
-    assert send_msg_mock.call_args_list[1][0][0]['type'] == RPCMessageType.PROTECTION_TRIGGER_GLOBAL
+    assert send_msg_mock.call_args_list[0][0][0]["type"] == RPCMessageType.PROTECTION_TRIGGER
+    assert send_msg_mock.call_args_list[1][0][0]["type"] == RPCMessageType.PROTECTION_TRIGGER_GLOBAL
 
 
 def test_create_trade_no_signal(default_conf_usdt, fee, mocker) -> None:
-    default_conf_usdt['dry_run'] = True
+    default_conf_usdt["dry_run"] = True
 
     patch_RPCManager(mocker)
     patch_exchange(mocker)
     mocker.patch.multiple(
-        'coingro.exchange.Exchange',
+        "coingro.exchange.Exchange",
         get_fee=fee,
     )
-    default_conf_usdt['stake_amount'] = 10
+    default_conf_usdt["stake_amount"] = 10
     coingro = CoingroBot(default_conf_usdt)
     patch_get_signal(coingro, enter_long=False, exit_long=False)
 
     Trade.query = MagicMock()
     Trade.query.filter = MagicMock()
-    assert not coingro.create_trade('ETH/USDT')
+    assert not coingro.create_trade("ETH/USDT")
 
 
 @pytest.mark.parametrize("max_open", range(0, 5))
 @pytest.mark.parametrize("tradable_balance_ratio,modifier", [(1.0, 1), (0.99, 0.8), (0.5, 0.5)])
 def test_create_trades_multiple_trades(
-    default_conf_usdt, ticker_usdt, fee, mocker, limit_buy_order_usdt_open,
-    max_open, tradable_balance_ratio, modifier
+    default_conf_usdt,
+    ticker_usdt,
+    fee,
+    mocker,
+    limit_buy_order_usdt_open,
+    max_open,
+    tradable_balance_ratio,
+    modifier,
 ) -> None:
     patch_RPCManager(mocker)
     patch_exchange(mocker)
-    default_conf_usdt['max_open_trades'] = max_open
-    default_conf_usdt['tradable_balance_ratio'] = tradable_balance_ratio
-    default_conf_usdt['dry_run_wallet'] = 60.0 * max_open
+    default_conf_usdt["max_open_trades"] = max_open
+    default_conf_usdt["tradable_balance_ratio"] = tradable_balance_ratio
+    default_conf_usdt["dry_run_wallet"] = 60.0 * max_open
 
     mocker.patch.multiple(
-        'coingro.exchange.Exchange',
+        "coingro.exchange.Exchange",
         fetch_ticker=ticker_usdt,
         create_order=MagicMock(return_value=limit_buy_order_usdt_open),
         get_fee=fee,
@@ -502,13 +578,14 @@ def test_create_trades_multiple_trades(
     assert len(trades) == max(int(max_open * modifier), 0)
 
 
-def test_create_trades_preopen(default_conf_usdt, ticker_usdt, fee, mocker,
-                               limit_buy_order_usdt_open) -> None:
+def test_create_trades_preopen(
+    default_conf_usdt, ticker_usdt, fee, mocker, limit_buy_order_usdt_open
+) -> None:
     patch_RPCManager(mocker)
     patch_exchange(mocker)
-    default_conf_usdt['max_open_trades'] = 4
+    default_conf_usdt["max_open_trades"] = 4
     mocker.patch.multiple(
-        'coingro.exchange.Exchange',
+        "coingro.exchange.Exchange",
         fetch_ticker=ticker_usdt,
         create_order=MagicMock(return_value=limit_buy_order_usdt_open),
         get_fee=fee,
@@ -517,30 +594,30 @@ def test_create_trades_preopen(default_conf_usdt, ticker_usdt, fee, mocker,
     patch_get_signal(coingro)
 
     # Create 2 existing trades
-    coingro.execute_entry('ETH/USDT', default_conf_usdt['stake_amount'])
-    coingro.execute_entry('NEO/BTC', default_conf_usdt['stake_amount'])
+    coingro.execute_entry("ETH/USDT", default_conf_usdt["stake_amount"])
+    coingro.execute_entry("NEO/BTC", default_conf_usdt["stake_amount"])
 
     assert len(Trade.get_open_trades()) == 2
     # Change order_id for new orders
-    limit_buy_order_usdt_open['id'] = '123444'
+    limit_buy_order_usdt_open["id"] = "123444"
 
     # Create 2 new trades using create_trades
-    assert coingro.create_trade('ETH/USDT')
-    assert coingro.create_trade('NEO/BTC')
+    assert coingro.create_trade("ETH/USDT")
+    assert coingro.create_trade("NEO/BTC")
 
     trades = Trade.get_open_trades()
     assert len(trades) == 4
 
 
-@pytest.mark.parametrize('is_short', [False, True])
-def test_process_trade_creation(default_conf_usdt, ticker_usdt, limit_order, limit_order_open,
-                                is_short, fee, mocker, caplog
-                                ) -> None:
-    ticker_side = 'ask' if is_short else 'bid'
+@pytest.mark.parametrize("is_short", [False, True])
+def test_process_trade_creation(
+    default_conf_usdt, ticker_usdt, limit_order, limit_order_open, is_short, fee, mocker, caplog
+) -> None:
+    ticker_side = "ask" if is_short else "bid"
     patch_RPCManager(mocker)
     patch_exchange(mocker)
     mocker.patch.multiple(
-        'coingro.exchange.Exchange',
+        "coingro.exchange.Exchange",
         fetch_ticker=ticker_usdt,
         create_order=MagicMock(return_value=limit_order_open[entry_side(is_short)]),
         fetch_order=MagicMock(return_value=limit_order[entry_side(is_short)]),
@@ -558,17 +635,17 @@ def test_process_trade_creation(default_conf_usdt, ticker_usdt, limit_order, lim
     assert len(trades) == 1
     trade = trades[0]
     assert trade is not None
-    assert pytest.approx(trade.stake_amount) == default_conf_usdt['stake_amount']
+    assert pytest.approx(trade.stake_amount) == default_conf_usdt["stake_amount"]
     assert trade.is_open
     assert trade.open_date is not None
-    assert trade.exchange == 'binance'
+    assert trade.exchange == "binance"
     assert trade.open_rate == ticker_usdt.return_value[ticker_side]
     assert isclose(trade.amount, 60 / ticker_usdt.return_value[ticker_side])
 
     assert log_has(
         f'{"Short" if is_short else "Long"} signal found: about create a new trade for ETH/USDT '
-        'with stake_amount: 60.0 ...',
-        caplog
+        "with stake_amount: 60.0 ...",
+        caplog,
     )
 
 
@@ -576,11 +653,11 @@ def test_process_exchange_failures(default_conf_usdt, ticker_usdt, mocker) -> No
     patch_RPCManager(mocker)
     patch_exchange(mocker)
     mocker.patch.multiple(
-        'coingro.exchange.Exchange',
+        "coingro.exchange.Exchange",
         fetch_ticker=ticker_usdt,
-        create_order=MagicMock(side_effect=TemporaryError)
+        create_order=MagicMock(side_effect=TemporaryError),
     )
-    sleep_mock = mocker.patch('time.sleep', side_effect=lambda _: None)
+    sleep_mock = mocker.patch("time.sleep", side_effect=lambda _: None)
 
     worker = Worker(args=None, config=default_conf_usdt)
     patch_get_signal(worker.coingro)
@@ -593,9 +670,9 @@ def test_process_operational_exception(default_conf_usdt, ticker_usdt, mocker) -
     msg_mock = patch_RPCManager(mocker)
     patch_exchange(mocker)
     mocker.patch.multiple(
-        'coingro.exchange.Exchange',
+        "coingro.exchange.Exchange",
         fetch_ticker=ticker_usdt,
-        create_order=MagicMock(side_effect=OperationalException)
+        create_order=MagicMock(side_effect=OperationalException),
     )
     worker = Worker(args=None, config=default_conf_usdt)
     patch_get_signal(worker.coingro)
@@ -604,15 +681,16 @@ def test_process_operational_exception(default_conf_usdt, ticker_usdt, mocker) -
 
     worker._process_running()
     assert worker.coingro.state == State.STOPPED
-    assert 'OperationalException' in msg_mock.call_args_list[-1][0][0]['status']
+    assert "OperationalException" in msg_mock.call_args_list[-1][0][0]["status"]
 
 
-def test_process_trade_handling(default_conf_usdt, ticker_usdt, limit_buy_order_usdt_open, fee,
-                                mocker) -> None:
+def test_process_trade_handling(
+    default_conf_usdt, ticker_usdt, limit_buy_order_usdt_open, fee, mocker
+) -> None:
     patch_RPCManager(mocker)
     patch_exchange(mocker)
     mocker.patch.multiple(
-        'coingro.exchange.Exchange',
+        "coingro.exchange.Exchange",
         fetch_ticker=ticker_usdt,
         create_order=MagicMock(return_value=limit_buy_order_usdt_open),
         fetch_order=MagicMock(return_value=limit_buy_order_usdt_open),
@@ -633,45 +711,50 @@ def test_process_trade_handling(default_conf_usdt, ticker_usdt, limit_buy_order_
     assert len(trades) == 1
 
 
-def test_process_trade_no_whitelist_pair(default_conf_usdt, ticker_usdt, limit_buy_order_usdt,
-                                         fee, mocker) -> None:
-    """ Test process with trade not in pair list """
+def test_process_trade_no_whitelist_pair(
+    default_conf_usdt, ticker_usdt, limit_buy_order_usdt, fee, mocker
+) -> None:
+    """Test process with trade not in pair list"""
     patch_RPCManager(mocker)
     patch_exchange(mocker)
     mocker.patch.multiple(
-        'coingro.exchange.Exchange',
+        "coingro.exchange.Exchange",
         fetch_ticker=ticker_usdt,
-        create_order=MagicMock(return_value={'id': limit_buy_order_usdt['id']}),
+        create_order=MagicMock(return_value={"id": limit_buy_order_usdt["id"]}),
         fetch_order=MagicMock(return_value=limit_buy_order_usdt),
         get_fee=fee,
     )
     coingro = CoingroBot(default_conf_usdt)
     patch_get_signal(coingro)
-    pair = 'BLK/BTC'
+    pair = "BLK/BTC"
     # Ensure the pair is not in the whitelist!
-    assert pair not in default_conf_usdt['exchange']['pair_whitelist']
+    assert pair not in default_conf_usdt["exchange"]["pair_whitelist"]
 
     # create open trade not in whitelist
-    Trade.query.session.add(Trade(
-        pair=pair,
-        stake_amount=0.001,
-        fee_open=fee.return_value,
-        fee_close=fee.return_value,
-        is_open=True,
-        amount=20,
-        open_rate=0.01,
-        exchange='binance',
-    ))
-    Trade.query.session.add(Trade(
-        pair='ETH/USDT',
-        stake_amount=0.001,
-        fee_open=fee.return_value,
-        fee_close=fee.return_value,
-        is_open=True,
-        amount=12,
-        open_rate=0.001,
-        exchange='binance',
-    ))
+    Trade.query.session.add(
+        Trade(
+            pair=pair,
+            stake_amount=0.001,
+            fee_open=fee.return_value,
+            fee_close=fee.return_value,
+            is_open=True,
+            amount=20,
+            open_rate=0.01,
+            exchange="binance",
+        )
+    )
+    Trade.query.session.add(
+        Trade(
+            pair="ETH/USDT",
+            stake_amount=0.001,
+            fee_open=fee.return_value,
+            fee_close=fee.return_value,
+            is_open=True,
+            amount=12,
+            open_rate=0.001,
+            exchange="binance",
+        )
+    )
 
     assert pair not in coingro.active_pair_whitelist
     coingro.process()
@@ -686,21 +769,20 @@ def test_process_informative_pairs_added(default_conf_usdt, ticker_usdt, mocker)
 
     refresh_mock = MagicMock()
     mocker.patch.multiple(
-        'coingro.exchange.Exchange',
+        "coingro.exchange.Exchange",
         fetch_ticker=ticker_usdt,
         create_order=MagicMock(side_effect=TemporaryError),
         refresh_latest_ohlcv=refresh_mock,
     )
-    inf_pairs = MagicMock(return_value=[
-        ("BTC/ETH", '1m', CandleType.SPOT),
-        ("ETH/USDT", "1h", CandleType.SPOT)
-    ])
-    mocker.patch.multiple(
-        'coingro.strategy.interface.IStrategy',
-        get_exit_signal=MagicMock(return_value=(False, False)),
-        get_entry_signal=MagicMock(return_value=(None, None))
+    inf_pairs = MagicMock(
+        return_value=[("BTC/ETH", "1m", CandleType.SPOT), ("ETH/USDT", "1h", CandleType.SPOT)]
     )
-    mocker.patch('time.sleep', return_value=None)
+    mocker.patch.multiple(
+        "coingro.strategy.interface.IStrategy",
+        get_exit_signal=MagicMock(return_value=(False, False)),
+        get_entry_signal=MagicMock(return_value=(None, None)),
+    )
+    mocker.patch("time.sleep", return_value=None)
 
     coingro = CoingroBot(default_conf_usdt)
     coingro.strategy.informative_pairs = inf_pairs
@@ -711,31 +793,45 @@ def test_process_informative_pairs_added(default_conf_usdt, ticker_usdt, mocker)
     assert refresh_mock.call_count == 1
     assert ("BTC/ETH", "1m", CandleType.SPOT) in refresh_mock.call_args[0][0]
     assert ("ETH/USDT", "1h", CandleType.SPOT) in refresh_mock.call_args[0][0]
-    assert ("ETH/USDT", default_conf_usdt["timeframe"],
-            CandleType.SPOT) in refresh_mock.call_args[0][0]
+    assert ("ETH/USDT", default_conf_usdt["timeframe"], CandleType.SPOT) in refresh_mock.call_args[
+        0
+    ][0]
 
 
-@pytest.mark.parametrize("is_short,trading_mode,exchange_name,margin_mode,liq_buffer,liq_price", [
-    (False, 'spot', 'binance', None, 0.0, None),
-    (True, 'spot', 'binance', None, 0.0, None),
-    (False, 'spot', 'gateio', None, 0.0, None),
-    (True, 'spot', 'gateio', None, 0.0, None),
-    (False, 'spot', 'okx', None, 0.0, None),
-    (True, 'spot', 'okx', None, 0.0, None),
-    (True, 'futures', 'binance', 'isolated', 0.0, 11.88151815181518),
-    (False, 'futures', 'binance', 'isolated', 0.0, 8.080471380471382),
-    (True, 'futures', 'gateio', 'isolated', 0.0, 11.87413417771621),
-    (False, 'futures', 'gateio', 'isolated', 0.0, 8.085708510208207),
-    (True, 'futures', 'binance', 'isolated', 0.05, 11.7874422442244),
-    (False, 'futures', 'binance', 'isolated', 0.05, 8.17644781144781),
-    (True, 'futures', 'gateio', 'isolated', 0.05, 11.7804274688304),
-    (False, 'futures', 'gateio', 'isolated', 0.05, 8.181423084697796),
-    (True, 'futures', 'okx', 'isolated', 0.0, 11.87413417771621),
-    (False, 'futures', 'okx', 'isolated', 0.0, 8.085708510208207),
-])
-def test_execute_entry(mocker, default_conf_usdt, fee, limit_order,
-                       limit_order_open, is_short, trading_mode,
-                       exchange_name, margin_mode, liq_buffer, liq_price) -> None:
+@pytest.mark.parametrize(
+    "is_short,trading_mode,exchange_name,margin_mode,liq_buffer,liq_price",
+    [
+        (False, "spot", "binance", None, 0.0, None),
+        (True, "spot", "binance", None, 0.0, None),
+        (False, "spot", "gateio", None, 0.0, None),
+        (True, "spot", "gateio", None, 0.0, None),
+        (False, "spot", "okx", None, 0.0, None),
+        (True, "spot", "okx", None, 0.0, None),
+        (True, "futures", "binance", "isolated", 0.0, 11.88151815181518),
+        (False, "futures", "binance", "isolated", 0.0, 8.080471380471382),
+        (True, "futures", "gateio", "isolated", 0.0, 11.87413417771621),
+        (False, "futures", "gateio", "isolated", 0.0, 8.085708510208207),
+        (True, "futures", "binance", "isolated", 0.05, 11.7874422442244),
+        (False, "futures", "binance", "isolated", 0.05, 8.17644781144781),
+        (True, "futures", "gateio", "isolated", 0.05, 11.7804274688304),
+        (False, "futures", "gateio", "isolated", 0.05, 8.181423084697796),
+        (True, "futures", "okx", "isolated", 0.0, 11.87413417771621),
+        (False, "futures", "okx", "isolated", 0.0, 8.085708510208207),
+    ],
+)
+def test_execute_entry(
+    mocker,
+    default_conf_usdt,
+    fee,
+    limit_order,
+    limit_order_open,
+    is_short,
+    trading_mode,
+    exchange_name,
+    margin_mode,
+    liq_buffer,
+    liq_price,
+) -> None:
     """
     exchange_name = binance, is_short = true
         leverage = 5
@@ -758,13 +854,13 @@ def test_execute_entry(mocker, default_conf_usdt, fee, limit_order,
     # TODO: Split this test into multiple tests to improve readability
     open_order = limit_order_open[entry_side(is_short)]
     order = limit_order[entry_side(is_short)]
-    default_conf_usdt['trading_mode'] = trading_mode
-    default_conf_usdt['liquidation_buffer'] = liq_buffer
-    leverage = 1.0 if trading_mode == 'spot' else 5.0
-    default_conf_usdt['exchange']['name'] = exchange_name
+    default_conf_usdt["trading_mode"] = trading_mode
+    default_conf_usdt["liquidation_buffer"] = liq_buffer
+    leverage = 1.0 if trading_mode == "spot" else 5.0
+    default_conf_usdt["exchange"]["name"] = exchange_name
     if margin_mode:
-        default_conf_usdt['margin_mode'] = margin_mode
-    mocker.patch('coingro.exchange.Gateio.validate_ordertypes')
+        default_conf_usdt["margin_mode"] = margin_mode
+    mocker.patch("coingro.exchange.Gateio.validate_ordertypes")
     patch_RPCManager(mocker)
     patch_exchange(mocker, id=exchange_name)
     coingro = CoingroBot(default_conf_usdt)
@@ -775,13 +871,9 @@ def test_execute_entry(mocker, default_conf_usdt, fee, limit_order,
     enter_rate_mock = MagicMock(return_value=bid)
     enter_mm = MagicMock(return_value=open_order)
     mocker.patch.multiple(
-        'coingro.exchange.Exchange',
+        "coingro.exchange.Exchange",
         get_rate=enter_rate_mock,
-        fetch_ticker=MagicMock(return_value={
-            'bid': 1.9,
-            'ask': 2.2,
-            'last': 1.9
-        }),
+        fetch_ticker=MagicMock(return_value={"bid": 1.9, "ask": 2.2, "last": 1.9}),
         create_order=enter_mm,
         get_min_pair_stake_amount=MagicMock(return_value=1),
         get_max_pair_stake_amount=MagicMock(return_value=500000),
@@ -792,10 +884,10 @@ def test_execute_entry(mocker, default_conf_usdt, fee, limit_order,
         get_max_leverage=MagicMock(return_value=10),
     )
     mocker.patch.multiple(
-        'coingro.exchange.Okx',
+        "coingro.exchange.Okx",
         get_max_pair_stake_amount=MagicMock(return_value=500000),
     )
-    pair = 'ETH/USDT'
+    pair = "ETH/USDT"
 
     assert not coingro.execute_entry(pair, stake_amount, is_short=is_short)
     assert enter_rate_mock.call_count == 1
@@ -803,15 +895,15 @@ def test_execute_entry(mocker, default_conf_usdt, fee, limit_order,
     assert coingro.strategy.confirm_trade_entry.call_count == 1
     enter_rate_mock.reset_mock()
 
-    open_order['id'] = '22'
+    open_order["id"] = "22"
     coingro.strategy.confirm_trade_entry = MagicMock(return_value=True)
     assert coingro.execute_entry(pair, stake_amount)
     assert enter_rate_mock.call_count == 1
     assert enter_mm.call_count == 1
     call_args = enter_mm.call_args_list[0][1]
-    assert call_args['pair'] == pair
-    assert call_args['rate'] == bid
-    assert pytest.approx(call_args['amount']) == round(stake_amount / bid * leverage, 8)
+    assert call_args["pair"] == pair
+    assert call_args["rate"] == bid
+    assert pytest.approx(call_args["amount"]) == round(stake_amount / bid * leverage, 8)
     enter_rate_mock.reset_mock()
 
     # Should create an open trade with an open order id
@@ -820,10 +912,10 @@ def test_execute_entry(mocker, default_conf_usdt, fee, limit_order,
     trade.is_short = is_short
     assert trade
     assert trade.is_open is True
-    assert trade.open_order_id == '22'
+    assert trade.open_order_id == "22"
 
     # Test calling with price
-    open_order['id'] = '33'
+    open_order["id"] = "33"
     fix_price = 0.06
     assert coingro.execute_entry(pair, stake_amount, fix_price, is_short=is_short)
     # Make sure get_rate wasn't called again
@@ -831,48 +923,46 @@ def test_execute_entry(mocker, default_conf_usdt, fee, limit_order,
 
     assert enter_mm.call_count == 2
     call_args = enter_mm.call_args_list[1][1]
-    assert call_args['pair'] == pair
-    assert call_args['rate'] == fix_price
-    assert pytest.approx(call_args['amount']) == round(stake_amount / fix_price * leverage, 8)
+    assert call_args["pair"] == pair
+    assert call_args["rate"] == fix_price
+    assert pytest.approx(call_args["amount"]) == round(stake_amount / fix_price * leverage, 8)
 
     # In case of closed order
-    order['status'] = 'closed'
-    order['price'] = 10
-    order['cost'] = 100
-    order['id'] = '444'
+    order["status"] = "closed"
+    order["price"] = 10
+    order["cost"] = 100
+    order["id"] = "444"
 
-    mocker.patch('coingro.exchange.Exchange.create_order',
-                 MagicMock(return_value=order))
+    mocker.patch("coingro.exchange.Exchange.create_order", MagicMock(return_value=order))
     assert coingro.execute_entry(pair, stake_amount, is_short=is_short)
     trade = Trade.query.all()[2]
     trade.is_short = is_short
     assert trade
     assert trade.open_order_id is None
     assert trade.open_rate == 10
-    assert trade.stake_amount == round(order['price'] * order['filled'] / leverage, 8)
+    assert trade.stake_amount == round(order["price"] * order["filled"] / leverage, 8)
     assert pytest.approx(trade.liquidation_price) == liq_price
 
     # In case of rejected or expired order and partially filled
-    order['status'] = 'expired'
-    order['amount'] = 30.0
-    order['filled'] = 20.0
-    order['remaining'] = 10.00
-    order['price'] = 0.5
-    order['cost'] = 15.0
-    order['id'] = '555'
-    mocker.patch('coingro.exchange.Exchange.create_order',
-                 MagicMock(return_value=order))
+    order["status"] = "expired"
+    order["amount"] = 30.0
+    order["filled"] = 20.0
+    order["remaining"] = 10.00
+    order["price"] = 0.5
+    order["cost"] = 15.0
+    order["id"] = "555"
+    mocker.patch("coingro.exchange.Exchange.create_order", MagicMock(return_value=order))
     assert coingro.execute_entry(pair, stake_amount)
     trade = Trade.query.all()[3]
     trade.is_short = is_short
     assert trade
-    assert trade.open_order_id == '555'
+    assert trade.open_order_id == "555"
     assert trade.open_rate == 0.5
-    assert trade.stake_amount == round(order['price'] * order['filled'] / leverage, 8)
+    assert trade.stake_amount == round(order["price"] * order["filled"] / leverage, 8)
 
     # Test with custom stake
-    order['status'] = 'open'
-    order['id'] = '556'
+    order["status"] = "open"
+    order["id"] = "556"
 
     coingro.strategy.custom_stake_amount = lambda **kwargs: 150.0
     assert coingro.execute_entry(pair, stake_amount, is_short=is_short)
@@ -882,7 +972,7 @@ def test_execute_entry(mocker, default_conf_usdt, fee, limit_order,
     assert pytest.approx(trade.stake_amount) == 150
 
     # Exception case
-    order['id'] = '557'
+    order["id"] = "557"
     coingro.strategy.custom_stake_amount = lambda **kwargs: 20 / 0
     assert coingro.execute_entry(pair, stake_amount, is_short=is_short)
     trade = Trade.query.all()[5]
@@ -891,28 +981,27 @@ def test_execute_entry(mocker, default_conf_usdt, fee, limit_order,
     assert pytest.approx(trade.stake_amount) == 2.0
 
     # In case of the order is rejected and not filled at all
-    order['status'] = 'rejected'
-    order['amount'] = 30.0 * leverage
-    order['filled'] = 0.0
-    order['remaining'] = 30.0
-    order['price'] = 0.5
-    order['cost'] = 0.0
-    order['id'] = '66'
-    mocker.patch('coingro.exchange.Exchange.create_order',
-                 MagicMock(return_value=order))
+    order["status"] = "rejected"
+    order["amount"] = 30.0 * leverage
+    order["filled"] = 0.0
+    order["remaining"] = 30.0
+    order["price"] = 0.5
+    order["cost"] = 0.0
+    order["id"] = "66"
+    mocker.patch("coingro.exchange.Exchange.create_order", MagicMock(return_value=order))
     assert not coingro.execute_entry(pair, stake_amount)
-    assert coingro.strategy.leverage.call_count == 0 if trading_mode == 'spot' else 2
+    assert coingro.strategy.leverage.call_count == 0 if trading_mode == "spot" else 2
 
     # Fail to get price...
-    mocker.patch('coingro.exchange.Exchange.get_rate', MagicMock(return_value=0.0))
+    mocker.patch("coingro.exchange.Exchange.get_rate", MagicMock(return_value=0.0))
 
     with pytest.raises(PricingError, match="Could not determine entry price."):
         coingro.execute_entry(pair, stake_amount, is_short=is_short)
 
     # In case of custom entry price
-    mocker.patch('coingro.exchange.Exchange.get_rate', return_value=0.50)
-    order['status'] = 'open'
-    order['id'] = '5566'
+    mocker.patch("coingro.exchange.Exchange.get_rate", return_value=0.50)
+    order["status"] = "open"
+    order["id"] = "5566"
     coingro.strategy.custom_entry_price = lambda **kwargs: 0.508
     assert coingro.execute_entry(pair, stake_amount, is_short=is_short)
     trade = Trade.query.all()[6]
@@ -922,12 +1011,12 @@ def test_execute_entry(mocker, default_conf_usdt, fee, limit_order,
 
     # In case of custom entry price set to None
 
-    order['status'] = 'open'
-    order['id'] = '5567'
+    order["status"] = "open"
+    order["id"] = "5567"
     coingro.strategy.custom_entry_price = lambda **kwargs: None
 
     mocker.patch.multiple(
-        'coingro.exchange.Exchange',
+        "coingro.exchange.Exchange",
         get_rate=MagicMock(return_value=10),
     )
 
@@ -938,8 +1027,8 @@ def test_execute_entry(mocker, default_conf_usdt, fee, limit_order,
     assert trade.open_rate_requested == 10
 
     # In case of custom entry price not float type
-    order['status'] = 'open'
-    order['id'] = '5568'
+    order["status"] = "open"
+    order["id"] = "5568"
     coingro.strategy.custom_entry_price = lambda **kwargs: "string price"
     assert coingro.execute_entry(pair, stake_amount, is_short=is_short)
     trade = Trade.query.all()[8]
@@ -953,11 +1042,11 @@ def test_execute_entry(mocker, default_conf_usdt, fee, limit_order,
 
     # In case of too high stake amount
 
-    order['status'] = 'open'
-    order['id'] = '55672'
+    order["status"] = "open"
+    order["id"] = "55672"
 
     mocker.patch.multiple(
-        'coingro.exchange.Exchange',
+        "coingro.exchange.Exchange",
         get_max_pair_stake_amount=MagicMock(return_value=500),
     )
     coingro.exchange.get_max_pair_stake_amount = MagicMock(return_value=500)
@@ -972,28 +1061,24 @@ def test_execute_entry(mocker, default_conf_usdt, fee, limit_order,
 def test_execute_entry_confirm_error(mocker, default_conf_usdt, fee, limit_order, is_short) -> None:
     coingro = get_patched_coingrobot(mocker, default_conf_usdt)
     mocker.patch.multiple(
-        'coingro.exchange.Exchange',
-        fetch_ticker=MagicMock(return_value={
-            'bid': 1.9,
-            'ask': 2.2,
-            'last': 1.9
-        }),
+        "coingro.exchange.Exchange",
+        fetch_ticker=MagicMock(return_value={"bid": 1.9, "ask": 2.2, "last": 1.9}),
         create_order=MagicMock(return_value=limit_order[entry_side(is_short)]),
         get_rate=MagicMock(return_value=0.11),
         get_min_pair_stake_amount=MagicMock(return_value=1),
         get_fee=fee,
     )
     stake_amount = 2
-    pair = 'ETH/USDT'
+    pair = "ETH/USDT"
 
     coingro.strategy.confirm_trade_entry = MagicMock(side_effect=ValueError)
     assert coingro.execute_entry(pair, stake_amount)
 
-    limit_order[entry_side(is_short)]['id'] = '222'
+    limit_order[entry_side(is_short)]["id"] = "222"
     coingro.strategy.confirm_trade_entry = MagicMock(side_effect=Exception)
     assert coingro.execute_entry(pair, stake_amount)
 
-    limit_order[entry_side(is_short)]['id'] = '2223'
+    limit_order[entry_side(is_short)]["id"] = "2223"
     coingro.strategy.confirm_trade_entry = MagicMock(return_value=True)
     assert coingro.execute_entry(pair, stake_amount)
 
@@ -1003,16 +1088,12 @@ def test_execute_entry_confirm_error(mocker, default_conf_usdt, fee, limit_order
 
 @pytest.mark.parametrize("is_short", [False, True])
 def test_execute_entry_min_leverage(mocker, default_conf_usdt, fee, limit_order, is_short) -> None:
-    default_conf_usdt['trading_mode'] = 'futures'
-    default_conf_usdt['margin_mode'] = 'isolated'
+    default_conf_usdt["trading_mode"] = "futures"
+    default_conf_usdt["margin_mode"] = "isolated"
     coingro = get_patched_coingrobot(mocker, default_conf_usdt)
     mocker.patch.multiple(
-        'coingro.exchange.Exchange',
-        fetch_ticker=MagicMock(return_value={
-            'bid': 1.9,
-            'ask': 2.2,
-            'last': 1.9
-        }),
+        "coingro.exchange.Exchange",
+        fetch_ticker=MagicMock(return_value={"bid": 1.9, "ask": 2.2, "last": 1.9}),
         create_order=MagicMock(return_value=limit_order[entry_side(is_short)]),
         get_rate=MagicMock(return_value=0.11),
         # Minimum stake-amount is ~5$
@@ -1022,7 +1103,7 @@ def test_execute_entry_min_leverage(mocker, default_conf_usdt, fee, limit_order,
         get_max_leverage=MagicMock(return_value=5.0),
     )
     stake_amount = 2
-    pair = 'SOL/BUSD:BUSD'
+    pair = "SOL/BUSD:BUSD"
     coingro.strategy.leverage = MagicMock(return_value=5.0)
 
     assert coingro.execute_entry(pair, stake_amount, is_short=is_short)
@@ -1036,17 +1117,16 @@ def test_add_stoploss_on_exchange(mocker, default_conf_usdt, limit_order, is_sho
     patch_RPCManager(mocker)
     patch_exchange(mocker)
     order = limit_order[entry_side(is_short)]
-    mocker.patch('coingro.coingrobot.CoingroBot.handle_trade', MagicMock(return_value=True))
-    mocker.patch('coingro.exchange.Exchange.fetch_order', return_value=order)
-    mocker.patch('coingro.exchange.Exchange.get_trades_for_order', return_value=[])
-    mocker.patch('coingro.coingrobot.CoingroBot.get_real_amount',
-                 return_value=order['amount'])
+    mocker.patch("coingro.coingrobot.CoingroBot.handle_trade", MagicMock(return_value=True))
+    mocker.patch("coingro.exchange.Exchange.fetch_order", return_value=order)
+    mocker.patch("coingro.exchange.Exchange.get_trades_for_order", return_value=[])
+    mocker.patch("coingro.coingrobot.CoingroBot.get_real_amount", return_value=order["amount"])
 
-    stoploss = MagicMock(return_value={'id': 13434334})
-    mocker.patch('coingro.exchange.Binance.stoploss', stoploss)
+    stoploss = MagicMock(return_value={"id": 13434334})
+    mocker.patch("coingro.exchange.Binance.stoploss", stoploss)
 
     coingro = CoingroBot(default_conf_usdt)
-    coingro.strategy.order_types['stoploss_on_exchange'] = True
+    coingro.strategy.order_types["stoploss_on_exchange"] = True
 
     trade = MagicMock()
     trade.is_short = is_short
@@ -1056,32 +1136,31 @@ def test_add_stoploss_on_exchange(mocker, default_conf_usdt, limit_order, is_sho
     trades = [trade]
 
     coingro.exit_positions(trades)
-    assert trade.stoploss_order_id == '13434334'
+    assert trade.stoploss_order_id == "13434334"
     assert stoploss.call_count == 1
     assert trade.is_open is True
 
 
 @pytest.mark.parametrize("is_short", [False, True])
-def test_handle_stoploss_on_exchange(mocker, default_conf_usdt, fee, caplog, is_short,
-                                     limit_order) -> None:
-    stoploss = MagicMock(return_value={'id': 13434334})
+def test_handle_stoploss_on_exchange(
+    mocker, default_conf_usdt, fee, caplog, is_short, limit_order
+) -> None:
+    stoploss = MagicMock(return_value={"id": 13434334})
     enter_order = limit_order[entry_side(is_short)]
     exit_order = limit_order[exit_side(is_short)]
     patch_RPCManager(mocker)
     patch_exchange(mocker)
     mocker.patch.multiple(
-        'coingro.exchange.Exchange',
-        fetch_ticker=MagicMock(return_value={
-            'bid': 1.9,
-            'ask': 2.2,
-            'last': 1.9
-        }),
-        create_order=MagicMock(side_effect=[
-            {'id': enter_order['id']},
-            exit_order,
-        ]),
+        "coingro.exchange.Exchange",
+        fetch_ticker=MagicMock(return_value={"bid": 1.9, "ask": 2.2, "last": 1.9}),
+        create_order=MagicMock(
+            side_effect=[
+                {"id": enter_order["id"]},
+                exit_order,
+            ]
+        ),
         get_fee=fee,
-        stoploss=stoploss
+        stoploss=stoploss,
     )
     coingro = CoingroBot(default_conf_usdt)
     patch_get_signal(coingro, enter_short=is_short, enter_long=not is_short)
@@ -1105,8 +1184,8 @@ def test_handle_stoploss_on_exchange(mocker, default_conf_usdt, fee, caplog, is_
     trade.open_order_id = None
     trade.stoploss_order_id = 100
 
-    hanging_stoploss_order = MagicMock(return_value={'status': 'open'})
-    mocker.patch('coingro.exchange.Exchange.fetch_stoploss_order', hanging_stoploss_order)
+    hanging_stoploss_order = MagicMock(return_value={"status": "open"})
+    mocker.patch("coingro.exchange.Exchange.fetch_stoploss_order", hanging_stoploss_order)
 
     assert coingro.handle_stoploss_on_exchange(trade) is False
     assert trade.stoploss_order_id == 100
@@ -1118,8 +1197,8 @@ def test_handle_stoploss_on_exchange(mocker, default_conf_usdt, fee, caplog, is_
     trade.open_order_id = None
     trade.stoploss_order_id = 100
 
-    canceled_stoploss_order = MagicMock(return_value={'status': 'canceled'})
-    mocker.patch('coingro.exchange.Exchange.fetch_stoploss_order', canceled_stoploss_order)
+    canceled_stoploss_order = MagicMock(return_value={"status": "canceled"})
+    mocker.patch("coingro.exchange.Exchange.fetch_stoploss_order", canceled_stoploss_order)
     stoploss.reset_mock()
 
     assert coingro.handle_stoploss_on_exchange(trade) is False
@@ -1136,45 +1215,47 @@ def test_handle_stoploss_on_exchange(mocker, default_conf_usdt, fee, caplog, is_
     trade.is_open = True
     trade.open_order_id = None
     trade.stoploss_order_id = "100"
-    trade.orders.append(Order(
-        cg_order_side='stoploss',
-        order_id='100',
-        cg_pair=trade.pair,
-        cg_is_open=True,
-    ))
+    trade.orders.append(
+        Order(
+            cg_order_side="stoploss",
+            order_id="100",
+            cg_pair=trade.pair,
+            cg_is_open=True,
+        )
+    )
     assert trade
 
-    stoploss_order_hit = MagicMock(return_value={
-        'id': "100",
-        'status': 'closed',
-        'type': 'stop_loss_limit',
-        'price': 3,
-        'average': 2,
-        'amount': enter_order['amount'],
-    })
-    mocker.patch('coingro.exchange.Exchange.fetch_stoploss_order', stoploss_order_hit)
+    stoploss_order_hit = MagicMock(
+        return_value={
+            "id": "100",
+            "status": "closed",
+            "type": "stop_loss_limit",
+            "price": 3,
+            "average": 2,
+            "amount": enter_order["amount"],
+        }
+    )
+    mocker.patch("coingro.exchange.Exchange.fetch_stoploss_order", stoploss_order_hit)
     assert coingro.handle_stoploss_on_exchange(trade) is True
-    assert log_has_re(r'STOP_LOSS_LIMIT is hit for Trade\(id=1, .*\)\.', caplog)
+    assert log_has_re(r"STOP_LOSS_LIMIT is hit for Trade\(id=1, .*\)\.", caplog)
     assert trade.stoploss_order_id is None
     assert trade.is_open is False
     caplog.clear()
 
-    mocker.patch(
-        'coingro.exchange.Exchange.stoploss',
-        side_effect=ExchangeError()
-    )
+    mocker.patch("coingro.exchange.Exchange.stoploss", side_effect=ExchangeError())
     trade.is_open = True
     coingro.handle_stoploss_on_exchange(trade)
-    assert log_has('Unable to place a stoploss order on exchange.', caplog)
+    assert log_has("Unable to place a stoploss order on exchange.", caplog)
     assert trade.stoploss_order_id is None
 
     # Fifth case: fetch_order returns InvalidOrder
     # It should try to add stoploss order
     trade.stoploss_order_id = 100
     stoploss.reset_mock()
-    mocker.patch('coingro.exchange.Exchange.fetch_stoploss_order',
-                 side_effect=InvalidOrderException())
-    mocker.patch('coingro.exchange.Exchange.stoploss', stoploss)
+    mocker.patch(
+        "coingro.exchange.Exchange.fetch_stoploss_order", side_effect=InvalidOrderException()
+    )
+    mocker.patch("coingro.exchange.Exchange.stoploss", stoploss)
     coingro.handle_stoploss_on_exchange(trade)
     assert stoploss.call_count == 1
 
@@ -1183,33 +1264,39 @@ def test_handle_stoploss_on_exchange(mocker, default_conf_usdt, fee, caplog, is_
     trade.stoploss_order_id = None
     trade.is_open = False
     stoploss.reset_mock()
-    mocker.patch('coingro.exchange.Exchange.fetch_order')
-    mocker.patch('coingro.exchange.Exchange.stoploss', stoploss)
+    mocker.patch("coingro.exchange.Exchange.fetch_order")
+    mocker.patch("coingro.exchange.Exchange.stoploss", stoploss)
     assert coingro.handle_stoploss_on_exchange(trade) is False
     assert stoploss.call_count == 0
 
     # Seventh case: emergency exit triggered
     # Trailing stop should not act anymore
-    stoploss_order_cancelled = MagicMock(side_effect=[{
-        'id': "100",
-        'status': 'canceled',
-        'type': 'stop_loss_limit',
-        'price': 3,
-        'average': 2,
-        'amount': enter_order['amount'],
-        'info': {'stopPrice': 22},
-    }])
+    stoploss_order_cancelled = MagicMock(
+        side_effect=[
+            {
+                "id": "100",
+                "status": "canceled",
+                "type": "stop_loss_limit",
+                "price": 3,
+                "average": 2,
+                "amount": enter_order["amount"],
+                "info": {"stopPrice": 22},
+            }
+        ]
+    )
     trade.stoploss_order_id = 100
     trade.is_open = True
     trade.stoploss_last_update = arrow.utcnow().shift(hours=-1).datetime
     trade.stop_loss = 24
-    coingro.config['trailing_stop'] = True
+    coingro.config["trailing_stop"] = True
     stoploss = MagicMock(side_effect=InvalidOrderException())
 
-    mocker.patch('coingro.exchange.Exchange.cancel_stoploss_order_with_result',
-                 side_effect=InvalidOrderException())
-    mocker.patch('coingro.exchange.Exchange.fetch_stoploss_order', stoploss_order_cancelled)
-    mocker.patch('coingro.exchange.Exchange.stoploss', stoploss)
+    mocker.patch(
+        "coingro.exchange.Exchange.cancel_stoploss_order_with_result",
+        side_effect=InvalidOrderException(),
+    )
+    mocker.patch("coingro.exchange.Exchange.fetch_stoploss_order", stoploss_order_cancelled)
+    mocker.patch("coingro.exchange.Exchange.stoploss", stoploss)
     assert coingro.handle_stoploss_on_exchange(trade) is False
     assert trade.stoploss_order_id is None
     assert trade.is_open is False
@@ -1217,29 +1304,28 @@ def test_handle_stoploss_on_exchange(mocker, default_conf_usdt, fee, caplog, is_
 
 
 @pytest.mark.parametrize("is_short", [False, True])
-def test_handle_sle_cancel_cant_recreate(mocker, default_conf_usdt, fee, caplog, is_short,
-                                         limit_order) -> None:
+def test_handle_sle_cancel_cant_recreate(
+    mocker, default_conf_usdt, fee, caplog, is_short, limit_order
+) -> None:
     # Sixth case: stoploss order was cancelled but couldn't create new one
     enter_order = limit_order[entry_side(is_short)]
     exit_order = limit_order[exit_side(is_short)]
     patch_RPCManager(mocker)
     patch_exchange(mocker)
     mocker.patch.multiple(
-        'coingro.exchange.Exchange',
-        fetch_ticker=MagicMock(return_value={
-            'bid': 1.9,
-            'ask': 2.2,
-            'last': 1.9
-        }),
-        create_order=MagicMock(side_effect=[
-            {'id': enter_order['id']},
-            {'id': exit_order['id']},
-        ]),
+        "coingro.exchange.Exchange",
+        fetch_ticker=MagicMock(return_value={"bid": 1.9, "ask": 2.2, "last": 1.9}),
+        create_order=MagicMock(
+            side_effect=[
+                {"id": enter_order["id"]},
+                {"id": exit_order["id"]},
+            ]
+        ),
         get_fee=fee,
     )
     mocker.patch.multiple(
-        'coingro.exchange.Binance',
-        fetch_stoploss_order=MagicMock(return_value={'status': 'canceled', 'id': 100}),
+        "coingro.exchange.Binance",
+        fetch_stoploss_order=MagicMock(return_value={"status": "canceled", "id": 100}),
         stoploss=MagicMock(side_effect=ExchangeError()),
     )
     coingro = CoingroBot(default_conf_usdt)
@@ -1254,7 +1340,7 @@ def test_handle_sle_cancel_cant_recreate(mocker, default_conf_usdt, fee, caplog,
     assert trade
 
     assert coingro.handle_stoploss_on_exchange(trade) is False
-    assert log_has_re(r'Stoploss order was cancelled, but unable to recreate one.*', caplog)
+    assert log_has_re(r"Stoploss order was cancelled, but unable to recreate one.*", caplog)
     assert trade.stoploss_order_id is None
     assert trade.is_open is True
 
@@ -1267,28 +1353,21 @@ def test_create_stoploss_order_invalid_order(
     order = limit_order[exit_side(is_short)]
     rpc_mock = patch_RPCManager(mocker)
     patch_exchange(mocker)
-    create_order_mock = MagicMock(side_effect=[
-        open_order,
-        {'id': order['id']}
-    ])
+    create_order_mock = MagicMock(side_effect=[open_order, {"id": order["id"]}])
     mocker.patch.multiple(
-        'coingro.exchange.Exchange',
-        fetch_ticker=MagicMock(return_value={
-            'bid': 1.9,
-            'ask': 2.2,
-            'last': 1.9
-        }),
+        "coingro.exchange.Exchange",
+        fetch_ticker=MagicMock(return_value={"bid": 1.9, "ask": 2.2, "last": 1.9}),
         create_order=create_order_mock,
         get_fee=fee,
     )
     mocker.patch.multiple(
-        'coingro.exchange.Binance',
-        fetch_order=MagicMock(return_value={'status': 'canceled'}),
+        "coingro.exchange.Binance",
+        fetch_order=MagicMock(return_value={"status": "canceled"}),
         stoploss=MagicMock(side_effect=InvalidOrderException()),
     )
     coingro = CoingroBot(default_conf_usdt)
     patch_get_signal(coingro, enter_short=is_short, enter_long=not is_short)
-    coingro.strategy.order_types['stoploss_on_exchange'] = True
+    coingro.strategy.order_types["stoploss_on_exchange"] = True
 
     coingro.enter_positions()
     trade = Trade.query.first()
@@ -1302,44 +1381,42 @@ def test_create_stoploss_order_invalid_order(
 
     # Should call a market sell
     assert create_order_mock.call_count == 2
-    assert create_order_mock.call_args[1]['ordertype'] == 'market'
-    assert create_order_mock.call_args[1]['pair'] == trade.pair
-    assert create_order_mock.call_args[1]['amount'] == trade.amount
+    assert create_order_mock.call_args[1]["ordertype"] == "market"
+    assert create_order_mock.call_args[1]["pair"] == trade.pair
+    assert create_order_mock.call_args[1]["amount"] == trade.amount
 
     # Rpc is sending first buy, then sell
     assert rpc_mock.call_count == 2
-    assert rpc_mock.call_args_list[1][0][0]['sell_reason'] == ExitType.EMERGENCY_EXIT.value
-    assert rpc_mock.call_args_list[1][0][0]['order_type'] == 'market'
+    assert rpc_mock.call_args_list[1][0][0]["sell_reason"] == ExitType.EMERGENCY_EXIT.value
+    assert rpc_mock.call_args_list[1][0][0]["order_type"] == "market"
 
 
 @pytest.mark.parametrize("is_short", [False, True])
 def test_create_stoploss_order_insufficient_funds(
     mocker, default_conf_usdt, caplog, fee, limit_order, is_short
 ):
-    exit_order = limit_order[exit_side(is_short)]['id']
+    exit_order = limit_order[exit_side(is_short)]["id"]
     coingro = get_patched_coingrobot(mocker, default_conf_usdt)
 
-    mock_insuf = mocker.patch('coingro.coingrobot.CoingroBot.handle_insufficient_funds')
+    mock_insuf = mocker.patch("coingro.coingrobot.CoingroBot.handle_insufficient_funds")
     mocker.patch.multiple(
-        'coingro.exchange.Exchange',
-        fetch_ticker=MagicMock(return_value={
-            'bid': 1.9,
-            'ask': 2.2,
-            'last': 1.9
-        }),
-        create_order=MagicMock(side_effect=[
-            limit_order[entry_side(is_short)],
-            exit_order,
-        ]),
+        "coingro.exchange.Exchange",
+        fetch_ticker=MagicMock(return_value={"bid": 1.9, "ask": 2.2, "last": 1.9}),
+        create_order=MagicMock(
+            side_effect=[
+                limit_order[entry_side(is_short)],
+                exit_order,
+            ]
+        ),
         get_fee=fee,
-        fetch_order=MagicMock(return_value={'status': 'canceled'}),
+        fetch_order=MagicMock(return_value={"status": "canceled"}),
     )
     mocker.patch.multiple(
-        'coingro.exchange.Binance',
+        "coingro.exchange.Binance",
         stoploss=MagicMock(side_effect=InsufficientFundsError()),
     )
     patch_get_signal(coingro, enter_short=is_short, enter_long=not is_short)
-    coingro.strategy.order_types['stoploss_on_exchange'] = True
+    coingro.strategy.order_types["stoploss_on_exchange"] = True
 
     coingro.enter_positions()
     trade = Trade.query.first()
@@ -1351,17 +1428,20 @@ def test_create_stoploss_order_insufficient_funds(
     assert mock_insuf.call_count == 1
     mock_insuf.reset_mock()
 
-    trade.stoploss_order_id = 'stoploss_orderid'
+    trade.stoploss_order_id = "stoploss_orderid"
     coingro.create_stoploss_order(trade, 200)
     # No change to stoploss-orderid
-    assert trade.stoploss_order_id == 'stoploss_orderid'
+    assert trade.stoploss_order_id == "stoploss_orderid"
     assert mock_insuf.call_count == 1
 
 
-@pytest.mark.parametrize("is_short,bid,ask,stop_price,amt,hang_price", [
-    (False, [4.38, 4.16], [4.4, 4.17], ['2.0805', 4.4 * 0.95], 27.39726027, 3),
-    (True, [1.09, 1.21], [1.1, 1.22], ['2.321', 1.09 * 1.05], 27.27272727, 1.5),
-])
+@pytest.mark.parametrize(
+    "is_short,bid,ask,stop_price,amt,hang_price",
+    [
+        (False, [4.38, 4.16], [4.4, 4.17], ["2.0805", 4.4 * 0.95], 27.39726027, 3),
+        (True, [1.09, 1.21], [1.1, 1.22], ["2.321", 1.09 * 1.05], 27.27272727, 1.5),
+    ],
+)
 @pytest.mark.usefixtures("init_persistence")
 def test_handle_stoploss_on_exchange_trailing(
     mocker, default_conf_usdt, fee, is_short, bid, ask, limit_order, stop_price, amt, hang_price
@@ -1369,43 +1449,47 @@ def test_handle_stoploss_on_exchange_trailing(
     # When trailing stoploss is set
     enter_order = limit_order[entry_side(is_short)]
     exit_order = limit_order[exit_side(is_short)]
-    stoploss = MagicMock(return_value={'id': 13434334})
+    stoploss = MagicMock(return_value={"id": 13434334})
     patch_RPCManager(mocker)
     mocker.patch.multiple(
-        'coingro.exchange.Exchange',
-        fetch_ticker=MagicMock(return_value={
-            'bid': 2.19,
-            'ask': 2.2,
-            'last': 2.19,
-        }),
-        create_order=MagicMock(side_effect=[
-            {'id': enter_order['id']},
-            {'id': exit_order['id']},
-        ]),
+        "coingro.exchange.Exchange",
+        fetch_ticker=MagicMock(
+            return_value={
+                "bid": 2.19,
+                "ask": 2.2,
+                "last": 2.19,
+            }
+        ),
+        create_order=MagicMock(
+            side_effect=[
+                {"id": enter_order["id"]},
+                {"id": exit_order["id"]},
+            ]
+        ),
         get_fee=fee,
     )
     mocker.patch.multiple(
-        'coingro.exchange.Binance',
+        "coingro.exchange.Binance",
         stoploss=stoploss,
         stoploss_adjust=MagicMock(return_value=True),
     )
 
     # enabling TSL
-    default_conf_usdt['trailing_stop'] = True
+    default_conf_usdt["trailing_stop"] = True
 
     # disabling ROI
-    default_conf_usdt['minimal_roi']['0'] = 999999999
+    default_conf_usdt["minimal_roi"]["0"] = 999999999
 
     coingro = get_patched_coingrobot(mocker, default_conf_usdt)
 
     # enabling stoploss on exchange
-    coingro.strategy.order_types['stoploss_on_exchange'] = True
+    coingro.strategy.order_types["stoploss_on_exchange"] = True
 
     # setting stoploss
     coingro.strategy.stoploss = 0.05 if is_short else -0.05
 
     # setting stoploss_on_exchange_interval to 60 seconds
-    coingro.strategy.order_types['stoploss_on_exchange_interval'] = 60
+    coingro.strategy.order_types["stoploss_on_exchange_interval"] = 60
 
     patch_get_signal(coingro, enter_short=is_short, enter_long=not is_short)
 
@@ -1416,18 +1500,18 @@ def test_handle_stoploss_on_exchange_trailing(
     trade.open_order_id = None
     trade.stoploss_order_id = 100
 
-    stoploss_order_hanging = MagicMock(return_value={
-        'id': 100,
-        'status': 'open',
-        'type': 'stop_loss_limit',
-        'price': hang_price,
-        'average': 2,
-        'info': {
-            'stopPrice': stop_price[0]
+    stoploss_order_hanging = MagicMock(
+        return_value={
+            "id": 100,
+            "status": "open",
+            "type": "stop_loss_limit",
+            "price": hang_price,
+            "average": 2,
+            "info": {"stopPrice": stop_price[0]},
         }
-    })
+    )
 
-    mocker.patch('coingro.exchange.Binance.fetch_stoploss_order', stoploss_order_hanging)
+    mocker.patch("coingro.exchange.Binance.fetch_stoploss_order", stoploss_order_hanging)
 
     # stoploss initially at 5%
     assert coingro.handle_trade(trade) is False
@@ -1435,18 +1519,20 @@ def test_handle_stoploss_on_exchange_trailing(
 
     # price jumped 2x
     mocker.patch(
-        'coingro.exchange.Exchange.fetch_ticker',
-        MagicMock(return_value={
-            'bid': bid[0],
-            'ask': ask[0],
-            'last': bid[0],
-        })
+        "coingro.exchange.Exchange.fetch_ticker",
+        MagicMock(
+            return_value={
+                "bid": bid[0],
+                "ask": ask[0],
+                "last": bid[0],
+            }
+        ),
     )
 
     cancel_order_mock = MagicMock()
-    stoploss_order_mock = MagicMock(return_value={'id': 13434334})
-    mocker.patch('coingro.exchange.Binance.cancel_stoploss_order', cancel_order_mock)
-    mocker.patch('coingro.exchange.Binance.stoploss', stoploss_order_mock)
+    stoploss_order_mock = MagicMock(return_value={"id": 13434334})
+    mocker.patch("coingro.exchange.Binance.cancel_stoploss_order", cancel_order_mock)
+    mocker.patch("coingro.exchange.Binance.stoploss", stoploss_order_mock)
 
     # stoploss should not be updated as the interval is 60 seconds
     assert coingro.handle_trade(trade) is False
@@ -1458,28 +1544,30 @@ def test_handle_stoploss_on_exchange_trailing(
     assert trade.stop_loss == stop_price[1]
 
     # setting stoploss_on_exchange_interval to 0 seconds
-    coingro.strategy.order_types['stoploss_on_exchange_interval'] = 0
+    coingro.strategy.order_types["stoploss_on_exchange_interval"] = 0
 
     assert coingro.handle_stoploss_on_exchange(trade) is False
 
-    cancel_order_mock.assert_called_once_with(100, 'ETH/USDT')
+    cancel_order_mock.assert_called_once_with(100, "ETH/USDT")
     stoploss_order_mock.assert_called_once_with(
         amount=pytest.approx(amt),
-        pair='ETH/USDT',
+        pair="ETH/USDT",
         order_types=coingro.strategy.order_types,
         stop_price=stop_price[1],
         side=exit_side(is_short),
-        leverage=1.0
+        leverage=1.0,
     )
 
     # price fell below stoploss, so dry-run sells trade.
     mocker.patch(
-        'coingro.exchange.Exchange.fetch_ticker',
-        MagicMock(return_value={
-            'bid': bid[1],
-            'ask': ask[1],
-            'last': bid[1],
-        })
+        "coingro.exchange.Exchange.fetch_ticker",
+        MagicMock(
+            return_value={
+                "bid": bid[1],
+                "ask": ask[1],
+                "last": bid[1],
+            }
+        ),
     )
     assert coingro.handle_trade(trade) is True
 
@@ -1491,40 +1579,38 @@ def test_handle_stoploss_on_exchange_trailing_error(
     enter_order = limit_order[entry_side(is_short)]
     exit_order = limit_order[exit_side(is_short)]
     # When trailing stoploss is set
-    stoploss = MagicMock(return_value={'id': 13434334})
+    stoploss = MagicMock(return_value={"id": 13434334})
     patch_exchange(mocker)
 
     mocker.patch.multiple(
-        'coingro.exchange.Exchange',
-        fetch_ticker=MagicMock(return_value={
-            'bid': 1.9,
-            'ask': 2.2,
-            'last': 1.9
-        }),
-        create_order=MagicMock(side_effect=[
-            {'id': enter_order['id']},
-            {'id': exit_order['id']},
-        ]),
+        "coingro.exchange.Exchange",
+        fetch_ticker=MagicMock(return_value={"bid": 1.9, "ask": 2.2, "last": 1.9}),
+        create_order=MagicMock(
+            side_effect=[
+                {"id": enter_order["id"]},
+                {"id": exit_order["id"]},
+            ]
+        ),
         get_fee=fee,
     )
     mocker.patch.multiple(
-        'coingro.exchange.Binance',
+        "coingro.exchange.Binance",
         stoploss=stoploss,
         stoploss_adjust=MagicMock(return_value=True),
     )
 
     # enabling TSL
-    default_conf_usdt['trailing_stop'] = True
+    default_conf_usdt["trailing_stop"] = True
 
     coingro = get_patched_coingrobot(mocker, default_conf_usdt)
     # enabling stoploss on exchange
-    coingro.strategy.order_types['stoploss_on_exchange'] = True
+    coingro.strategy.order_types["stoploss_on_exchange"] = True
 
     # setting stoploss
     coingro.strategy.stoploss = 0.05 if is_short else -0.05
 
     # setting stoploss_on_exchange_interval to 60 seconds
-    coingro.strategy.order_types['stoploss_on_exchange_interval'] = 60
+    coingro.strategy.order_types["stoploss_on_exchange_interval"] = 60
     patch_get_signal(coingro, enter_short=is_short, enter_long=not is_short)
     coingro.enter_positions()
     trade = Trade.query.first()
@@ -1537,19 +1623,19 @@ def test_handle_stoploss_on_exchange_trailing_error(
     trade.is_short = is_short
 
     stoploss_order_hanging = {
-        'id': "abcd",
-        'status': 'open',
-        'type': 'stop_loss_limit',
-        'price': 3,
-        'average': 2,
-        'info': {
-            'stopPrice': '0.1'
-        }
+        "id": "abcd",
+        "status": "open",
+        "type": "stop_loss_limit",
+        "price": 3,
+        "average": 2,
+        "info": {"stopPrice": "0.1"},
     }
-    mocker.patch('coingro.exchange.Binance.cancel_stoploss_order',
-                 side_effect=InvalidOrderException())
-    mocker.patch('coingro.exchange.Binance.fetch_stoploss_order',
-                 return_value=stoploss_order_hanging)
+    mocker.patch(
+        "coingro.exchange.Binance.cancel_stoploss_order", side_effect=InvalidOrderException()
+    )
+    mocker.patch(
+        "coingro.exchange.Binance.fetch_stoploss_order", return_value=stoploss_order_hanging
+    )
     coingro.handle_trailing_stoploss_on_exchange(trade, stoploss_order_hanging)
     assert log_has_re(r"Could not cancel stoploss order abcd for pair ETH/USDT.*", caplog)
 
@@ -1566,23 +1652,24 @@ def test_handle_stoploss_on_exchange_trailing_error(
 
 
 def test_stoploss_on_exchange_price_rounding(
-        mocker, default_conf_usdt, fee, open_trade_usdt) -> None:
+    mocker, default_conf_usdt, fee, open_trade_usdt
+) -> None:
     patch_RPCManager(mocker)
     mocker.patch.multiple(
-        'coingro.exchange.Exchange',
+        "coingro.exchange.Exchange",
         get_fee=fee,
     )
     price_mock = MagicMock(side_effect=lambda p, s: int(s))
-    stoploss_mock = MagicMock(return_value={'id': '13434334'})
+    stoploss_mock = MagicMock(return_value={"id": "13434334"})
     adjust_mock = MagicMock(return_value=False)
     mocker.patch.multiple(
-        'coingro.exchange.Binance',
+        "coingro.exchange.Binance",
         stoploss=stoploss_mock,
         stoploss_adjust=adjust_mock,
         price_to_precision=price_mock,
     )
     coingro = get_patched_coingrobot(mocker, default_conf_usdt)
-    open_trade_usdt.stoploss_order_id = '13434334'
+    open_trade_usdt.stoploss_order_id = "13434334"
     open_trade_usdt.stop_loss = 222.55
 
     coingro.handle_trailing_stoploss_on_exchange(open_trade_usdt, {})
@@ -1599,43 +1686,41 @@ def test_handle_stoploss_on_exchange_custom_stop(
     enter_order = limit_order[entry_side(is_short)]
     exit_order = limit_order[exit_side(is_short)]
     # When trailing stoploss is set
-    stoploss = MagicMock(return_value={'id': 13434334})
+    stoploss = MagicMock(return_value={"id": 13434334})
     patch_RPCManager(mocker)
     mocker.patch.multiple(
-        'coingro.exchange.Exchange',
-        fetch_ticker=MagicMock(return_value={
-            'bid': 1.9,
-            'ask': 2.2,
-            'last': 1.9
-        }),
-        create_order=MagicMock(side_effect=[
-            {'id': enter_order['id']},
-            {'id': exit_order['id']},
-        ]),
+        "coingro.exchange.Exchange",
+        fetch_ticker=MagicMock(return_value={"bid": 1.9, "ask": 2.2, "last": 1.9}),
+        create_order=MagicMock(
+            side_effect=[
+                {"id": enter_order["id"]},
+                {"id": exit_order["id"]},
+            ]
+        ),
         get_fee=fee,
     )
     mocker.patch.multiple(
-        'coingro.exchange.Binance',
+        "coingro.exchange.Binance",
         stoploss=stoploss,
         stoploss_adjust=MagicMock(return_value=True),
     )
 
     # enabling TSL
-    default_conf_usdt['use_custom_stoploss'] = True
+    default_conf_usdt["use_custom_stoploss"] = True
 
     # disabling ROI
-    default_conf_usdt['minimal_roi']['0'] = 999999999
+    default_conf_usdt["minimal_roi"]["0"] = 999999999
 
     coingro = get_patched_coingrobot(mocker, default_conf_usdt)
 
     # enabling stoploss on exchange
-    coingro.strategy.order_types['stoploss_on_exchange'] = True
+    coingro.strategy.order_types["stoploss_on_exchange"] = True
 
     # setting stoploss
     coingro.strategy.custom_stoploss = lambda *args, **kwargs: -0.04
 
     # setting stoploss_on_exchange_interval to 60 seconds
-    coingro.strategy.order_types['stoploss_on_exchange_interval'] = 60
+    coingro.strategy.order_types["stoploss_on_exchange_interval"] = 60
 
     patch_get_signal(coingro, enter_short=is_short, enter_long=not is_short)
 
@@ -1646,36 +1731,38 @@ def test_handle_stoploss_on_exchange_custom_stop(
     trade.open_order_id = None
     trade.stoploss_order_id = 100
 
-    stoploss_order_hanging = MagicMock(return_value={
-        'id': 100,
-        'status': 'open',
-        'type': 'stop_loss_limit',
-        'price': 3,
-        'average': 2,
-        'info': {
-            'stopPrice': '2.0805'
+    stoploss_order_hanging = MagicMock(
+        return_value={
+            "id": 100,
+            "status": "open",
+            "type": "stop_loss_limit",
+            "price": 3,
+            "average": 2,
+            "info": {"stopPrice": "2.0805"},
         }
-    })
+    )
 
-    mocker.patch('coingro.exchange.Binance.fetch_stoploss_order', stoploss_order_hanging)
+    mocker.patch("coingro.exchange.Binance.fetch_stoploss_order", stoploss_order_hanging)
 
     assert coingro.handle_trade(trade) is False
     assert coingro.handle_stoploss_on_exchange(trade) is False
 
     # price jumped 2x
     mocker.patch(
-        'coingro.exchange.Exchange.fetch_ticker',
-        MagicMock(return_value={
-            'bid': 4.38 if not is_short else 1.9 / 2,
-            'ask': 4.4 if not is_short else 2.2 / 2,
-            'last': 4.38 if not is_short else 1.9 / 2,
-        })
+        "coingro.exchange.Exchange.fetch_ticker",
+        MagicMock(
+            return_value={
+                "bid": 4.38 if not is_short else 1.9 / 2,
+                "ask": 4.4 if not is_short else 2.2 / 2,
+                "last": 4.38 if not is_short else 1.9 / 2,
+            }
+        ),
     )
 
     cancel_order_mock = MagicMock()
-    stoploss_order_mock = MagicMock(return_value={'id': 13434334})
-    mocker.patch('coingro.exchange.Binance.cancel_stoploss_order', cancel_order_mock)
-    mocker.patch('coingro.exchange.Binance.stoploss', stoploss_order_mock)
+    stoploss_order_mock = MagicMock(return_value={"id": 13434334})
+    mocker.patch("coingro.exchange.Binance.cancel_stoploss_order", cancel_order_mock)
+    mocker.patch("coingro.exchange.Binance.stoploss", stoploss_order_mock)
 
     # stoploss should not be updated as the interval is 60 seconds
     assert coingro.handle_trade(trade) is False
@@ -1688,80 +1775,73 @@ def test_handle_stoploss_on_exchange_custom_stop(
     assert trade.stop_loss_pct == -0.04 if not is_short else 0.04
 
     # setting stoploss_on_exchange_interval to 0 seconds
-    coingro.strategy.order_types['stoploss_on_exchange_interval'] = 0
+    coingro.strategy.order_types["stoploss_on_exchange_interval"] = 0
 
     assert coingro.handle_stoploss_on_exchange(trade) is False
 
-    cancel_order_mock.assert_called_once_with(100, 'ETH/USDT')
+    cancel_order_mock.assert_called_once_with(100, "ETH/USDT")
     # Long uses modified ask - offset, short modified bid + offset
     stoploss_order_mock.assert_called_once_with(
         amount=pytest.approx(trade.amount),
-        pair='ETH/USDT',
+        pair="ETH/USDT",
         order_types=coingro.strategy.order_types,
         stop_price=4.4 * 0.96 if not is_short else 0.95 * 1.04,
         side=exit_side(is_short),
-        leverage=1.0
+        leverage=1.0,
     )
 
     # price fell below stoploss, so dry-run sells trade.
     mocker.patch(
-        'coingro.exchange.Exchange.fetch_ticker',
-        MagicMock(return_value={
-            'bid': 4.17,
-            'ask': 4.19,
-            'last': 4.17
-        })
+        "coingro.exchange.Exchange.fetch_ticker",
+        MagicMock(return_value={"bid": 4.17, "ask": 4.19, "last": 4.17}),
     )
     assert coingro.handle_trade(trade) is True
 
 
-def test_tsl_on_exchange_compatible_with_edge(mocker, edge_conf, fee, caplog,
-                                              limit_order) -> None:
+def test_tsl_on_exchange_compatible_with_edge(mocker, edge_conf, fee, caplog, limit_order) -> None:
 
-    enter_order = limit_order['buy']
-    exit_order = limit_order['sell']
+    enter_order = limit_order["buy"]
+    exit_order = limit_order["sell"]
 
     # When trailing stoploss is set
-    stoploss = MagicMock(return_value={'id': 13434334})
+    stoploss = MagicMock(return_value={"id": 13434334})
     patch_RPCManager(mocker)
     patch_exchange(mocker)
     patch_edge(mocker)
-    edge_conf['max_open_trades'] = float('inf')
-    edge_conf['dry_run_wallet'] = 999.9
-    edge_conf['exchange']['name'] = 'binance'
+    edge_conf["max_open_trades"] = float("inf")
+    edge_conf["dry_run_wallet"] = 999.9
+    edge_conf["exchange"]["name"] = "binance"
     mocker.patch.multiple(
-        'coingro.exchange.Exchange',
-        fetch_ticker=MagicMock(return_value={
-            'bid': 2.19,
-            'ask': 2.2,
-            'last': 2.19
-        }),
-        create_order=MagicMock(side_effect=[
-            {'id': enter_order['id']},
-            {'id': exit_order['id']},
-        ]),
+        "coingro.exchange.Exchange",
+        fetch_ticker=MagicMock(return_value={"bid": 2.19, "ask": 2.2, "last": 2.19}),
+        create_order=MagicMock(
+            side_effect=[
+                {"id": enter_order["id"]},
+                {"id": exit_order["id"]},
+            ]
+        ),
         get_fee=fee,
         stoploss=stoploss,
     )
 
     # enabling TSL
-    edge_conf['trailing_stop'] = True
-    edge_conf['trailing_stop_positive'] = 0.01
-    edge_conf['trailing_stop_positive_offset'] = 0.011
+    edge_conf["trailing_stop"] = True
+    edge_conf["trailing_stop_positive"] = 0.01
+    edge_conf["trailing_stop_positive_offset"] = 0.011
 
     # disabling ROI
-    edge_conf['minimal_roi']['0'] = 999999999
+    edge_conf["minimal_roi"]["0"] = 999999999
 
     coingro = CoingroBot(edge_conf)
 
     # enabling stoploss on exchange
-    coingro.strategy.order_types['stoploss_on_exchange'] = True
+    coingro.strategy.order_types["stoploss_on_exchange"] = True
 
     # setting stoploss
     coingro.strategy.stoploss = -0.02
 
     # setting stoploss_on_exchange_interval to 0 seconds
-    coingro.strategy.order_types['stoploss_on_exchange_interval'] = 0
+    coingro.strategy.order_types["stoploss_on_exchange_interval"] = 0
 
     patch_get_signal(coingro)
 
@@ -1773,16 +1853,18 @@ def test_tsl_on_exchange_compatible_with_edge(mocker, edge_conf, fee, caplog,
     trade.open_order_id = None
     trade.stoploss_order_id = 100
 
-    stoploss_order_hanging = MagicMock(return_value={
-        'id': 100,
-        'status': 'open',
-        'type': 'stop_loss_limit',
-        'price': 3,
-        'average': 2,
-        'stopPrice': '2.178'
-    })
+    stoploss_order_hanging = MagicMock(
+        return_value={
+            "id": 100,
+            "status": "open",
+            "type": "stop_loss_limit",
+            "price": 3,
+            "average": 2,
+            "stopPrice": "2.178",
+        }
+    )
 
-    mocker.patch('coingro.exchange.Exchange.fetch_stoploss_order', stoploss_order_hanging)
+    mocker.patch("coingro.exchange.Exchange.fetch_stoploss_order", stoploss_order_hanging)
 
     # stoploss initially at 20% as edge dictated it.
     assert coingro.handle_trade(trade) is False
@@ -1791,15 +1873,14 @@ def test_tsl_on_exchange_compatible_with_edge(mocker, edge_conf, fee, caplog,
 
     cancel_order_mock = MagicMock()
     stoploss_order_mock = MagicMock()
-    mocker.patch('coingro.exchange.Exchange.cancel_stoploss_order', cancel_order_mock)
-    mocker.patch('coingro.exchange.Binance.stoploss', stoploss_order_mock)
+    mocker.patch("coingro.exchange.Exchange.cancel_stoploss_order", cancel_order_mock)
+    mocker.patch("coingro.exchange.Binance.stoploss", stoploss_order_mock)
 
     # price goes down 5%
-    mocker.patch('coingro.exchange.Exchange.fetch_ticker', MagicMock(return_value={
-        'bid': 2.19 * 0.95,
-        'ask': 2.2 * 0.95,
-        'last': 2.19 * 0.95
-    }))
+    mocker.patch(
+        "coingro.exchange.Exchange.fetch_ticker",
+        MagicMock(return_value={"bid": 2.19 * 0.95, "ask": 2.2 * 0.95, "last": 2.19 * 0.95}),
+    )
     assert coingro.handle_trade(trade) is False
     assert coingro.handle_stoploss_on_exchange(trade) is False
 
@@ -1810,75 +1891,78 @@ def test_tsl_on_exchange_compatible_with_edge(mocker, edge_conf, fee, caplog,
     cancel_order_mock.assert_not_called()
 
     # price jumped 2x
-    mocker.patch('coingro.exchange.Exchange.fetch_ticker', MagicMock(return_value={
-        'bid': 4.38,
-        'ask': 4.4,
-        'last': 4.38
-    }))
+    mocker.patch(
+        "coingro.exchange.Exchange.fetch_ticker",
+        MagicMock(return_value={"bid": 4.38, "ask": 4.4, "last": 4.38}),
+    )
 
     assert coingro.handle_trade(trade) is False
     assert coingro.handle_stoploss_on_exchange(trade) is False
 
     # stoploss should be set to 1% as trailing is on
     assert trade.stop_loss == 4.4 * 0.99
-    cancel_order_mock.assert_called_once_with(100, 'NEO/BTC')
+    cancel_order_mock.assert_called_once_with(100, "NEO/BTC")
     stoploss_order_mock.assert_called_once_with(
         amount=pytest.approx(11.41438356),
-        pair='NEO/BTC',
+        pair="NEO/BTC",
         order_types=coingro.strategy.order_types,
         stop_price=4.4 * 0.99,
-        side='sell',
-        leverage=1.0
+        side="sell",
+        leverage=1.0,
     )
 
 
-@pytest.mark.parametrize('return_value,side_effect,log_message', [
-    (False, None, 'Found no enter signals for whitelisted currencies. Trying again...'),
-    (None, DependencyException, 'Unable to create trade for ETH/USDT: ')
-])
-def test_enter_positions(mocker, default_conf_usdt, return_value, side_effect,
-                         log_message, caplog) -> None:
+@pytest.mark.parametrize(
+    "return_value,side_effect,log_message",
+    [
+        (False, None, "Found no enter signals for whitelisted currencies. Trying again..."),
+        (None, DependencyException, "Unable to create trade for ETH/USDT: "),
+    ],
+)
+def test_enter_positions(
+    mocker, default_conf_usdt, return_value, side_effect, log_message, caplog
+) -> None:
     caplog.set_level(logging.DEBUG)
     coingro = get_patched_coingrobot(mocker, default_conf_usdt)
 
     mock_ct = mocker.patch(
-        'coingro.coingrobot.CoingroBot.create_trade',
-        MagicMock(
-            return_value=return_value,
-            side_effect=side_effect
-        )
+        "coingro.coingrobot.CoingroBot.create_trade",
+        MagicMock(return_value=return_value, side_effect=side_effect),
     )
     n = coingro.enter_positions()
     assert n == 0
     assert log_has(log_message, caplog)
     # create_trade should be called once for every pair in the whitelist.
-    assert mock_ct.call_count == len(default_conf_usdt['exchange']['pair_whitelist'])
+    assert mock_ct.call_count == len(default_conf_usdt["exchange"]["pair_whitelist"])
 
 
 @pytest.mark.parametrize("is_short", [False, True])
 def test_exit_positions(mocker, default_conf_usdt, limit_order, is_short, caplog) -> None:
     coingro = get_patched_coingrobot(mocker, default_conf_usdt)
 
-    mocker.patch('coingro.coingrobot.CoingroBot.handle_trade', MagicMock(return_value=True))
-    mocker.patch('coingro.exchange.Exchange.fetch_order',
-                 return_value=limit_order[entry_side(is_short)])
-    mocker.patch('coingro.exchange.Exchange.get_trades_for_order', return_value=[])
-    mocker.patch('coingro.coingrobot.CoingroBot.get_real_amount',
-                 return_value=limit_order[entry_side(is_short)]['amount'])
+    mocker.patch("coingro.coingrobot.CoingroBot.handle_trade", MagicMock(return_value=True))
+    mocker.patch(
+        "coingro.exchange.Exchange.fetch_order", return_value=limit_order[entry_side(is_short)]
+    )
+    mocker.patch("coingro.exchange.Exchange.get_trades_for_order", return_value=[])
+    mocker.patch(
+        "coingro.coingrobot.CoingroBot.get_real_amount",
+        return_value=limit_order[entry_side(is_short)]["amount"],
+    )
 
     trade = MagicMock()
     trade.is_short = is_short
-    trade.open_order_id = '123'
+    trade.open_order_id = "123"
     trade.open_fee = 0.001
     trades = [trade]
     n = coingro.exit_positions(trades)
     assert n == 0
     # Test amount not modified by fee-logic
     assert not log_has(
-        'Applying fee to amount for Trade {} from 30.0 to 90.81'.format(trade), caplog
+        "Applying fee to amount for Trade {} from 30.0 to 90.81".format(trade), caplog
     )
 
-    mocker.patch('coingro.coingrobot.CoingroBot.get_real_amount', return_value=90.81)
+    mocker.patch("coingro.coingrobot.CoingroBot.get_real_amount", return_value=90.81)
     # test amount modified by fee-logic
     n = coingro.exit_positions(trades)
     assert n == 0
@@ -1888,23 +1972,20 @@ def test_exit_positions(mocker, default_conf_usdt, limit_order, is_short, caplog
 def test_exit_positions_exception(mocker, default_conf_usdt, limit_order, caplog, is_short) -> None:
     coingro = get_patched_coingrobot(mocker, default_conf_usdt)
     order = limit_order[entry_side(is_short)]
-    mocker.patch('coingro.exchange.Exchange.fetch_order', return_value=order)
+    mocker.patch("coingro.exchange.Exchange.fetch_order", return_value=order)
 
     trade = MagicMock()
     trade.is_short = is_short
     trade.open_order_id = None
-    trade.pair = 'ETH/USDT'
+    trade.pair = "ETH/USDT"
     trades = [trade]
 
     # Test raise of DependencyException exception
-    mocker.patch(
-        'coingro.coingrobot.CoingroBot.handle_trade',
-        side_effect=DependencyException()
-    )
+    mocker.patch("coingro.coingrobot.CoingroBot.handle_trade", side_effect=DependencyException())
     caplog.clear()
     n = coingro.exit_positions(trades)
     assert n == 0
-    assert log_has('Unable to exit trade ETH/USDT: ', caplog)
+    assert log_has("Unable to exit trade ETH/USDT: ", caplog)
 
 
 @pytest.mark.parametrize("is_short", [False, True])
@@ -1912,12 +1993,11 @@ def test_update_trade_state(mocker, default_conf_usdt, limit_order, is_short, ca
     coingro = get_patched_coingrobot(mocker, default_conf_usdt)
     order = limit_order[entry_side(is_short)]
 
-    mocker.patch('coingro.coingrobot.CoingroBot.handle_trade', MagicMock(return_value=True))
-    mocker.patch('coingro.exchange.Exchange.fetch_order', return_value=order)
-    mocker.patch('coingro.exchange.Exchange.get_trades_for_order', return_value=[])
-    mocker.patch('coingro.coingrobot.CoingroBot.get_real_amount',
-                 return_value=order['amount'])
-    order_id = order['id']
+    mocker.patch("coingro.coingrobot.CoingroBot.handle_trade", MagicMock(return_value=True))
+    mocker.patch("coingro.exchange.Exchange.fetch_order", return_value=order)
+    mocker.patch("coingro.exchange.Exchange.get_trades_for_order", return_value=[])
+    mocker.patch("coingro.coingrobot.CoingroBot.get_real_amount", return_value=order["amount"])
+    order_id = order["id"]
 
     trade = Trade(
         open_order_id=order_id,
@@ -1930,25 +2010,26 @@ def test_update_trade_state(mocker, default_conf_usdt, limit_order, is_short, ca
         is_short=is_short,
         leverage=1,
     )
-    trade.orders.append(Order(
-        cg_order_side=entry_side(is_short),
-        price=0.01,
-        order_id=order_id,
-
-    ))
+    trade.orders.append(
+        Order(
+            cg_order_side=entry_side(is_short),
+            price=0.01,
+            order_id=order_id,
+        )
+    )
     assert not coingro.update_trade_state(trade, None)
-    assert log_has_re(r'Orderid for trade .* is empty.', caplog)
+    assert log_has_re(r"Orderid for trade .* is empty.", caplog)
     caplog.clear()
     # Add datetime explicitly since sqlalchemy defaults apply only once written to database
     coingro.update_trade_state(trade, order_id)
     # Test amount not modified by fee-logic
-    assert not log_has_re(r'Applying fee to .*', caplog)
+    assert not log_has_re(r"Applying fee to .*", caplog)
     caplog.clear()
     assert trade.open_order_id is None
-    assert trade.amount == order['amount']
+    assert trade.amount == order["amount"]
 
     trade.open_order_id = order_id
-    mocker.patch('coingro.coingrobot.CoingroBot.get_real_amount', return_value=90.81)
+    mocker.patch("coingro.coingrobot.CoingroBot.get_real_amount", return_value=90.81)
     assert trade.amount != 90.81
     # test amount modified by fee-logic
     coingro.update_trade_state(trade, order_id)
@@ -1960,42 +2041,46 @@ def test_update_trade_state(mocker, default_conf_usdt, limit_order, is_short, ca
     # Assert we call handle_trade() if trade is feasible for execution
     coingro.update_trade_state(trade, order_id)
 
-    assert log_has_re('Found open order for.*', caplog)
+    assert log_has_re("Found open order for.*", caplog)
     limit_buy_order_usdt_new = deepcopy(limit_order)
-    limit_buy_order_usdt_new['filled'] = 0.0
-    limit_buy_order_usdt_new['status'] = 'canceled'
+    limit_buy_order_usdt_new["filled"] = 0.0
+    limit_buy_order_usdt_new["status"] = "canceled"
 
-    mocker.patch('coingro.coingrobot.CoingroBot.get_real_amount', side_effect=ValueError)
-    mocker.patch('coingro.exchange.Exchange.fetch_order', return_value=limit_buy_order_usdt_new)
+    mocker.patch("coingro.coingrobot.CoingroBot.get_real_amount", side_effect=ValueError)
+    mocker.patch("coingro.exchange.Exchange.fetch_order", return_value=limit_buy_order_usdt_new)
     res = coingro.update_trade_state(trade, order_id)
     # Cancelled empty
     assert res is True
 
 
 @pytest.mark.parametrize("is_short", [False, True])
-@pytest.mark.parametrize('initial_amount,has_rounding_fee', [
-    (30.0 + 1e-14, True),
-    (8.0, False)
-])
+@pytest.mark.parametrize("initial_amount,has_rounding_fee", [(30.0 + 1e-14, True), (8.0, False)])
 def test_update_trade_state_withorderdict(
-    default_conf_usdt, trades_for_order, limit_order, fee, mocker, initial_amount,
-    has_rounding_fee, is_short, caplog
+    default_conf_usdt,
+    trades_for_order,
+    limit_order,
+    fee,
+    mocker,
+    initial_amount,
+    has_rounding_fee,
+    is_short,
+    caplog,
 ):
     order = limit_order[entry_side(is_short)]
-    trades_for_order[0]['amount'] = initial_amount
+    trades_for_order[0]["amount"] = initial_amount
     order_id = "oid_123456"
-    order['id'] = order_id
-    mocker.patch('coingro.exchange.Exchange.get_trades_for_order', return_value=trades_for_order)
+    order["id"] = order_id
+    mocker.patch("coingro.exchange.Exchange.get_trades_for_order", return_value=trades_for_order)
     # fetch_order should not be called!!
-    mocker.patch('coingro.exchange.Exchange.fetch_order', MagicMock(side_effect=ValueError))
+    mocker.patch("coingro.exchange.Exchange.fetch_order", MagicMock(side_effect=ValueError))
     patch_exchange(mocker)
-    amount = sum(x['amount'] for x in trades_for_order)
+    amount = sum(x["amount"] for x in trades_for_order)
     coingro = get_patched_coingrobot(mocker, default_conf_usdt)
     caplog.clear()
     trade = Trade(
-        pair='LTC/USDT',
+        pair="LTC/USDT",
         amount=amount,
-        exchange='binance',
+        exchange="binance",
         open_rate=2.0,
         open_date=arrow.utcnow().datetime,
         fee_open=fee.return_value,
@@ -2013,97 +2098,104 @@ def test_update_trade_state_withorderdict(
             order_id=order_id,
         )
     )
-    log_text = r'Applying fee on amount for .*'
+    log_text = r"Applying fee on amount for .*"
     coingro.update_trade_state(trade, order_id, order)
     assert trade.amount != amount
     if has_rounding_fee:
         assert pytest.approx(trade.amount) == 29.992
         assert log_has_re(log_text, caplog)
     else:
-        assert pytest.approx(trade.amount) == order['amount']
+        assert pytest.approx(trade.amount) == order["amount"]
         assert not log_has_re(log_text, caplog)
 
 
 @pytest.mark.parametrize("is_short", [False, True])
-def test_update_trade_state_exception(mocker, default_conf_usdt, is_short, limit_order,
-                                      caplog) -> None:
+def test_update_trade_state_exception(
+    mocker, default_conf_usdt, is_short, limit_order, caplog
+) -> None:
     order = limit_order[entry_side(is_short)]
     coingro = get_patched_coingrobot(mocker, default_conf_usdt)
-    mocker.patch('coingro.exchange.Exchange.fetch_order', return_value=order)
+    mocker.patch("coingro.exchange.Exchange.fetch_order", return_value=order)
 
     trade = MagicMock()
-    trade.open_order_id = '123'
+    trade.open_order_id = "123"
 
     # Test raise of OperationalException exception
-    mocker.patch(
-        'coingro.coingrobot.CoingroBot.get_real_amount',
-        side_effect=DependencyException()
-    )
+    mocker.patch("coingro.coingrobot.CoingroBot.get_real_amount", side_effect=DependencyException())
     coingro.update_trade_state(trade, trade.open_order_id)
-    assert log_has('Could not update trade amount: ', caplog)
+    assert log_has("Could not update trade amount: ", caplog)
 
 
 def test_update_trade_state_orderexception(mocker, default_conf_usdt, caplog) -> None:
     coingro = get_patched_coingrobot(mocker, default_conf_usdt)
-    mocker.patch('coingro.exchange.Exchange.fetch_order',
-                 MagicMock(side_effect=InvalidOrderException))
+    mocker.patch(
+        "coingro.exchange.Exchange.fetch_order", MagicMock(side_effect=InvalidOrderException)
+    )
 
     trade = MagicMock()
-    trade.open_order_id = '123'
+    trade.open_order_id = "123"
 
     # Test raise of OperationalException exception
     grm_mock = mocker.patch("coingro.coingrobot.CoingroBot.get_real_amount", MagicMock())
     coingro.update_trade_state(trade, trade.open_order_id)
     assert grm_mock.call_count == 0
-    assert log_has(f'Unable to fetch order {trade.open_order_id}: ', caplog)
+    assert log_has(f"Unable to fetch order {trade.open_order_id}: ", caplog)
 
 
 @pytest.mark.parametrize("is_short", [False, True])
 def test_update_trade_state_sell(
-    default_conf_usdt, trades_for_order, limit_order_open, limit_order, is_short, mocker,
+    default_conf_usdt,
+    trades_for_order,
+    limit_order_open,
+    limit_order,
+    is_short,
+    mocker,
 ):
     open_order = limit_order_open[exit_side(is_short)]
     l_order = limit_order[exit_side(is_short)]
-    mocker.patch('coingro.exchange.Exchange.get_trades_for_order', return_value=trades_for_order)
+    mocker.patch("coingro.exchange.Exchange.get_trades_for_order", return_value=trades_for_order)
     # fetch_order should not be called!!
-    mocker.patch('coingro.exchange.Exchange.fetch_order', MagicMock(side_effect=ValueError))
+    mocker.patch("coingro.exchange.Exchange.fetch_order", MagicMock(side_effect=ValueError))
     wallet_mock = MagicMock()
-    mocker.patch('coingro.wallets.Wallets.update', wallet_mock)
+    mocker.patch("coingro.wallets.Wallets.update", wallet_mock)
 
     patch_exchange(mocker)
     coingro = get_patched_coingrobot(mocker, default_conf_usdt)
     amount = l_order["amount"]
     wallet_mock.reset_mock()
     trade = Trade(
-        pair='LTC/ETH',
+        pair="LTC/ETH",
         amount=amount,
-        exchange='binance',
+        exchange="binance",
         open_rate=0.245441,
         fee_open=0.0025,
         fee_close=0.0025,
         open_date=arrow.utcnow().datetime,
-        open_order_id=open_order['id'],
+        open_order_id=open_order["id"],
         is_open=True,
         interest_rate=0.0005,
         leverage=1,
         is_short=is_short,
     )
-    order = Order.parse_from_ccxt_object(open_order, 'LTC/ETH', exit_side(is_short))
+    order = Order.parse_from_ccxt_object(open_order, "LTC/ETH", exit_side(is_short))
     trade.orders.append(order)
-    assert order.status == 'open'
+    assert order.status == "open"
     coingro.update_trade_state(trade, trade.open_order_id, l_order)
-    assert trade.amount == l_order['amount']
+    assert trade.amount == l_order["amount"]
     # Wallet needs to be updated after closing a limit-sell order to reenable buying
     assert wallet_mock.call_count == 1
     assert not trade.is_open
     # Order is updated by update_trade_state
-    assert order.status == 'closed'
+    assert order.status == "closed"
 
 
-@pytest.mark.parametrize('is_short,close_profit', [
-    (False, 0.09451372),
-    (True, 0.08635224),
-])
+@pytest.mark.parametrize(
+    "is_short,close_profit",
+    [
+        (False, 0.09451372),
+        (True, 0.08635224),
+    ],
+)
 def test_handle_trade(
     default_conf_usdt, limit_order_open, limit_order, fee, mocker, is_short, close_profit
 ) -> None:
@@ -2113,16 +2205,14 @@ def test_handle_trade(
     patch_RPCManager(mocker)
     patch_exchange(mocker)
     mocker.patch.multiple(
-        'coingro.exchange.Exchange',
-        fetch_ticker=MagicMock(return_value={
-            'bid': 2.19,
-            'ask': 2.2,
-            'last': 2.19
-        }),
-        create_order=MagicMock(side_effect=[
-            enter_order,
-            open_order,
-        ]),
+        "coingro.exchange.Exchange",
+        fetch_ticker=MagicMock(return_value={"bid": 2.19, "ask": 2.2, "last": 2.19}),
+        create_order=MagicMock(
+            side_effect=[
+                enter_order,
+                open_order,
+            ]
+        ),
         get_fee=fee,
     )
     coingro = CoingroBot(default_conf_usdt)
@@ -2135,25 +2225,30 @@ def test_handle_trade(
     assert trade
 
     time.sleep(0.01)  # Race condition fix
-    oobj = Order.parse_from_ccxt_object(enter_order, enter_order['symbol'], entry_side(is_short))
+    oobj = Order.parse_from_ccxt_object(enter_order, enter_order["symbol"], entry_side(is_short))
     trade.update_trade(oobj)
     assert trade.is_open is True
     coingro.wallets.update()
 
-    patch_get_signal(coingro, enter_long=False, exit_short=is_short,
-                     exit_long=not is_short, exit_tag='sell_signal1')
+    patch_get_signal(
+        coingro,
+        enter_long=False,
+        exit_short=is_short,
+        exit_long=not is_short,
+        exit_tag="sell_signal1",
+    )
     assert coingro.handle_trade(trade) is True
-    assert trade.open_order_id == exit_order['id']
+    assert trade.open_order_id == exit_order["id"]
 
     # Simulate fulfilled LIMIT_SELL order for trade
-    oobj = Order.parse_from_ccxt_object(exit_order, exit_order['symbol'], exit_side(is_short))
+    oobj = Order.parse_from_ccxt_object(exit_order, exit_order["symbol"], exit_side(is_short))
     trade.update_trade(oobj)
 
     assert trade.close_rate == 2.0 if is_short else 2.2
     assert trade.close_profit == close_profit
     assert trade.calc_profit(trade.close_rate) == 5.685
     assert trade.close_date is not None
-    assert trade.exit_reason == 'sell_signal1'
+    assert trade.exit_reason == "sell_signal1"
 
 
 @pytest.mark.parametrize("is_short", [False, True])
@@ -2164,12 +2259,14 @@ def test_handle_overlapping_signals(
     patch_RPCManager(mocker)
     patch_exchange(mocker)
     mocker.patch.multiple(
-        'coingro.exchange.Exchange',
+        "coingro.exchange.Exchange",
         fetch_ticker=ticker_usdt,
-        create_order=MagicMock(side_effect=[
-            open_order,
-            {'id': 1234553382},
-        ]),
+        create_order=MagicMock(
+            side_effect=[
+                open_order,
+                {"id": 1234553382},
+            ]
+        ),
         get_fee=fee,
     )
 
@@ -2233,8 +2330,9 @@ def test_handle_overlapping_signals(
 
 
 @pytest.mark.parametrize("is_short", [False, True])
-def test_handle_trade_roi(default_conf_usdt, ticker_usdt, limit_order_open, fee, mocker, caplog,
-                          is_short) -> None:
+def test_handle_trade_roi(
+    default_conf_usdt, ticker_usdt, limit_order_open, fee, mocker, caplog, is_short
+) -> None:
 
     open_order = limit_order_open[entry_side(is_short)]
 
@@ -2242,12 +2340,14 @@ def test_handle_trade_roi(default_conf_usdt, ticker_usdt, limit_order_open, fee,
 
     patch_RPCManager(mocker)
     mocker.patch.multiple(
-        'coingro.exchange.Exchange',
+        "coingro.exchange.Exchange",
         fetch_ticker=ticker_usdt,
-        create_order=MagicMock(side_effect=[
-            open_order,
-            {'id': 1234553382},
-        ]),
+        create_order=MagicMock(
+            side_effect=[
+                open_order,
+                {"id": 1234553382},
+            ]
+        ),
         get_fee=fee,
     )
 
@@ -2269,8 +2369,7 @@ def test_handle_trade_roi(default_conf_usdt, ticker_usdt, limit_order_open, fee,
     caplog.clear()
     patch_get_signal(coingro)
     assert coingro.handle_trade(trade)
-    assert log_has("ETH/USDT - Required profit reached. exit_type=ExitType.ROI",
-                   caplog)
+    assert log_has("ETH/USDT - Required profit reached. exit_type=ExitType.ROI", caplog)
 
 
 @pytest.mark.parametrize("is_short", [False, True])
@@ -2285,12 +2384,14 @@ def test_handle_trade_use_exit_signal(
     caplog.set_level(logging.DEBUG)
     patch_RPCManager(mocker)
     mocker.patch.multiple(
-        'coingro.exchange.Exchange',
+        "coingro.exchange.Exchange",
         fetch_ticker=ticker_usdt,
-        create_order=MagicMock(side_effect=[
-            enter_open_order,
-            exit_open_order,
-        ]),
+        create_order=MagicMock(
+            side_effect=[
+                enter_open_order,
+                exit_open_order,
+            ]
+        ),
         get_fee=fee,
     )
 
@@ -2311,8 +2412,7 @@ def test_handle_trade_use_exit_signal(
     else:
         patch_get_signal(coingro, enter_long=False, exit_long=True)
     assert coingro.handle_trade(trade)
-    assert log_has("ETH/USDT - Sell signal received. exit_type=ExitType.EXIT_SIGNAL",
-                   caplog)
+    assert log_has("ETH/USDT - Sell signal received. exit_type=ExitType.EXIT_SIGNAL", caplog)
 
 
 @pytest.mark.parametrize("is_short", [False, True])
@@ -2325,7 +2425,7 @@ def test_close_trade(
     patch_RPCManager(mocker)
     patch_exchange(mocker)
     mocker.patch.multiple(
-        'coingro.exchange.Exchange',
+        "coingro.exchange.Exchange",
         fetch_ticker=ticker_usdt,
         create_order=MagicMock(return_value=open_order),
         get_fee=fee,
@@ -2340,59 +2440,65 @@ def test_close_trade(
     trade.is_short = is_short
     assert trade
 
-    oobj = Order.parse_from_ccxt_object(enter_order, enter_order['symbol'], 'buy')
+    oobj = Order.parse_from_ccxt_object(enter_order, enter_order["symbol"], "buy")
     trade.update_trade(oobj)
-    oobj = Order.parse_from_ccxt_object(exit_order, exit_order['symbol'], 'sell')
+    oobj = Order.parse_from_ccxt_object(exit_order, exit_order["symbol"], "sell")
     trade.update_trade(oobj)
     assert trade.is_open is False
 
-    with pytest.raises(DependencyException, match=r'.*closed trade.*'):
+    with pytest.raises(DependencyException, match=r".*closed trade.*"):
         coingro.handle_trade(trade)
 
 
 def test_bot_loop_start_called_once(mocker, default_conf_usdt, caplog):
     cgbot = get_patched_coingrobot(mocker, default_conf_usdt)
-    mocker.patch('coingro.coingrobot.CoingroBot.create_trade')
+    mocker.patch("coingro.coingrobot.CoingroBot.create_trade")
     patch_get_signal(cgbot)
     cgbot.strategy.bot_loop_start = MagicMock(side_effect=ValueError)
     cgbot.strategy.analyze = MagicMock()
 
     cgbot.process()
-    assert log_has_re(r'Strategy caused the following exception.*', caplog)
+    assert log_has_re(r"Strategy caused the following exception.*", caplog)
     assert cgbot.strategy.bot_loop_start.call_count == 1
     assert cgbot.strategy.analyze.call_count == 1
 
 
 @pytest.mark.parametrize("is_short", [False, True])
 def test_manage_open_orders_entry_usercustom(
-    default_conf_usdt, ticker_usdt, limit_buy_order_old, open_trade,
-    limit_sell_order_old, fee, mocker, is_short
+    default_conf_usdt,
+    ticker_usdt,
+    limit_buy_order_old,
+    open_trade,
+    limit_sell_order_old,
+    fee,
+    mocker,
+    is_short,
 ) -> None:
 
     old_order = limit_sell_order_old if is_short else limit_buy_order_old
-    old_order['id'] = open_trade.open_order_id
+    old_order["id"] = open_trade.open_order_id
 
     default_conf_usdt["unfilledtimeout"] = {"entry": 1400, "exit": 30}
 
     rpc_mock = patch_RPCManager(mocker)
     cancel_order_mock = MagicMock(return_value=old_order)
     cancel_enter_order = deepcopy(old_order)
-    cancel_enter_order['status'] = 'canceled'
+    cancel_enter_order["status"] = "canceled"
     cancel_order_wr_mock = MagicMock(return_value=cancel_enter_order)
 
     patch_exchange(mocker)
     mocker.patch.multiple(
-        'coingro.exchange.Exchange',
+        "coingro.exchange.Exchange",
         fetch_ticker=ticker_usdt,
         fetch_order=MagicMock(return_value=old_order),
         cancel_order_with_result=cancel_order_wr_mock,
         cancel_order=cancel_order_mock,
-        get_fee=fee
+        get_fee=fee,
     )
     coingro = CoingroBot(default_conf_usdt)
     open_trade.is_short = is_short
-    open_trade.orders[0].side = 'sell' if is_short else 'buy'
-    open_trade.orders[0].cg_order_side = 'sell' if is_short else 'buy'
+    open_trade.orders[0].side = "sell" if is_short else "buy"
+    open_trade.orders[0].cg_order_side = "sell" if is_short else "buy"
     Trade.query.session.add(open_trade)
 
     # Ensure default is to return empty (so not mocked yet)
@@ -2429,22 +2535,28 @@ def test_manage_open_orders_entry_usercustom(
 
 @pytest.mark.parametrize("is_short", [False, True])
 def test_manage_open_orders_entry(
-    default_conf_usdt, ticker_usdt, limit_buy_order_old, open_trade,
-    limit_sell_order_old, fee, mocker, is_short
+    default_conf_usdt,
+    ticker_usdt,
+    limit_buy_order_old,
+    open_trade,
+    limit_sell_order_old,
+    fee,
+    mocker,
+    is_short,
 ) -> None:
     old_order = limit_sell_order_old if is_short else limit_buy_order_old
     rpc_mock = patch_RPCManager(mocker)
-    old_order['id'] = open_trade.open_order_id
+    old_order["id"] = open_trade.open_order_id
     limit_buy_cancel = deepcopy(old_order)
-    limit_buy_cancel['status'] = 'canceled'
+    limit_buy_cancel["status"] = "canceled"
     cancel_order_mock = MagicMock(return_value=limit_buy_cancel)
     patch_exchange(mocker)
     mocker.patch.multiple(
-        'coingro.exchange.Exchange',
+        "coingro.exchange.Exchange",
         fetch_ticker=ticker_usdt,
         fetch_order=MagicMock(return_value=old_order),
         cancel_order_with_result=cancel_order_mock,
-        get_fee=fee
+        get_fee=fee,
     )
     coingro = CoingroBot(default_conf_usdt)
 
@@ -2468,21 +2580,28 @@ def test_manage_open_orders_entry(
 
 @pytest.mark.parametrize("is_short", [False, True])
 def test_adjust_entry_cancel(
-    default_conf_usdt, ticker_usdt, limit_buy_order_old, open_trade,
-    limit_sell_order_old, fee, mocker, caplog, is_short
+    default_conf_usdt,
+    ticker_usdt,
+    limit_buy_order_old,
+    open_trade,
+    limit_sell_order_old,
+    fee,
+    mocker,
+    caplog,
+    is_short,
 ) -> None:
     coingro = get_patched_coingrobot(mocker, default_conf_usdt)
     old_order = limit_sell_order_old if is_short else limit_buy_order_old
-    old_order['id'] = open_trade.open_order_id
+    old_order["id"] = open_trade.open_order_id
     limit_buy_cancel = deepcopy(old_order)
-    limit_buy_cancel['status'] = 'canceled'
+    limit_buy_cancel["status"] = "canceled"
     cancel_order_mock = MagicMock(return_value=limit_buy_cancel)
     mocker.patch.multiple(
-        'coingro.exchange.Exchange',
+        "coingro.exchange.Exchange",
         fetch_ticker=ticker_usdt,
         fetch_order=MagicMock(return_value=old_order),
         cancel_order_with_result=cancel_order_mock,
-        get_fee=fee
+        get_fee=fee,
     )
 
     open_trade.is_short = is_short
@@ -2497,10 +2616,8 @@ def test_adjust_entry_cancel(
     trades = Trade.query.filter(Trade.open_order_id.is_(open_trade.open_order_id)).all()
     assert len(trades) == 0
     assert len(Order.query.all()) == 0
-    assert log_has_re(
-        f"{'Sell' if is_short else 'Buy'} order user requested order cancel*", caplog)
-    assert log_has_re(
-        f"{'Sell' if is_short else 'Buy'} order fully cancelled.*", caplog)
+    assert log_has_re(f"{'Sell' if is_short else 'Buy'} order user requested order cancel*", caplog)
+    assert log_has_re(f"{'Sell' if is_short else 'Buy'} order fully cancelled.*", caplog)
 
     # Entry adjustment is called
     assert coingro.strategy.adjust_entry_price.call_count == 1
@@ -2508,21 +2625,28 @@ def test_adjust_entry_cancel(
 
 @pytest.mark.parametrize("is_short", [False, True])
 def test_adjust_entry_maintain_replace(
-    default_conf_usdt, ticker_usdt, limit_buy_order_old, open_trade,
-    limit_sell_order_old, fee, mocker, caplog, is_short
+    default_conf_usdt,
+    ticker_usdt,
+    limit_buy_order_old,
+    open_trade,
+    limit_sell_order_old,
+    fee,
+    mocker,
+    caplog,
+    is_short,
 ) -> None:
     coingro = get_patched_coingrobot(mocker, default_conf_usdt)
     old_order = limit_sell_order_old if is_short else limit_buy_order_old
-    old_order['id'] = open_trade.open_order_id
+    old_order["id"] = open_trade.open_order_id
     limit_buy_cancel = deepcopy(old_order)
-    limit_buy_cancel['status'] = 'canceled'
+    limit_buy_cancel["status"] = "canceled"
     cancel_order_mock = MagicMock(return_value=limit_buy_cancel)
     mocker.patch.multiple(
-        'coingro.exchange.Exchange',
+        "coingro.exchange.Exchange",
         fetch_ticker=ticker_usdt,
         fetch_order=MagicMock(return_value=old_order),
         cancel_order_with_result=cancel_order_mock,
-        get_fee=fee
+        get_fee=fee,
     )
 
     open_trade.is_short = is_short
@@ -2532,7 +2656,7 @@ def test_adjust_entry_maintain_replace(
     coingro.strategy.cg_check_timed_out = MagicMock(return_value=False)
 
     # Check that order is maintained
-    coingro.strategy.adjust_entry_price = MagicMock(return_value=old_order['price'])
+    coingro.strategy.adjust_entry_price = MagicMock(return_value=old_order["price"])
     coingro.manage_open_orders()
     trades = Trade.query.filter(Trade.open_order_id.is_(open_trade.open_order_id)).all()
     assert len(trades) == 1
@@ -2551,29 +2675,35 @@ def test_adjust_entry_maintain_replace(
     # New order seems to be in closed status?
     # nb_open_orders = len(Order.get_open_orders())
     # assert nb_open_orders == 1
-    assert log_has_re(
-        f"{'Sell' if is_short else 'Buy'} order cancelled to be replaced*", caplog)
+    assert log_has_re(f"{'Sell' if is_short else 'Buy'} order cancelled to be replaced*", caplog)
     # Entry adjustment is called
     assert coingro.strategy.adjust_entry_price.call_count == 1
 
 
 @pytest.mark.parametrize("is_short", [False, True])
 def test_check_handle_cancelled_buy(
-    default_conf_usdt, ticker_usdt, limit_buy_order_old, open_trade,
-    limit_sell_order_old, fee, mocker, caplog, is_short
+    default_conf_usdt,
+    ticker_usdt,
+    limit_buy_order_old,
+    open_trade,
+    limit_sell_order_old,
+    fee,
+    mocker,
+    caplog,
+    is_short,
 ) -> None:
-    """ Handle Buy order cancelled on exchange"""
+    """Handle Buy order cancelled on exchange"""
     old_order = limit_sell_order_old if is_short else limit_buy_order_old
     rpc_mock = patch_RPCManager(mocker)
     cancel_order_mock = MagicMock()
     patch_exchange(mocker)
-    old_order.update({"status": "canceled", 'filled': 0.0})
+    old_order.update({"status": "canceled", "filled": 0.0})
     mocker.patch.multiple(
-        'coingro.exchange.Exchange',
+        "coingro.exchange.Exchange",
         fetch_ticker=ticker_usdt,
         fetch_order=MagicMock(return_value=old_order),
         cancel_order=cancel_order_mock,
-        get_fee=fee
+        get_fee=fee,
     )
     coingro = CoingroBot(default_conf_usdt)
     open_trade.orders = []
@@ -2587,7 +2717,8 @@ def test_check_handle_cancelled_buy(
     trades = Trade.query.filter(Trade.open_order_id.is_(open_trade.open_order_id)).all()
     assert len(trades) == 0
     assert log_has_re(
-        f"{'Sell' if is_short else 'Buy'} order cancelled on exchange for Trade.*", caplog)
+        f"{'Sell' if is_short else 'Buy'} order cancelled on exchange for Trade.*", caplog
+    )
 
 
 @pytest.mark.parametrize("is_short", [False, True])
@@ -2598,12 +2729,12 @@ def test_manage_open_orders_buy_exception(
     cancel_order_mock = MagicMock()
     patch_exchange(mocker)
     mocker.patch.multiple(
-        'coingro.exchange.Exchange',
+        "coingro.exchange.Exchange",
         validate_pairs=MagicMock(),
         fetch_ticker=ticker_usdt,
         fetch_order=MagicMock(side_effect=ExchangeError),
         cancel_order=cancel_order_mock,
-        get_fee=fee
+        get_fee=fee,
     )
     coingro = CoingroBot(default_conf_usdt)
 
@@ -2621,24 +2752,23 @@ def test_manage_open_orders_buy_exception(
 
 @pytest.mark.parametrize("is_short", [False, True])
 def test_manage_open_orders_exit_usercustom(
-    default_conf_usdt, ticker_usdt, limit_sell_order_old, mocker,
-    is_short, open_trade_usdt, caplog
+    default_conf_usdt, ticker_usdt, limit_sell_order_old, mocker, is_short, open_trade_usdt, caplog
 ) -> None:
     default_conf_usdt["unfilledtimeout"] = {"entry": 1440, "exit": 1440, "exit_timeout_count": 1}
-    limit_sell_order_old['id'] = open_trade_usdt.open_order_id
+    limit_sell_order_old["id"] = open_trade_usdt.open_order_id
     if is_short:
-        limit_sell_order_old['side'] = 'buy'
+        limit_sell_order_old["side"] = "buy"
         open_trade_usdt.is_short = is_short
 
     rpc_mock = patch_RPCManager(mocker)
     cancel_order_mock = MagicMock()
     patch_exchange(mocker)
-    et_mock = mocker.patch('coingro.coingrobot.CoingroBot.execute_trade_exit')
+    et_mock = mocker.patch("coingro.coingrobot.CoingroBot.execute_trade_exit")
     mocker.patch.multiple(
-        'coingro.exchange.Exchange',
+        "coingro.exchange.Exchange",
         fetch_ticker=ticker_usdt,
         fetch_order=MagicMock(return_value=limit_sell_order_old),
-        cancel_order=cancel_order_mock
+        cancel_order=cancel_order_mock,
     )
     coingro = CoingroBot(default_conf_usdt)
 
@@ -2684,25 +2814,26 @@ def test_manage_open_orders_exit_usercustom(
 
     # 2nd canceled trade - Fail execute sell
     caplog.clear()
-    open_trade_usdt.open_order_id = limit_sell_order_old['id']
-    mocker.patch('coingro.persistence.Trade.get_exit_order_count', return_value=1)
-    mocker.patch('coingro.coingrobot.CoingroBot.execute_trade_exit',
-                 side_effect=DependencyException)
+    open_trade_usdt.open_order_id = limit_sell_order_old["id"]
+    mocker.patch("coingro.persistence.Trade.get_exit_order_count", return_value=1)
+    mocker.patch(
+        "coingro.coingrobot.CoingroBot.execute_trade_exit", side_effect=DependencyException
+    )
     coingro.manage_open_orders()
-    assert log_has_re('Unable to emergency sell .*', caplog)
+    assert log_has_re("Unable to emergency sell .*", caplog)
 
-    et_mock = mocker.patch('coingro.coingrobot.CoingroBot.execute_trade_exit')
+    et_mock = mocker.patch("coingro.coingrobot.CoingroBot.execute_trade_exit")
     caplog.clear()
     # 2nd canceled trade ...
-    open_trade_usdt.open_order_id = limit_sell_order_old['id']
+    open_trade_usdt.open_order_id = limit_sell_order_old["id"]
 
     # If cancelling fails - no emergency sell!
-    with patch('coingro.coingrobot.CoingroBot.handle_cancel_exit', return_value=False):
+    with patch("coingro.coingrobot.CoingroBot.handle_cancel_exit", return_value=False):
         coingro.manage_open_orders()
         assert et_mock.call_count == 0
 
     coingro.manage_open_orders()
-    assert log_has_re('Emergency exiting trade.*', caplog)
+    assert log_has_re("Emergency exiting trade.*", caplog)
     assert et_mock.call_count == 1
 
 
@@ -2712,14 +2843,14 @@ def test_manage_open_orders_exit(
 ) -> None:
     rpc_mock = patch_RPCManager(mocker)
     cancel_order_mock = MagicMock()
-    limit_sell_order_old['id'] = open_trade_usdt.open_order_id
-    limit_sell_order_old['side'] = 'buy' if is_short else 'sell'
+    limit_sell_order_old["id"] = open_trade_usdt.open_order_id
+    limit_sell_order_old["side"] = "buy" if is_short else "sell"
     patch_exchange(mocker)
     mocker.patch.multiple(
-        'coingro.exchange.Exchange',
+        "coingro.exchange.Exchange",
         fetch_ticker=ticker_usdt,
         fetch_order=MagicMock(return_value=limit_sell_order_old),
-        cancel_order=cancel_order_mock
+        cancel_order=cancel_order_mock,
     )
     coingro = CoingroBot(default_conf_usdt)
 
@@ -2745,20 +2876,19 @@ def test_manage_open_orders_exit(
 
 @pytest.mark.parametrize("is_short", [False, True])
 def test_check_handle_cancelled_exit(
-    default_conf_usdt, ticker_usdt, limit_sell_order_old, open_trade_usdt,
-    is_short, mocker, caplog
+    default_conf_usdt, ticker_usdt, limit_sell_order_old, open_trade_usdt, is_short, mocker, caplog
 ) -> None:
-    """ Handle sell order cancelled on exchange"""
+    """Handle sell order cancelled on exchange"""
     rpc_mock = patch_RPCManager(mocker)
     cancel_order_mock = MagicMock()
-    limit_sell_order_old.update({"status": "canceled", 'filled': 0.0})
-    limit_sell_order_old['side'] = 'buy' if is_short else 'sell'
+    limit_sell_order_old.update({"status": "canceled", "filled": 0.0})
+    limit_sell_order_old["side"] = "buy" if is_short else "sell"
     patch_exchange(mocker)
     mocker.patch.multiple(
-        'coingro.exchange.Exchange',
+        "coingro.exchange.Exchange",
         fetch_ticker=ticker_usdt,
         fetch_order=MagicMock(return_value=limit_sell_order_old),
-        cancel_order_with_result=cancel_order_mock
+        cancel_order_with_result=cancel_order_mock,
     )
     coingro = CoingroBot(default_conf_usdt)
 
@@ -2774,31 +2904,36 @@ def test_check_handle_cancelled_exit(
     assert cancel_order_mock.call_count == 0
     assert rpc_mock.call_count == 1
     assert open_trade_usdt.is_open is True
-    exit_name = 'Buy' if is_short else 'Sell'
+    exit_name = "Buy" if is_short else "Sell"
     assert log_has_re(f"{exit_name} order cancelled on exchange for Trade.*", caplog)
 
 
 @pytest.mark.parametrize("is_short", [False, True])
 @pytest.mark.parametrize("leverage", [1, 3, 5, 10])
 def test_manage_open_orders_partial(
-    default_conf_usdt, ticker_usdt, limit_buy_order_old_partial, is_short, leverage,
-    open_trade, mocker
+    default_conf_usdt,
+    ticker_usdt,
+    limit_buy_order_old_partial,
+    is_short,
+    leverage,
+    open_trade,
+    mocker,
 ) -> None:
     rpc_mock = patch_RPCManager(mocker)
     open_trade.is_short = is_short
     open_trade.leverage = leverage
-    limit_buy_order_old_partial['id'] = open_trade.open_order_id
-    limit_buy_order_old_partial['side'] = 'sell' if is_short else 'buy'
+    limit_buy_order_old_partial["id"] = open_trade.open_order_id
+    limit_buy_order_old_partial["side"] = "sell" if is_short else "buy"
     limit_buy_canceled = deepcopy(limit_buy_order_old_partial)
-    limit_buy_canceled['status'] = 'canceled'
+    limit_buy_canceled["status"] = "canceled"
 
     cancel_order_mock = MagicMock(return_value=limit_buy_canceled)
     patch_exchange(mocker)
     mocker.patch.multiple(
-        'coingro.exchange.Exchange',
+        "coingro.exchange.Exchange",
         fetch_ticker=ticker_usdt,
         fetch_order=MagicMock(return_value=limit_buy_order_old_partial),
-        cancel_order_with_result=cancel_order_mock
+        cancel_order_with_result=cancel_order_mock,
     )
     coingro = CoingroBot(default_conf_usdt)
     prior_stake = open_trade.stake_amount
@@ -2818,23 +2953,30 @@ def test_manage_open_orders_partial(
 
 @pytest.mark.parametrize("is_short", [False, True])
 def test_manage_open_orders_partial_fee(
-    default_conf_usdt, ticker_usdt, open_trade, caplog, fee, is_short,
-    limit_buy_order_old_partial, trades_for_order,
-    limit_buy_order_old_partial_canceled, mocker
+    default_conf_usdt,
+    ticker_usdt,
+    open_trade,
+    caplog,
+    fee,
+    is_short,
+    limit_buy_order_old_partial,
+    trades_for_order,
+    limit_buy_order_old_partial_canceled,
+    mocker,
 ) -> None:
     open_trade.is_short = is_short
-    open_trade.orders[0].cg_order_side = 'sell' if is_short else 'buy'
+    open_trade.orders[0].cg_order_side = "sell" if is_short else "buy"
     rpc_mock = patch_RPCManager(mocker)
-    limit_buy_order_old_partial['id'] = open_trade.open_order_id
-    limit_buy_order_old_partial_canceled['id'] = open_trade.open_order_id
-    limit_buy_order_old_partial['side'] = 'sell' if is_short else 'buy'
-    limit_buy_order_old_partial_canceled['side'] = 'sell' if is_short else 'buy'
+    limit_buy_order_old_partial["id"] = open_trade.open_order_id
+    limit_buy_order_old_partial_canceled["id"] = open_trade.open_order_id
+    limit_buy_order_old_partial["side"] = "sell" if is_short else "buy"
+    limit_buy_order_old_partial_canceled["side"] = "sell" if is_short else "buy"
 
     cancel_order_mock = MagicMock(return_value=limit_buy_order_old_partial_canceled)
-    mocker.patch('coingro.wallets.Wallets.get_free', MagicMock(return_value=0))
+    mocker.patch("coingro.wallets.Wallets.get_free", MagicMock(return_value=0))
     patch_exchange(mocker)
     mocker.patch.multiple(
-        'coingro.exchange.Exchange',
+        "coingro.exchange.Exchange",
         fetch_ticker=ticker_usdt,
         fetch_order=MagicMock(return_value=limit_buy_order_old_partial),
         cancel_order_with_result=cancel_order_mock,
@@ -2842,7 +2984,7 @@ def test_manage_open_orders_partial_fee(
     )
     coingro = CoingroBot(default_conf_usdt)
 
-    assert open_trade.amount == limit_buy_order_old_partial['amount']
+    assert open_trade.amount == limit_buy_order_old_partial["amount"]
 
     open_trade.fee_open = fee()
     open_trade.fee_close = fee()
@@ -2858,8 +3000,11 @@ def test_manage_open_orders_partial_fee(
     trades = Trade.query.filter(Trade.open_order_id.is_(open_trade.open_order_id)).all()
     assert len(trades) == 1
     # Verify that trade has been updated
-    assert trades[0].amount == (limit_buy_order_old_partial['amount'] -
-                                limit_buy_order_old_partial['remaining']) - 0.023
+    assert (
+        trades[0].amount
+        == (limit_buy_order_old_partial["amount"] - limit_buy_order_old_partial["remaining"])
+        - 0.023
+    )
     assert trades[0].open_order_id is None
     assert trades[0].fee_updated(open_trade.entry_side)
     assert pytest.approx(trades[0].fee_open) == 0.001
@@ -2867,30 +3012,38 @@ def test_manage_open_orders_partial_fee(
 
 @pytest.mark.parametrize("is_short", [False, True])
 def test_manage_open_orders_partial_except(
-    default_conf_usdt, ticker_usdt, open_trade, caplog, fee, is_short,
-    limit_buy_order_old_partial, trades_for_order,
-    limit_buy_order_old_partial_canceled, mocker
+    default_conf_usdt,
+    ticker_usdt,
+    open_trade,
+    caplog,
+    fee,
+    is_short,
+    limit_buy_order_old_partial,
+    trades_for_order,
+    limit_buy_order_old_partial_canceled,
+    mocker,
 ) -> None:
     open_trade.is_short = is_short
     rpc_mock = patch_RPCManager(mocker)
-    limit_buy_order_old_partial_canceled['id'] = open_trade.open_order_id
-    limit_buy_order_old_partial['id'] = open_trade.open_order_id
+    limit_buy_order_old_partial_canceled["id"] = open_trade.open_order_id
+    limit_buy_order_old_partial["id"] = open_trade.open_order_id
     if is_short:
-        limit_buy_order_old_partial['side'] = 'sell'
+        limit_buy_order_old_partial["side"] = "sell"
     cancel_order_mock = MagicMock(return_value=limit_buy_order_old_partial_canceled)
     patch_exchange(mocker)
     mocker.patch.multiple(
-        'coingro.exchange.Exchange',
+        "coingro.exchange.Exchange",
         fetch_ticker=ticker_usdt,
         fetch_order=MagicMock(return_value=limit_buy_order_old_partial),
         cancel_order_with_result=cancel_order_mock,
         get_trades_for_order=MagicMock(return_value=trades_for_order),
     )
-    mocker.patch('coingro.coingrobot.CoingroBot.get_real_amount',
-                 MagicMock(side_effect=DependencyException))
+    mocker.patch(
+        "coingro.coingrobot.CoingroBot.get_real_amount", MagicMock(side_effect=DependencyException)
+    )
     coingro = CoingroBot(default_conf_usdt)
 
-    assert open_trade.amount == limit_buy_order_old_partial['amount']
+    assert open_trade.amount == limit_buy_order_old_partial["amount"]
 
     open_trade.fee_open = fee()
     open_trade.fee_close = fee()
@@ -2907,28 +3060,30 @@ def test_manage_open_orders_partial_except(
     assert len(trades) == 1
     # Verify that trade has been updated
 
-    assert trades[0].amount == (limit_buy_order_old_partial['amount'] -
-                                limit_buy_order_old_partial['remaining'])
+    assert trades[0].amount == (
+        limit_buy_order_old_partial["amount"] - limit_buy_order_old_partial["remaining"]
+    )
     assert trades[0].open_order_id is None
     assert trades[0].fee_open == fee()
 
 
-def test_manage_open_orders_exception(default_conf_usdt, ticker_usdt, open_trade_usdt, mocker,
-                                      caplog) -> None:
+def test_manage_open_orders_exception(
+    default_conf_usdt, ticker_usdt, open_trade_usdt, mocker, caplog
+) -> None:
     patch_RPCManager(mocker)
     patch_exchange(mocker)
     cancel_order_mock = MagicMock()
 
     mocker.patch.multiple(
-        'coingro.coingrobot.CoingroBot',
+        "coingro.coingrobot.CoingroBot",
         handle_cancel_enter=MagicMock(),
         handle_cancel_exit=MagicMock(),
     )
     mocker.patch.multiple(
-        'coingro.exchange.Exchange',
+        "coingro.exchange.Exchange",
         fetch_ticker=ticker_usdt,
-        fetch_order=MagicMock(side_effect=ExchangeError('Oh snap')),
-        cancel_order=cancel_order_mock
+        fetch_order=MagicMock(side_effect=ExchangeError("Oh snap")),
+        cancel_order=cancel_order_mock,
     )
     coingro = CoingroBot(default_conf_usdt)
 
@@ -2936,12 +3091,14 @@ def test_manage_open_orders_exception(default_conf_usdt, ticker_usdt, open_trade
 
     caplog.clear()
     coingro.manage_open_orders()
-    assert log_has_re(r"Cannot query order for Trade\(id=1, pair=ADA/USDT, amount=30.00000000, "
-                      r"is_short=False, leverage=1.0, "
-                      r"open_rate=2.00000000, open_since="
-                      f"{open_trade_usdt.open_date.strftime('%Y-%m-%d %H:%M:%S')}"
-                      r"\) due to Traceback \(most recent call last\):\n*",
-                      caplog)
+    assert log_has_re(
+        r"Cannot query order for Trade\(id=1, pair=ADA/USDT, amount=30.00000000, "
+        r"is_short=False, leverage=1.0, "
+        r"open_rate=2.00000000, open_since="
+        f"{open_trade_usdt.open_date.strftime('%Y-%m-%d %H:%M:%S')}"
+        r"\) due to Traceback \(most recent call last\):\n*",
+        caplog,
+    )
 
 
 @pytest.mark.parametrize("is_short", [False, True])
@@ -2950,117 +3107,114 @@ def test_handle_cancel_enter(mocker, caplog, default_conf_usdt, limit_order, is_
     patch_exchange(mocker)
     l_order = limit_order[entry_side(is_short)]
     cancel_buy_order = deepcopy(limit_order[entry_side(is_short)])
-    cancel_buy_order['status'] = 'canceled'
-    del cancel_buy_order['filled']
+    cancel_buy_order["status"] = "canceled"
+    del cancel_buy_order["filled"]
 
     cancel_order_mock = MagicMock(return_value=cancel_buy_order)
-    mocker.patch('coingro.exchange.Exchange.cancel_order_with_result', cancel_order_mock)
+    mocker.patch("coingro.exchange.Exchange.cancel_order_with_result", cancel_order_mock)
 
     coingro = CoingroBot(default_conf_usdt)
     coingro._notify_enter_cancel = MagicMock()
 
     # TODO: Convert to real trade
     trade = MagicMock()
-    trade.pair = 'LTC/USDT'
+    trade.pair = "LTC/USDT"
     trade.open_rate = 200
     trade.is_short = False
     trade.entry_side = "buy"
-    l_order['filled'] = 0.0
-    l_order['status'] = 'open'
+    l_order["filled"] = 0.0
+    l_order["status"] = "open"
     trade.nr_of_successful_entries = 0
-    reason = CANCEL_REASON['TIMEOUT']
+    reason = CANCEL_REASON["TIMEOUT"]
     assert coingro.handle_cancel_enter(trade, l_order, reason)
     assert cancel_order_mock.call_count == 1
 
     cancel_order_mock.reset_mock()
     caplog.clear()
-    l_order['filled'] = 0.01
+    l_order["filled"] = 0.01
     assert not coingro.handle_cancel_enter(trade, l_order, reason)
     assert cancel_order_mock.call_count == 0
     assert log_has_re("Order .* for .* not cancelled, as the filled amount.* unexitable.*", caplog)
 
     caplog.clear()
     cancel_order_mock.reset_mock()
-    l_order['filled'] = 2
+    l_order["filled"] = 2
     assert not coingro.handle_cancel_enter(trade, l_order, reason)
     assert cancel_order_mock.call_count == 1
 
     # Order remained open for some reason (cancel failed)
-    cancel_buy_order['status'] = 'open'
+    cancel_buy_order["status"] = "open"
     cancel_order_mock = MagicMock(return_value=cancel_buy_order)
-    mocker.patch('coingro.exchange.Exchange.cancel_order_with_result', cancel_order_mock)
+    mocker.patch("coingro.exchange.Exchange.cancel_order_with_result", cancel_order_mock)
     assert not coingro.handle_cancel_enter(trade, l_order, reason)
     assert log_has_re(r"Order .* for .* not cancelled.", caplog)
     # min_pair_stake empty should not crash
-    mocker.patch('coingro.exchange.Exchange.get_min_pair_stake_amount', return_value=None)
+    mocker.patch("coingro.exchange.Exchange.get_min_pair_stake_amount", return_value=None)
     assert not coingro.handle_cancel_enter(trade, limit_order[entry_side(is_short)], reason)
 
 
 @pytest.mark.parametrize("is_short", [False, True])
-@pytest.mark.parametrize("limit_buy_order_canceled_empty", ['binance', 'ftx', 'kraken', 'bittrex'],
-                         indirect=['limit_buy_order_canceled_empty'])
-def test_handle_cancel_enter_exchanges(mocker, caplog, default_conf_usdt, is_short,
-                                       limit_buy_order_canceled_empty) -> None:
+@pytest.mark.parametrize(
+    "limit_buy_order_canceled_empty",
+    ["binance", "ftx", "kraken", "bittrex"],
+    indirect=["limit_buy_order_canceled_empty"],
+)
+def test_handle_cancel_enter_exchanges(
+    mocker, caplog, default_conf_usdt, is_short, limit_buy_order_canceled_empty
+) -> None:
     patch_RPCManager(mocker)
     patch_exchange(mocker)
     cancel_order_mock = mocker.patch(
-        'coingro.exchange.Exchange.cancel_order_with_result',
-        return_value=limit_buy_order_canceled_empty)
-    nofiy_mock = mocker.patch('coingro.coingrobot.CoingroBot._notify_enter_cancel')
+        "coingro.exchange.Exchange.cancel_order_with_result",
+        return_value=limit_buy_order_canceled_empty,
+    )
+    nofiy_mock = mocker.patch("coingro.coingrobot.CoingroBot._notify_enter_cancel")
     coingro = CoingroBot(default_conf_usdt)
 
-    reason = CANCEL_REASON['TIMEOUT']
+    reason = CANCEL_REASON["TIMEOUT"]
     # TODO: Convert to real trade
     trade = MagicMock()
     trade.nr_of_successful_entries = 0
-    trade.pair = 'LTC/ETH'
+    trade.pair = "LTC/ETH"
     trade.entry_side = "sell" if is_short else "buy"
     assert coingro.handle_cancel_enter(trade, limit_buy_order_canceled_empty, reason)
     assert cancel_order_mock.call_count == 0
     assert log_has_re(
-        f'{trade.entry_side.capitalize()} order fully cancelled. '
-        r'Removing .* from database\.',
-        caplog
+        f"{trade.entry_side.capitalize()} order fully cancelled. " r"Removing .* from database\.",
+        caplog,
     )
     assert nofiy_mock.call_count == 1
 
 
 @pytest.mark.parametrize("is_short", [False, True])
-@pytest.mark.parametrize('cancelorder', [
-    {},
-    {'remaining': None},
-    'String Return value',
-    123
-])
-def test_handle_cancel_enter_corder_empty(mocker, default_conf_usdt, limit_order, is_short,
-                                          cancelorder) -> None:
+@pytest.mark.parametrize("cancelorder", [{}, {"remaining": None}, "String Return value", 123])
+def test_handle_cancel_enter_corder_empty(
+    mocker, default_conf_usdt, limit_order, is_short, cancelorder
+) -> None:
     patch_RPCManager(mocker)
     patch_exchange(mocker)
     l_order = limit_order[entry_side(is_short)]
     cancel_order_mock = MagicMock(return_value=cancelorder)
-    mocker.patch.multiple(
-        'coingro.exchange.Exchange',
-        cancel_order=cancel_order_mock
-    )
+    mocker.patch.multiple("coingro.exchange.Exchange", cancel_order=cancel_order_mock)
 
     coingro = CoingroBot(default_conf_usdt)
     coingro._notify_enter_cancel = MagicMock()
     # TODO: Convert to real trade
     trade = MagicMock()
-    trade.pair = 'LTC/USDT'
+    trade.pair = "LTC/USDT"
     trade.entry_side = "buy"
     trade.open_rate = 200
     trade.entry_side = "buy"
     trade.open_order_id = "open_order_noop"
     trade.nr_of_successful_entries = 0
-    l_order['filled'] = 0.0
-    l_order['status'] = 'open'
-    reason = CANCEL_REASON['TIMEOUT']
+    l_order["filled"] = 0.0
+    l_order["status"] = "open"
+    reason = CANCEL_REASON["TIMEOUT"]
     assert coingro.handle_cancel_enter(trade, l_order, reason)
     assert cancel_order_mock.call_count == 1
 
     cancel_order_mock.reset_mock()
-    l_order['filled'] = 1.0
+    l_order["filled"] = 1.0
     assert not coingro.handle_cancel_enter(trade, l_order, reason)
     assert cancel_order_mock.call_count == 1
 
@@ -3070,17 +3224,17 @@ def test_handle_cancel_exit_limit(mocker, default_conf_usdt, fee) -> None:
     patch_exchange(mocker)
     cancel_order_mock = MagicMock()
     mocker.patch.multiple(
-        'coingro.exchange.Exchange',
+        "coingro.exchange.Exchange",
         cancel_order=cancel_order_mock,
     )
-    mocker.patch('coingro.exchange.Exchange.get_rate', return_value=0.245441)
+    mocker.patch("coingro.exchange.Exchange.get_rate", return_value=0.245441)
 
     coingro = CoingroBot(default_conf_usdt)
 
     trade = Trade(
-        pair='LTC/ETH',
+        pair="LTC/ETH",
         amount=2,
-        exchange='binance',
+        exchange="binance",
         open_rate=0.245441,
         open_order_id="123456",
         open_date=arrow.utcnow().shift(days=-2).datetime,
@@ -3090,10 +3244,8 @@ def test_handle_cancel_exit_limit(mocker, default_conf_usdt, fee) -> None:
         close_date=arrow.utcnow().datetime,
         exit_reason="sell_reason_whatever",
     )
-    order = {'remaining': 1,
-             'amount': 1,
-             'status': "open"}
-    reason = CANCEL_REASON['TIMEOUT']
+    order = {"remaining": 1, "amount": 1, "status": "open"}
+    reason = CANCEL_REASON["TIMEOUT"]
     assert coingro.handle_cancel_exit(trade, order, reason)
     assert cancel_order_mock.call_count == 1
     assert send_msg_mock.call_count == 1
@@ -3102,20 +3254,22 @@ def test_handle_cancel_exit_limit(mocker, default_conf_usdt, fee) -> None:
 
     send_msg_mock.reset_mock()
 
-    order['amount'] = 2
+    order["amount"] = 2
     assert not coingro.handle_cancel_exit(trade, order, reason)
     # Assert cancel_order was not called (callcount remains unchanged)
     assert cancel_order_mock.call_count == 1
     assert send_msg_mock.call_count == 1
-    assert (send_msg_mock.call_args_list[0][0][0]['reason']
-            == CANCEL_REASON['PARTIALLY_FILLED_KEEP_OPEN'])
+    assert (
+        send_msg_mock.call_args_list[0][0][0]["reason"]
+        == CANCEL_REASON["PARTIALLY_FILLED_KEEP_OPEN"]
+    )
 
     assert not coingro.handle_cancel_exit(trade, order, reason)
 
-    send_msg_mock.call_args_list[0][0][0]['reason'] = CANCEL_REASON['PARTIALLY_FILLED_KEEP_OPEN']
+    send_msg_mock.call_args_list[0][0][0]["reason"] = CANCEL_REASON["PARTIALLY_FILLED_KEEP_OPEN"]
 
     # Message should not be iterated again
-    assert trade.exit_order_status == CANCEL_REASON['PARTIALLY_FILLED_KEEP_OPEN']
+    assert trade.exit_order_status == CANCEL_REASON["PARTIALLY_FILLED_KEEP_OPEN"]
     assert send_msg_mock.call_count == 1
 
 
@@ -3123,28 +3277,39 @@ def test_handle_cancel_exit_cancel_exception(mocker, default_conf_usdt) -> None:
     patch_RPCManager(mocker)
     patch_exchange(mocker)
     mocker.patch(
-        'coingro.exchange.Exchange.cancel_order_with_result', side_effect=InvalidOrderException())
+        "coingro.exchange.Exchange.cancel_order_with_result", side_effect=InvalidOrderException()
+    )
 
     coingro = CoingroBot(default_conf_usdt)
 
     trade = MagicMock()
-    reason = CANCEL_REASON['TIMEOUT']
-    order = {'remaining': 1,
-             'amount': 1,
-             'status': "open"}
+    reason = CANCEL_REASON["TIMEOUT"]
+    order = {"remaining": 1, "amount": 1, "status": "open"}
     assert not coingro.handle_cancel_exit(trade, order, reason)
 
 
-@pytest.mark.parametrize("is_short, open_rate, amt", [
-    (False, 2.0, 30.0),
-    (True, 2.02, 29.70297029),
-])
-def test_execute_trade_exit_up(default_conf_usdt, ticker_usdt, fee, ticker_usdt_sell_up, mocker,
-                               ticker_usdt_sell_down, is_short, open_rate, amt) -> None:
+@pytest.mark.parametrize(
+    "is_short, open_rate, amt",
+    [
+        (False, 2.0, 30.0),
+        (True, 2.02, 29.70297029),
+    ],
+)
+def test_execute_trade_exit_up(
+    default_conf_usdt,
+    ticker_usdt,
+    fee,
+    ticker_usdt_sell_up,
+    mocker,
+    ticker_usdt_sell_down,
+    is_short,
+    open_rate,
+    amt,
+) -> None:
     rpc_mock = patch_RPCManager(mocker)
     patch_exchange(mocker)
     mocker.patch.multiple(
-        'coingro.exchange.Exchange',
+        "coingro.exchange.Exchange",
         fetch_ticker=ticker_usdt,
         get_fee=fee,
         _is_dry_limit_order_filled=MagicMock(return_value=False),
@@ -3165,65 +3330,72 @@ def test_execute_trade_exit_up(default_conf_usdt, ticker_usdt, fee, ticker_usdt_
 
     # Increase the price and sell it
     mocker.patch.multiple(
-        'coingro.exchange.Exchange',
-        fetch_ticker=ticker_usdt_sell_down if is_short else ticker_usdt_sell_up
+        "coingro.exchange.Exchange",
+        fetch_ticker=ticker_usdt_sell_down if is_short else ticker_usdt_sell_up,
     )
     # Prevented sell ...
     coingro.execute_trade_exit(
         trade=trade,
-        limit=(ticker_usdt_sell_down()['ask'] if is_short else ticker_usdt_sell_up()['bid']),
-        exit_check=ExitCheckTuple(exit_type=ExitType.ROI)
+        limit=(ticker_usdt_sell_down()["ask"] if is_short else ticker_usdt_sell_up()["bid"]),
+        exit_check=ExitCheckTuple(exit_type=ExitType.ROI),
     )
     assert rpc_mock.call_count == 0
     assert coingro.strategy.confirm_trade_exit.call_count == 1
-    assert id(coingro.strategy.confirm_trade_exit.call_args_list[0][1]['trade']) != id(trade)
-    assert coingro.strategy.confirm_trade_exit.call_args_list[0][1]['trade'].id == trade.id
+    assert id(coingro.strategy.confirm_trade_exit.call_args_list[0][1]["trade"]) != id(trade)
+    assert coingro.strategy.confirm_trade_exit.call_args_list[0][1]["trade"].id == trade.id
 
     # Repatch with true
     coingro.strategy.confirm_trade_exit = MagicMock(return_value=True)
     coingro.execute_trade_exit(
         trade=trade,
-        limit=(ticker_usdt_sell_down()['ask'] if is_short else ticker_usdt_sell_up()['bid']),
-        exit_check=ExitCheckTuple(exit_type=ExitType.ROI)
+        limit=(ticker_usdt_sell_down()["ask"] if is_short else ticker_usdt_sell_up()["bid"]),
+        exit_check=ExitCheckTuple(exit_type=ExitType.ROI),
     )
     assert coingro.strategy.confirm_trade_exit.call_count == 1
 
     assert rpc_mock.call_count == 1
     last_msg = rpc_mock.call_args_list[-1][0][0]
     assert {
-        'trade_id': 1,
-        'type': RPCMessageType.EXIT,
-        'exchange': 'Binance',
-        'pair': 'ETH/USDT',
-        'gain': 'profit',
-        'limit': 2.0 if is_short else 2.2,
-        'amount': pytest.approx(amt),
-        'order_type': 'limit',
-        'buy_tag': None,
-        'direction': 'Short' if trade.is_short else 'Long',
-        'leverage': 1.0,
-        'enter_tag': None,
-        'open_rate': open_rate,
-        'current_rate': 2.01 if is_short else 2.3,
-        'profit_amount': 0.29554455 if is_short else 5.685,
-        'profit_ratio': 0.00493809 if is_short else 0.09451372,
-        'stake_currency': 'USDT',
-        'fiat_currency': 'USD',
-        'sell_reason': ExitType.ROI.value,
-        'exit_reason': ExitType.ROI.value,
-        'open_date': ANY,
-        'close_date': ANY,
-        'close_rate': ANY,
+        "trade_id": 1,
+        "type": RPCMessageType.EXIT,
+        "exchange": "Binance",
+        "pair": "ETH/USDT",
+        "gain": "profit",
+        "limit": 2.0 if is_short else 2.2,
+        "amount": pytest.approx(amt),
+        "order_type": "limit",
+        "buy_tag": None,
+        "direction": "Short" if trade.is_short else "Long",
+        "leverage": 1.0,
+        "enter_tag": None,
+        "open_rate": open_rate,
+        "current_rate": 2.01 if is_short else 2.3,
+        "profit_amount": 0.29554455 if is_short else 5.685,
+        "profit_ratio": 0.00493809 if is_short else 0.09451372,
+        "stake_currency": "USDT",
+        "fiat_currency": "USD",
+        "sell_reason": ExitType.ROI.value,
+        "exit_reason": ExitType.ROI.value,
+        "open_date": ANY,
+        "close_date": ANY,
+        "close_rate": ANY,
     } == last_msg
 
 
 @pytest.mark.parametrize("is_short", [False, True])
-def test_execute_trade_exit_down(default_conf_usdt, ticker_usdt, fee, ticker_usdt_sell_down,
-                                 ticker_usdt_sell_up, mocker, is_short) -> None:
+def test_execute_trade_exit_down(
+    default_conf_usdt,
+    ticker_usdt,
+    fee,
+    ticker_usdt_sell_down,
+    ticker_usdt_sell_up,
+    mocker,
+    is_short,
+) -> None:
     rpc_mock = patch_RPCManager(mocker)
     patch_exchange(mocker)
     mocker.patch.multiple(
-        'coingro.exchange.Exchange',
+        "coingro.exchange.Exchange",
         fetch_ticker=ticker_usdt,
         get_fee=fee,
         _is_dry_limit_order_filled=MagicMock(return_value=False),
@@ -3241,60 +3413,76 @@ def test_execute_trade_exit_down(default_conf_usdt, ticker_usdt, fee, ticker_usd
 
     # Decrease the price and sell it
     mocker.patch.multiple(
-        'coingro.exchange.Exchange',
-        fetch_ticker=ticker_usdt_sell_up if is_short else ticker_usdt_sell_down
+        "coingro.exchange.Exchange",
+        fetch_ticker=ticker_usdt_sell_up if is_short else ticker_usdt_sell_down,
     )
     coingro.execute_trade_exit(
-        trade=trade, limit=(ticker_usdt_sell_up if is_short else ticker_usdt_sell_down)()['bid'],
-        exit_check=ExitCheckTuple(exit_type=ExitType.STOP_LOSS))
+        trade=trade,
+        limit=(ticker_usdt_sell_up if is_short else ticker_usdt_sell_down)()["bid"],
+        exit_check=ExitCheckTuple(exit_type=ExitType.STOP_LOSS),
+    )
 
     assert rpc_mock.call_count == 2
     last_msg = rpc_mock.call_args_list[-1][0][0]
     assert {
-        'type': RPCMessageType.EXIT,
-        'trade_id': 1,
-        'exchange': 'Binance',
-        'pair': 'ETH/USDT',
-        'direction': 'Short' if trade.is_short else 'Long',
-        'leverage': 1.0,
-        'gain': 'loss',
-        'limit': 2.2 if is_short else 2.01,
-        'amount': pytest.approx(29.70297029) if is_short else 30.0,
-        'order_type': 'limit',
-        'buy_tag': None,
-        'enter_tag': None,
-        'open_rate': 2.02 if is_short else 2.0,
-        'current_rate': 2.2 if is_short else 2.0,
-        'profit_amount': -5.65990099 if is_short else -0.00075,
-        'profit_ratio': -0.0945681 if is_short else -1.247e-05,
-        'stake_currency': 'USDT',
-        'fiat_currency': 'USD',
-        'sell_reason': ExitType.STOP_LOSS.value,
-        'exit_reason': ExitType.STOP_LOSS.value,
-        'open_date': ANY,
-        'close_date': ANY,
-        'close_rate': ANY,
+        "type": RPCMessageType.EXIT,
+        "trade_id": 1,
+        "exchange": "Binance",
+        "pair": "ETH/USDT",
+        "direction": "Short" if trade.is_short else "Long",
+        "leverage": 1.0,
+        "gain": "loss",
+        "limit": 2.2 if is_short else 2.01,
+        "amount": pytest.approx(29.70297029) if is_short else 30.0,
+        "order_type": "limit",
+        "buy_tag": None,
+        "enter_tag": None,
+        "open_rate": 2.02 if is_short else 2.0,
+        "current_rate": 2.2 if is_short else 2.0,
+        "profit_amount": -5.65990099 if is_short else -0.00075,
+        "profit_ratio": -0.0945681 if is_short else -1.247e-05,
+        "stake_currency": "USDT",
+        "fiat_currency": "USD",
+        "sell_reason": ExitType.STOP_LOSS.value,
+        "exit_reason": ExitType.STOP_LOSS.value,
+        "open_date": ANY,
+        "close_date": ANY,
+        "close_rate": ANY,
     } == last_msg
 
 
 @pytest.mark.parametrize(
-    "is_short,amount,open_rate,current_rate,limit,profit_amount,profit_ratio,profit_or_loss", [
-        (False, 30, 2.0, 2.3, 2.25, 7.18125, 0.11938903, 'profit'),
-        (True, 29.70297029, 2.02, 2.2, 2.25, -7.14876237, -0.11944465, 'loss'),
-    ])
+    "is_short,amount,open_rate,current_rate,limit,profit_amount,profit_ratio,profit_or_loss",
+    [
+        (False, 30, 2.0, 2.3, 2.25, 7.18125, 0.11938903, "profit"),
+        (True, 29.70297029, 2.02, 2.2, 2.25, -7.14876237, -0.11944465, "loss"),
+    ],
+)
 def test_execute_trade_exit_custom_exit_price(
-        default_conf_usdt, ticker_usdt, fee, ticker_usdt_sell_up, is_short, amount, open_rate,
-        current_rate, limit, profit_amount, profit_ratio, profit_or_loss, mocker) -> None:
+    default_conf_usdt,
+    ticker_usdt,
+    fee,
+    ticker_usdt_sell_up,
+    is_short,
+    amount,
+    open_rate,
+    current_rate,
+    limit,
+    profit_amount,
+    profit_ratio,
+    profit_or_loss,
+    mocker,
+) -> None:
     rpc_mock = patch_RPCManager(mocker)
     patch_exchange(mocker)
     mocker.patch.multiple(
-        'coingro.exchange.Exchange',
+        "coingro.exchange.Exchange",
         fetch_ticker=ticker_usdt,
         get_fee=fee,
         _is_dry_limit_order_filled=MagicMock(return_value=False),
     )
     config = deepcopy(default_conf_usdt)
-    config['custom_price_max_distance_ratio'] = 0.1
+    config["custom_price_max_distance_ratio"] = 0.1
     patch_whitelist(mocker, config)
     coingro = CoingroBot(config)
     patch_get_signal(coingro, enter_short=is_short, enter_long=not is_short)
@@ -3310,10 +3498,7 @@ def test_execute_trade_exit_custom_exit_price(
     assert coingro.strategy.confirm_trade_exit.call_count == 0
 
     # Increase the price and sell it
-    mocker.patch.multiple(
-        'coingro.exchange.Exchange',
-        fetch_ticker=ticker_usdt_sell_up
-    )
+    mocker.patch.multiple("coingro.exchange.Exchange", fetch_ticker=ticker_usdt_sell_up)
 
     coingro.strategy.confirm_trade_exit = MagicMock(return_value=True)
 
@@ -3321,8 +3506,8 @@ def test_execute_trade_exit_custom_exit_price(
     coingro.strategy.custom_exit_price = lambda **kwargs: 2.25
     coingro.execute_trade_exit(
         trade=trade,
-        limit=ticker_usdt_sell_up()['ask' if is_short else 'bid'],
-        exit_check=ExitCheckTuple(exit_type=ExitType.EXIT_SIGNAL, exit_reason='foo')
+        limit=ticker_usdt_sell_up()["ask" if is_short else "bid"],
+        exit_check=ExitCheckTuple(exit_type=ExitType.EXIT_SIGNAL, exit_reason="foo"),
     )
 
     # Sell price must be different to default bid price
@@ -3332,40 +3517,46 @@ def test_execute_trade_exit_custom_exit_price(
     assert rpc_mock.call_count == 1
     last_msg = rpc_mock.call_args_list[-1][0][0]
     assert {
-        'trade_id': 1,
-        'type': RPCMessageType.EXIT,
-        'exchange': 'Binance',
-        'pair': 'ETH/USDT',
-        'direction': 'Short' if trade.is_short else 'Long',
-        'leverage': 1.0,
-        'gain': profit_or_loss,
-        'limit': limit,
-        'amount': pytest.approx(amount),
-        'order_type': 'limit',
-        'buy_tag': None,
-        'enter_tag': None,
-        'open_rate': open_rate,
-        'current_rate': current_rate,
-        'profit_amount': pytest.approx(profit_amount),
-        'profit_ratio': profit_ratio,
-        'stake_currency': 'USDT',
-        'fiat_currency': 'USD',
-        'sell_reason': 'foo',
-        'exit_reason': 'foo',
-        'open_date': ANY,
-        'close_date': ANY,
-        'close_rate': ANY,
+        "trade_id": 1,
+        "type": RPCMessageType.EXIT,
+        "exchange": "Binance",
+        "pair": "ETH/USDT",
+        "direction": "Short" if trade.is_short else "Long",
+        "leverage": 1.0,
+        "gain": profit_or_loss,
+        "limit": limit,
+        "amount": pytest.approx(amount),
+        "order_type": "limit",
+        "buy_tag": None,
+        "enter_tag": None,
+        "open_rate": open_rate,
+        "current_rate": current_rate,
+        "profit_amount": pytest.approx(profit_amount),
+        "profit_ratio": profit_ratio,
+        "stake_currency": "USDT",
+        "fiat_currency": "USD",
+        "sell_reason": "foo",
+        "exit_reason": "foo",
+        "open_date": ANY,
+        "close_date": ANY,
+        "close_rate": ANY,
     } == last_msg
 
 
 @pytest.mark.parametrize("is_short", [False, True])
 def test_execute_trade_exit_down_stoploss_on_exchange_dry_run(
-        default_conf_usdt, ticker_usdt, fee, is_short, ticker_usdt_sell_down,
-        ticker_usdt_sell_up, mocker) -> None:
+    default_conf_usdt,
+    ticker_usdt,
+    fee,
+    is_short,
+    ticker_usdt_sell_down,
+    ticker_usdt_sell_up,
+    mocker,
+) -> None:
     rpc_mock = patch_RPCManager(mocker)
     patch_exchange(mocker)
     mocker.patch.multiple(
-        'coingro.exchange.Exchange',
+        "coingro.exchange.Exchange",
         fetch_ticker=ticker_usdt,
         get_fee=fee,
         _is_dry_limit_order_filled=MagicMock(return_value=False),
@@ -3383,100 +3574,103 @@ def test_execute_trade_exit_down_stoploss_on_exchange_dry_run(
 
     # Decrease the price and sell it
     mocker.patch.multiple(
-        'coingro.exchange.Exchange',
-        fetch_ticker=ticker_usdt_sell_up if is_short else ticker_usdt_sell_down
+        "coingro.exchange.Exchange",
+        fetch_ticker=ticker_usdt_sell_up if is_short else ticker_usdt_sell_down,
     )
 
-    default_conf_usdt['dry_run'] = True
-    coingro.strategy.order_types['stoploss_on_exchange'] = True
+    default_conf_usdt["dry_run"] = True
+    coingro.strategy.order_types["stoploss_on_exchange"] = True
     # Setting trade stoploss to 0.01
 
     trade.stop_loss = 2.0 * 1.01 if is_short else 2.0 * 0.99
     coingro.execute_trade_exit(
-        trade=trade, limit=(ticker_usdt_sell_up if is_short else ticker_usdt_sell_down())['bid'],
-        exit_check=ExitCheckTuple(exit_type=ExitType.STOP_LOSS))
+        trade=trade,
+        limit=(ticker_usdt_sell_up if is_short else ticker_usdt_sell_down())["bid"],
+        exit_check=ExitCheckTuple(exit_type=ExitType.STOP_LOSS),
+    )
 
     assert rpc_mock.call_count == 2
     last_msg = rpc_mock.call_args_list[-1][0][0]
 
     assert {
-        'type': RPCMessageType.EXIT,
-        'trade_id': 1,
-        'exchange': 'Binance',
-        'pair': 'ETH/USDT',
-        'direction': 'Short' if trade.is_short else 'Long',
-        'leverage': 1.0,
-        'gain': 'loss',
-        'limit': 2.02 if is_short else 1.98,
-        'amount': pytest.approx(29.70297029 if is_short else 30.0),
-        'order_type': 'limit',
-        'buy_tag': None,
-        'enter_tag': None,
-        'open_rate': 2.02 if is_short else 2.0,
-        'current_rate': 2.2 if is_short else 2.0,
-        'profit_amount': -0.3 if is_short else -0.8985,
-        'profit_ratio': -0.00501253 if is_short else -0.01493766,
-        'stake_currency': 'USDT',
-        'fiat_currency': 'USD',
-        'sell_reason': ExitType.STOP_LOSS.value,
-        'exit_reason': ExitType.STOP_LOSS.value,
-        'open_date': ANY,
-        'close_date': ANY,
-        'close_rate': ANY,
+        "type": RPCMessageType.EXIT,
+        "trade_id": 1,
+        "exchange": "Binance",
+        "pair": "ETH/USDT",
+        "direction": "Short" if trade.is_short else "Long",
+        "leverage": 1.0,
+        "gain": "loss",
+        "limit": 2.02 if is_short else 1.98,
+        "amount": pytest.approx(29.70297029 if is_short else 30.0),
+        "order_type": "limit",
+        "buy_tag": None,
+        "enter_tag": None,
+        "open_rate": 2.02 if is_short else 2.0,
+        "current_rate": 2.2 if is_short else 2.0,
+        "profit_amount": -0.3 if is_short else -0.8985,
+        "profit_ratio": -0.00501253 if is_short else -0.01493766,
+        "stake_currency": "USDT",
+        "fiat_currency": "USD",
+        "sell_reason": ExitType.STOP_LOSS.value,
+        "exit_reason": ExitType.STOP_LOSS.value,
+        "open_date": ANY,
+        "close_date": ANY,
+        "close_rate": ANY,
     } == last_msg
 
 
 def test_execute_trade_exit_sloe_cancel_exception(
-        mocker, default_conf_usdt, ticker_usdt, fee, caplog) -> None:
+    mocker, default_conf_usdt, ticker_usdt, fee, caplog
+) -> None:
     coingro = get_patched_coingrobot(mocker, default_conf_usdt)
-    mocker.patch('coingro.exchange.Exchange.cancel_stoploss_order',
-                 side_effect=InvalidOrderException())
-    mocker.patch('coingro.wallets.Wallets.get_free', MagicMock(return_value=300))
-    create_order_mock = MagicMock(side_effect=[
-        {'id': '12345554'},
-        {'id': '12345555'},
-    ])
+    mocker.patch(
+        "coingro.exchange.Exchange.cancel_stoploss_order", side_effect=InvalidOrderException()
+    )
+    mocker.patch("coingro.wallets.Wallets.get_free", MagicMock(return_value=300))
+    create_order_mock = MagicMock(
+        side_effect=[
+            {"id": "12345554"},
+            {"id": "12345555"},
+        ]
+    )
     patch_exchange(mocker)
     mocker.patch.multiple(
-        'coingro.exchange.Exchange',
+        "coingro.exchange.Exchange",
         fetch_ticker=ticker_usdt,
         get_fee=fee,
         create_order=create_order_mock,
     )
 
-    coingro.strategy.order_types['stoploss_on_exchange'] = True
+    coingro.strategy.order_types["stoploss_on_exchange"] = True
     patch_get_signal(coingro)
     coingro.enter_positions()
 
     trade = Trade.query.first()
     PairLock.session = MagicMock()
 
-    coingro.config['dry_run'] = False
+    coingro.config["dry_run"] = False
     trade.stoploss_order_id = "abcd"
 
-    coingro.execute_trade_exit(trade=trade, limit=1234,
-                               exit_check=ExitCheckTuple(exit_type=ExitType.STOP_LOSS))
+    coingro.execute_trade_exit(
+        trade=trade, limit=1234, exit_check=ExitCheckTuple(exit_type=ExitType.STOP_LOSS)
+    )
     assert create_order_mock.call_count == 2
-    assert log_has('Could not cancel stoploss order abcd', caplog)
+    assert log_has("Could not cancel stoploss order abcd", caplog)
 
 
 @pytest.mark.parametrize("is_short", [False, True])
 def test_execute_trade_exit_with_stoploss_on_exchange(
-        default_conf_usdt, ticker_usdt, fee, ticker_usdt_sell_up, is_short, mocker) -> None:
+    default_conf_usdt, ticker_usdt, fee, ticker_usdt_sell_up, is_short, mocker
+) -> None:
 
-    default_conf_usdt['exchange']['name'] = 'binance'
+    default_conf_usdt["exchange"]["name"] = "binance"
     rpc_mock = patch_RPCManager(mocker)
     patch_exchange(mocker)
-    stoploss = MagicMock(return_value={
-        'id': 123,
-        'info': {
-            'foo': 'bar'
-        }
-    })
+    stoploss = MagicMock(return_value={"id": 123, "info": {"foo": "bar"}})
 
     cancel_order = MagicMock(return_value=True)
     mocker.patch.multiple(
-        'coingro.exchange.Exchange',
+        "coingro.exchange.Exchange",
         fetch_ticker=ticker_usdt,
         get_fee=fee,
         amount_to_precision=lambda s, x, y: y,
@@ -3487,7 +3681,7 @@ def test_execute_trade_exit_with_stoploss_on_exchange(
     )
 
     coingro = CoingroBot(default_conf_usdt)
-    coingro.strategy.order_types['stoploss_on_exchange'] = True
+    coingro.strategy.order_types["stoploss_on_exchange"] = True
     patch_get_signal(coingro, enter_short=is_short, enter_long=not is_short)
 
     # Create some test data
@@ -3502,15 +3696,12 @@ def test_execute_trade_exit_with_stoploss_on_exchange(
     coingro.exit_positions(trades)
 
     # Increase the price and sell it
-    mocker.patch.multiple(
-        'coingro.exchange.Exchange',
-        fetch_ticker=ticker_usdt_sell_up
-    )
+    mocker.patch.multiple("coingro.exchange.Exchange", fetch_ticker=ticker_usdt_sell_up)
 
     coingro.execute_trade_exit(
         trade=trade,
-        limit=ticker_usdt_sell_up()['ask' if is_short else 'bid'],
-        exit_check=ExitCheckTuple(exit_type=ExitType.STOP_LOSS)
+        limit=ticker_usdt_sell_up()["ask" if is_short else "bid"],
+        exit_check=ExitCheckTuple(exit_type=ExitType.STOP_LOSS),
     )
 
     trade = Trade.query.first()
@@ -3522,12 +3713,13 @@ def test_execute_trade_exit_with_stoploss_on_exchange(
 
 @pytest.mark.parametrize("is_short", [False, True])
 def test_may_execute_trade_exit_after_stoploss_on_exchange_hit(
-        default_conf_usdt, ticker_usdt, fee, mocker, is_short) -> None:
-    default_conf_usdt['exchange']['name'] = 'binance'
+    default_conf_usdt, ticker_usdt, fee, mocker, is_short
+) -> None:
+    default_conf_usdt["exchange"]["name"] = "binance"
     rpc_mock = patch_RPCManager(mocker)
     patch_exchange(mocker)
     mocker.patch.multiple(
-        'coingro.exchange.Exchange',
+        "coingro.exchange.Exchange",
         fetch_ticker=ticker_usdt,
         get_fee=fee,
         amount_to_precision=lambda s, x, y: y,
@@ -3535,17 +3727,12 @@ def test_may_execute_trade_exit_after_stoploss_on_exchange_hit(
         _is_dry_limit_order_filled=MagicMock(side_effect=[False, True]),
     )
 
-    stoploss = MagicMock(return_value={
-        'id': 123,
-        'info': {
-            'foo': 'bar'
-        }
-    })
+    stoploss = MagicMock(return_value={"id": 123, "info": {"foo": "bar"}})
 
-    mocker.patch('coingro.exchange.Binance.stoploss', stoploss)
+    mocker.patch("coingro.exchange.Binance.stoploss", stoploss)
 
     coingro = CoingroBot(default_conf_usdt)
-    coingro.strategy.order_types['stoploss_on_exchange'] = True
+    coingro.strategy.order_types["stoploss_on_exchange"] = True
     patch_get_signal(coingro, enter_long=not is_short, enter_short=is_short)
 
     # Create some test data
@@ -3557,50 +3744,64 @@ def test_may_execute_trade_exit_after_stoploss_on_exchange_hit(
 
     coingro.exit_positions(trades)
     assert trade
-    assert trade.stoploss_order_id == '123'
+    assert trade.stoploss_order_id == "123"
     assert trade.open_order_id is None
 
     # Assuming stoploss on exchange is hit
     # stoploss_order_id should become None
     # and trade should be sold at the price of stoploss
-    stoploss_executed = MagicMock(return_value={
-        "id": "123",
-        "timestamp": 1542707426845,
-        "datetime": "2018-11-20T09:50:26.845Z",
-        "lastTradeTimestamp": None,
-        "symbol": "BTC/USDT",
-        "type": "stop_loss_limit",
-        "side": "sell",
-        "price": 1.08801,
-        "amount": 90.99181074,
-        "cost": 99.0000000032274,
-        "average": 1.08801,
-        "filled": 90.99181074,
-        "remaining": 0.0,
-        "status": "closed",
-        "fee": None,
-        "trades": None
-    })
-    mocker.patch('coingro.exchange.Exchange.fetch_stoploss_order', stoploss_executed)
+    stoploss_executed = MagicMock(
+        return_value={
+            "id": "123",
+            "timestamp": 1542707426845,
+            "datetime": "2018-11-20T09:50:26.845Z",
+            "lastTradeTimestamp": None,
+            "symbol": "BTC/USDT",
+            "type": "stop_loss_limit",
+            "side": "sell",
+            "price": 1.08801,
+            "amount": 90.99181074,
+            "cost": 99.0000000032274,
+            "average": 1.08801,
+            "filled": 90.99181074,
+            "remaining": 0.0,
+            "status": "closed",
+            "fee": None,
+            "trades": None,
+        }
+    )
+    mocker.patch("coingro.exchange.Exchange.fetch_stoploss_order", stoploss_executed)
 
     coingro.exit_positions(trades)
     assert trade.stoploss_order_id is None
     assert trade.is_open is False
     assert trade.exit_reason == ExitType.STOPLOSS_ON_EXCHANGE.value
     assert rpc_mock.call_count == 3
-    assert rpc_mock.call_args_list[0][0][0]['type'] == RPCMessageType.ENTRY
-    assert rpc_mock.call_args_list[1][0][0]['type'] == RPCMessageType.ENTRY_FILL
-    assert rpc_mock.call_args_list[2][0][0]['type'] == RPCMessageType.EXIT_FILL
+    assert rpc_mock.call_args_list[0][0][0]["type"] == RPCMessageType.ENTRY
+    assert rpc_mock.call_args_list[1][0][0]["type"] == RPCMessageType.ENTRY_FILL
+    assert rpc_mock.call_args_list[2][0][0]["type"] == RPCMessageType.EXIT_FILL
 
 
 @pytest.mark.parametrize(
-    "is_short,amount,current_rate,limit,profit_amount,profit_ratio,profit_or_loss", [
-        (False, 30, 2.3, 2.2, 5.685, 0.09451372, 'profit'),
-        (True, 29.70297029, 2.2, 2.3, -8.63762376, -0.1443212, 'loss'),
-    ])
+    "is_short,amount,current_rate,limit,profit_amount,profit_ratio,profit_or_loss",
+    [
+        (False, 30, 2.3, 2.2, 5.685, 0.09451372, "profit"),
+        (True, 29.70297029, 2.2, 2.3, -8.63762376, -0.1443212, "loss"),
+    ],
+)
 def test_execute_trade_exit_market_order(
-    default_conf_usdt, ticker_usdt, fee, is_short, current_rate, amount,
-    limit, profit_amount, profit_ratio, profit_or_loss, ticker_usdt_sell_up, mocker
+    default_conf_usdt,
+    ticker_usdt,
+    fee,
+    is_short,
+    current_rate,
+    amount,
+    limit,
+    profit_amount,
+    profit_ratio,
+    profit_or_loss,
+    ticker_usdt_sell_up,
+    mocker,
 ) -> None:
     """
     amount
@@ -3619,11 +3820,11 @@ def test_execute_trade_exit_market_order(
         long: (65.835/60.15) - 1 = 0.0945137157107232
         short: 1 - (68.48762376237624/59.85) = -0.1443211990371971
     """
-    open_rate = ticker_usdt.return_value['ask' if is_short else 'bid']
+    open_rate = ticker_usdt.return_value["ask" if is_short else "bid"]
     rpc_mock = patch_RPCManager(mocker)
     patch_exchange(mocker)
     mocker.patch.multiple(
-        'coingro.exchange.Exchange',
+        "coingro.exchange.Exchange",
         fetch_ticker=ticker_usdt,
         get_fee=fee,
         _is_dry_limit_order_filled=MagicMock(return_value=False),
@@ -3640,16 +3841,13 @@ def test_execute_trade_exit_market_order(
     assert trade
 
     # Increase the price and sell it
-    mocker.patch.multiple(
-        'coingro.exchange.Exchange',
-        fetch_ticker=ticker_usdt_sell_up
-    )
-    coingro.config['order_types']['exit'] = 'market'
+    mocker.patch.multiple("coingro.exchange.Exchange", fetch_ticker=ticker_usdt_sell_up)
+    coingro.config["order_types"]["exit"] = "market"
 
     coingro.execute_trade_exit(
         trade=trade,
-        limit=ticker_usdt_sell_up()['ask' if is_short else 'bid'],
-        exit_check=ExitCheckTuple(exit_type=ExitType.ROI)
+        limit=ticker_usdt_sell_up()["ask" if is_short else "bid"],
+        exit_check=ExitCheckTuple(exit_type=ExitType.ROI),
     )
 
     assert not trade.is_open
@@ -3658,46 +3856,48 @@ def test_execute_trade_exit_market_order(
     assert rpc_mock.call_count == 3
     last_msg = rpc_mock.call_args_list[-2][0][0]
     assert {
-        'type': RPCMessageType.EXIT,
-        'trade_id': 1,
-        'exchange': 'Binance',
-        'pair': 'ETH/USDT',
-        'direction': 'Short' if trade.is_short else 'Long',
-        'leverage': 1.0,
-        'gain': profit_or_loss,
-        'limit': limit,
-        'amount': pytest.approx(amount),
-        'order_type': 'market',
-        'buy_tag': None,
-        'enter_tag': None,
-        'open_rate': open_rate,
-        'current_rate': current_rate,
-        'profit_amount': pytest.approx(profit_amount),
-        'profit_ratio': profit_ratio,
-        'stake_currency': 'USDT',
-        'fiat_currency': 'USD',
-        'sell_reason': ExitType.ROI.value,
-        'exit_reason': ExitType.ROI.value,
-        'open_date': ANY,
-        'close_date': ANY,
-        'close_rate': ANY,
-
+        "type": RPCMessageType.EXIT,
+        "trade_id": 1,
+        "exchange": "Binance",
+        "pair": "ETH/USDT",
+        "direction": "Short" if trade.is_short else "Long",
+        "leverage": 1.0,
+        "gain": profit_or_loss,
+        "limit": limit,
+        "amount": pytest.approx(amount),
+        "order_type": "market",
+        "buy_tag": None,
+        "enter_tag": None,
+        "open_rate": open_rate,
+        "current_rate": current_rate,
+        "profit_amount": pytest.approx(profit_amount),
+        "profit_ratio": profit_ratio,
+        "stake_currency": "USDT",
+        "fiat_currency": "USD",
+        "sell_reason": ExitType.ROI.value,
+        "exit_reason": ExitType.ROI.value,
+        "open_date": ANY,
+        "close_date": ANY,
+        "close_rate": ANY,
     } == last_msg
 
 
 @pytest.mark.parametrize("is_short", [False, True])
-def test_execute_trade_exit_insufficient_funds_error(default_conf_usdt, ticker_usdt, fee, is_short,
-                                                     ticker_usdt_sell_up, mocker) -> None:
+def test_execute_trade_exit_insufficient_funds_error(
+    default_conf_usdt, ticker_usdt, fee, is_short, ticker_usdt_sell_up, mocker
+) -> None:
     coingro = get_patched_coingrobot(mocker, default_conf_usdt)
-    mock_insuf = mocker.patch('coingro.coingrobot.CoingroBot.handle_insufficient_funds')
+    mock_insuf = mocker.patch("coingro.coingrobot.CoingroBot.handle_insufficient_funds")
     mocker.patch.multiple(
-        'coingro.exchange.Exchange',
+        "coingro.exchange.Exchange",
         fetch_ticker=ticker_usdt,
         get_fee=fee,
-        create_order=MagicMock(side_effect=[
-            {'id': 1234553382},
-            InsufficientFundsError(),
-        ]),
+        create_order=MagicMock(
+            side_effect=[
+                {"id": 1234553382},
+                InsufficientFundsError(),
+            ]
+        ),
     )
     patch_get_signal(coingro, enter_short=is_short, enter_long=not is_short)
 
@@ -3709,72 +3909,84 @@ def test_execute_trade_exit_insufficient_funds_error(default_conf_usdt, ticker_u
     assert trade
 
     # Increase the price and sell it
-    mocker.patch.multiple(
-        'coingro.exchange.Exchange',
-        fetch_ticker=ticker_usdt_sell_up
-    )
+    mocker.patch.multiple("coingro.exchange.Exchange", fetch_ticker=ticker_usdt_sell_up)
 
     sell_reason = ExitCheckTuple(exit_type=ExitType.ROI)
     assert not coingro.execute_trade_exit(
         trade=trade,
-        limit=ticker_usdt_sell_up()['ask' if is_short else 'bid'],
-        exit_check=sell_reason
+        limit=ticker_usdt_sell_up()["ask" if is_short else "bid"],
+        exit_check=sell_reason,
     )
     assert mock_insuf.call_count == 1
 
 
-@pytest.mark.parametrize('profit_only,bid,ask,handle_first,handle_second,exit_type,is_short', [
-    # Enable profit
-    (True, 2.18, 2.2, False, True, ExitType.EXIT_SIGNAL.value, False),
-    (True, 2.18, 2.2, False, True, ExitType.EXIT_SIGNAL.value, True),
-    # # Disable profit
-    (False, 3.19, 3.2, True,  False, ExitType.EXIT_SIGNAL.value, False),
-    (False, 3.19, 3.2, True,  False, ExitType.EXIT_SIGNAL.value, True),
-    # # Enable loss
-    # # * Shouldn't this be ExitType.STOP_LOSS.value
-    (True, 0.21, 0.22, False, False, None, False),
-    (True, 2.41, 2.42, False, False, None, True),
-    # Disable loss
-    (False, 0.10, 0.22, True, False, ExitType.EXIT_SIGNAL.value, False),
-    (False, 0.10, 0.22, True, False, ExitType.EXIT_SIGNAL.value, True),
-])
+@pytest.mark.parametrize(
+    "profit_only,bid,ask,handle_first,handle_second,exit_type,is_short",
+    [
+        # Enable profit
+        (True, 2.18, 2.2, False, True, ExitType.EXIT_SIGNAL.value, False),
+        (True, 2.18, 2.2, False, True, ExitType.EXIT_SIGNAL.value, True),
+        # # Disable profit
+        (False, 3.19, 3.2, True, False, ExitType.EXIT_SIGNAL.value, False),
+        (False, 3.19, 3.2, True, False, ExitType.EXIT_SIGNAL.value, True),
+        # # Enable loss
+        # # * Shouldn't this be ExitType.STOP_LOSS.value
+        (True, 0.21, 0.22, False, False, None, False),
+        (True, 2.41, 2.42, False, False, None, True),
+        # Disable loss
+        (False, 0.10, 0.22, True, False, ExitType.EXIT_SIGNAL.value, False),
+        (False, 0.10, 0.22, True, False, ExitType.EXIT_SIGNAL.value, True),
+    ],
+)
 def test_exit_profit_only(
-        default_conf_usdt, limit_order, limit_order_open, is_short,
-        fee, mocker, profit_only, bid, ask, handle_first, handle_second, exit_type) -> None:
+    default_conf_usdt,
+    limit_order,
+    limit_order_open,
+    is_short,
+    fee,
+    mocker,
+    profit_only,
+    bid,
+    ask,
+    handle_first,
+    handle_second,
+    exit_type,
+) -> None:
     patch_RPCManager(mocker)
     patch_exchange(mocker)
     eside = entry_side(is_short)
     mocker.patch.multiple(
-        'coingro.exchange.Exchange',
-        fetch_ticker=MagicMock(return_value={
-            'bid': bid,
-            'ask': ask,
-            'last': bid
-        }),
-        create_order=MagicMock(side_effect=[
-            limit_order_open[eside],
-            {'id': 1234553382},
-        ]),
+        "coingro.exchange.Exchange",
+        fetch_ticker=MagicMock(return_value={"bid": bid, "ask": ask, "last": bid}),
+        create_order=MagicMock(
+            side_effect=[
+                limit_order_open[eside],
+                {"id": 1234553382},
+            ]
+        ),
         get_fee=fee,
     )
-    default_conf_usdt.update({
-        'use_exit_signal': True,
-        'exit_profit_only': profit_only,
-        'exit_profit_offset': 0.1,
-    })
+    default_conf_usdt.update(
+        {
+            "use_exit_signal": True,
+            "exit_profit_only": profit_only,
+            "exit_profit_offset": 0.1,
+        }
+    )
     coingro = CoingroBot(default_conf_usdt)
     patch_get_signal(coingro, enter_short=is_short, enter_long=not is_short)
     coingro.strategy.custom_exit = MagicMock(return_value=None)
     if exit_type == ExitType.EXIT_SIGNAL.value:
         coingro.strategy.min_roi_reached = MagicMock(return_value=False)
     else:
-        coingro.strategy.stop_loss_reached = MagicMock(return_value=ExitCheckTuple(
-            exit_type=ExitType.NONE))
+        coingro.strategy.stop_loss_reached = MagicMock(
+            return_value=ExitCheckTuple(exit_type=ExitType.NONE)
+        )
     coingro.enter_positions()
 
     trade = Trade.query.first()
     assert trade.is_short == is_short
-    oobj = Order.parse_from_ccxt_object(limit_order[eside], limit_order[eside]['symbol'], eside)
+    oobj = Order.parse_from_ccxt_object(limit_order[eside], limit_order[eside]["symbol"], eside)
     trade.update_order(limit_order[eside])
     trade.update_trade(oobj)
     coingro.wallets.update()
@@ -3791,21 +4003,22 @@ def test_exit_profit_only(
         assert coingro.handle_trade(trade) is True
 
 
-def test_sell_not_enough_balance(default_conf_usdt, limit_order, limit_order_open,
-                                 fee, mocker, caplog) -> None:
+def test_sell_not_enough_balance(
+    default_conf_usdt, limit_order, limit_order_open, fee, mocker, caplog
+) -> None:
     patch_RPCManager(mocker)
     patch_exchange(mocker)
     mocker.patch.multiple(
-        'coingro.exchange.Exchange',
-        fetch_ticker=MagicMock(return_value={
-            'bid': 0.00002172,
-            'ask': 0.00002173,
-            'last': 0.00002172
-        }),
-        create_order=MagicMock(side_effect=[
-            limit_order_open['buy'],
-            {'id': 1234553382},
-        ]),
+        "coingro.exchange.Exchange",
+        fetch_ticker=MagicMock(
+            return_value={"bid": 0.00002172, "ask": 0.00002173, "last": 0.00002172}
+        ),
+        create_order=MagicMock(
+            side_effect=[
+                limit_order_open["buy"],
+                {"id": 1234553382},
+            ]
+        ),
         get_fee=fee,
     )
 
@@ -3818,31 +4031,28 @@ def test_sell_not_enough_balance(default_conf_usdt, limit_order, limit_order_ope
     trade = Trade.query.first()
     amnt = trade.amount
 
-    oobj = Order.parse_from_ccxt_object(limit_order['buy'], limit_order['buy']['symbol'], 'buy')
+    oobj = Order.parse_from_ccxt_object(limit_order["buy"], limit_order["buy"]["symbol"], "buy")
     trade.update_trade(oobj)
     patch_get_signal(coingro, enter_long=False, exit_long=True)
-    mocker.patch('coingro.wallets.Wallets.get_free', MagicMock(return_value=trade.amount * 0.985))
+    mocker.patch("coingro.wallets.Wallets.get_free", MagicMock(return_value=trade.amount * 0.985))
 
     assert coingro.handle_trade(trade) is True
-    assert log_has_re(r'.*Falling back to wallet-amount.', caplog)
+    assert log_has_re(r".*Falling back to wallet-amount.", caplog)
     assert trade.amount != amnt
 
 
-@pytest.mark.parametrize('amount_wallet,has_err', [
-    (95.29, False),
-    (91.29, True)
-])
+@pytest.mark.parametrize("amount_wallet,has_err", [(95.29, False), (91.29, True)])
 def test__safe_exit_amount(default_conf_usdt, fee, caplog, mocker, amount_wallet, has_err):
     patch_RPCManager(mocker)
     patch_exchange(mocker)
     amount = 95.33
     amount_wallet = amount_wallet
-    mocker.patch('coingro.wallets.Wallets.get_free', MagicMock(return_value=amount_wallet))
-    wallet_update = mocker.patch('coingro.wallets.Wallets.update')
+    mocker.patch("coingro.wallets.Wallets.get_free", MagicMock(return_value=amount_wallet))
+    wallet_update = mocker.patch("coingro.wallets.Wallets.update")
     trade = Trade(
-        pair='LTC/ETH',
+        pair="LTC/ETH",
         amount=amount,
-        exchange='binance',
+        exchange="binance",
         open_rate=0.245441,
         open_order_id="123456",
         fee_open=fee.return_value,
@@ -3856,22 +4066,23 @@ def test__safe_exit_amount(default_conf_usdt, fee, caplog, mocker, amount_wallet
     else:
         wallet_update.reset_mock()
         assert coingro._safe_exit_amount(trade.pair, trade.amount) == amount_wallet
-        assert log_has_re(r'.*Falling back to wallet-amount.', caplog)
+        assert log_has_re(r".*Falling back to wallet-amount.", caplog)
         assert wallet_update.call_count == 1
         caplog.clear()
         wallet_update.reset_mock()
         assert coingro._safe_exit_amount(trade.pair, amount_wallet) == amount_wallet
-        assert not log_has_re(r'.*Falling back to wallet-amount.', caplog)
+        assert not log_has_re(r".*Falling back to wallet-amount.", caplog)
         assert wallet_update.call_count == 1
 
 
 @pytest.mark.parametrize("is_short", [False, True])
-def test_locked_pairs(default_conf_usdt, ticker_usdt, fee,
-                      ticker_usdt_sell_down, mocker, caplog, is_short) -> None:
+def test_locked_pairs(
+    default_conf_usdt, ticker_usdt, fee, ticker_usdt_sell_down, mocker, caplog, is_short
+) -> None:
     patch_RPCManager(mocker)
     patch_exchange(mocker)
     mocker.patch.multiple(
-        'coingro.exchange.Exchange',
+        "coingro.exchange.Exchange",
         fetch_ticker=ticker_usdt,
         get_fee=fee,
     )
@@ -3886,49 +4097,45 @@ def test_locked_pairs(default_conf_usdt, ticker_usdt, fee,
     assert trade
 
     # Decrease the price and sell it
-    mocker.patch.multiple(
-        'coingro.exchange.Exchange',
-        fetch_ticker=ticker_usdt_sell_down
-    )
+    mocker.patch.multiple("coingro.exchange.Exchange", fetch_ticker=ticker_usdt_sell_down)
 
     coingro.execute_trade_exit(
         trade=trade,
-        limit=ticker_usdt_sell_down()['ask' if is_short else 'bid'],
-        exit_check=ExitCheckTuple(exit_type=ExitType.STOP_LOSS)
+        limit=ticker_usdt_sell_down()["ask" if is_short else "bid"],
+        exit_check=ExitCheckTuple(exit_type=ExitType.STOP_LOSS),
     )
-    trade.close(ticker_usdt_sell_down()['bid'])
-    assert coingro.strategy.is_pair_locked(trade.pair, side='*')
+    trade.close(ticker_usdt_sell_down()["bid"])
+    assert coingro.strategy.is_pair_locked(trade.pair, side="*")
     # Boths sides are locked
-    assert coingro.strategy.is_pair_locked(trade.pair, side='long')
-    assert coingro.strategy.is_pair_locked(trade.pair, side='short')
+    assert coingro.strategy.is_pair_locked(trade.pair, side="long")
+    assert coingro.strategy.is_pair_locked(trade.pair, side="short")
 
     # reinit - should buy other pair.
     caplog.clear()
     coingro.enter_positions()
 
-    assert log_has_re(fr"Pair {trade.pair} \* is locked.*", caplog)
+    assert log_has_re(rf"Pair {trade.pair} \* is locked.*", caplog)
 
 
 @pytest.mark.parametrize("is_short", [False, True])
-def test_ignore_roi_if_entry_signal(default_conf_usdt, limit_order, limit_order_open, is_short,
-                                    fee, mocker) -> None:
+def test_ignore_roi_if_entry_signal(
+    default_conf_usdt, limit_order, limit_order_open, is_short, fee, mocker
+) -> None:
     patch_RPCManager(mocker)
     patch_exchange(mocker)
     eside = entry_side(is_short)
     mocker.patch.multiple(
-        'coingro.exchange.Exchange',
-        fetch_ticker=MagicMock(return_value={
-            'bid': 2.19,
-            'ask': 2.2,
-            'last': 2.19
-        }),
-        create_order=MagicMock(side_effect=[
-            limit_order_open[eside],
-            {'id': 1234553382},
-        ]),
+        "coingro.exchange.Exchange",
+        fetch_ticker=MagicMock(return_value={"bid": 2.19, "ask": 2.2, "last": 2.19}),
+        create_order=MagicMock(
+            side_effect=[
+                limit_order_open[eside],
+                {"id": 1234553382},
+            ]
+        ),
         get_fee=fee,
     )
-    default_conf_usdt['ignore_roi_if_entry_signal'] = True
+    default_conf_usdt["ignore_roi_if_entry_signal"] = True
 
     coingro = CoingroBot(default_conf_usdt)
     patch_get_signal(coingro, enter_short=is_short, enter_long=not is_short)
@@ -3938,8 +4145,7 @@ def test_ignore_roi_if_entry_signal(default_conf_usdt, limit_order, limit_order_
 
     trade = Trade.query.first()
     trade.is_short = is_short
-    oobj = Order.parse_from_ccxt_object(
-        limit_order[eside], limit_order[eside]['symbol'], eside)
+    oobj = Order.parse_from_ccxt_object(limit_order[eside], limit_order[eside]["symbol"], eside)
     trade.update_trade(oobj)
     coingro.wallets.update()
     if is_short:
@@ -3958,28 +4164,24 @@ def test_ignore_roi_if_entry_signal(default_conf_usdt, limit_order, limit_order_
     assert trade.exit_reason == ExitType.ROI.value
 
 
-@pytest.mark.parametrize("is_short,val1,val2", [
-    (False, 1.5, 1.1),
-    (True, 0.5, 0.9)
-])
-def test_trailing_stop_loss(default_conf_usdt, limit_order_open,
-                            is_short, val1, val2, fee, caplog, mocker) -> None:
+@pytest.mark.parametrize("is_short,val1,val2", [(False, 1.5, 1.1), (True, 0.5, 0.9)])
+def test_trailing_stop_loss(
+    default_conf_usdt, limit_order_open, is_short, val1, val2, fee, caplog, mocker
+) -> None:
     patch_RPCManager(mocker)
     patch_exchange(mocker)
     mocker.patch.multiple(
-        'coingro.exchange.Exchange',
-        fetch_ticker=MagicMock(return_value={
-            'bid': 2.0,
-            'ask': 2.0,
-            'last': 2.0
-        }),
-        create_order=MagicMock(side_effect=[
-            limit_order_open[entry_side(is_short)],
-            {'id': 1234553382},
-        ]),
+        "coingro.exchange.Exchange",
+        fetch_ticker=MagicMock(return_value={"bid": 2.0, "ask": 2.0, "last": 2.0}),
+        create_order=MagicMock(
+            side_effect=[
+                limit_order_open[entry_side(is_short)],
+                {"id": 1234553382},
+            ]
+        ),
         get_fee=fee,
     )
-    default_conf_usdt['trailing_stop'] = True
+    default_conf_usdt["trailing_stop"] = True
     patch_whitelist(mocker, default_conf_usdt)
     coingro = CoingroBot(default_conf_usdt)
     patch_get_signal(coingro, enter_short=is_short, enter_long=not is_short)
@@ -3991,69 +4193,82 @@ def test_trailing_stop_loss(default_conf_usdt, limit_order_open,
     assert coingro.handle_trade(trade) is False
 
     # Raise praise into profits
-    mocker.patch('coingro.exchange.Exchange.fetch_ticker',
-                 MagicMock(return_value={
-                     'bid': 2.0 * val1,
-                     'ask': 2.0 * val1,
-                     'last': 2.0 * val1
-                 }))
+    mocker.patch(
+        "coingro.exchange.Exchange.fetch_ticker",
+        MagicMock(return_value={"bid": 2.0 * val1, "ask": 2.0 * val1, "last": 2.0 * val1}),
+    )
 
     # Stoploss should be adjusted
     assert coingro.handle_trade(trade) is False
     caplog.clear()
     # Price fell
-    mocker.patch('coingro.exchange.Exchange.fetch_ticker',
-                 MagicMock(return_value={
-                     'bid': 2.0 * val2,
-                     'ask': 2.0 * val2,
-                     'last': 2.0 * val2
-                 }))
+    mocker.patch(
+        "coingro.exchange.Exchange.fetch_ticker",
+        MagicMock(return_value={"bid": 2.0 * val2, "ask": 2.0 * val2, "last": 2.0 * val2}),
+    )
 
     caplog.set_level(logging.DEBUG)
     # Sell as trailing-stop is reached
     assert coingro.handle_trade(trade) is True
     stop_multi = 1.1 if is_short else 0.9
-    assert log_has(f"ETH/USDT - HIT STOP: current price at {(2.0 * val2):6f}, "
-                   f"stoploss is {(2.0 * val1 * stop_multi):6f}, "
-                   f"initial stoploss was at {(2.0 * stop_multi):6f}, trade opened at 2.000000",
-                   caplog)
+    assert log_has(
+        f"ETH/USDT - HIT STOP: current price at {(2.0 * val2):6f}, "
+        f"stoploss is {(2.0 * val1 * stop_multi):6f}, "
+        f"initial stoploss was at {(2.0 * stop_multi):6f}, trade opened at 2.000000",
+        caplog,
+    )
     assert trade.exit_reason == ExitType.TRAILING_STOP_LOSS.value
 
 
-@pytest.mark.parametrize('offset,trail_if_reached,second_sl,is_short', [
-    (0, False, 2.0394, False),
-    (0.011, False, 2.0394, False),
-    (0.055, True, 1.8, False),
-    (0, False, 2.1614, True),
-    (0.011, False, 2.1614, True),
-    (0.055, True, 2.42, True),
-])
+@pytest.mark.parametrize(
+    "offset,trail_if_reached,second_sl,is_short",
+    [
+        (0, False, 2.0394, False),
+        (0.011, False, 2.0394, False),
+        (0.055, True, 1.8, False),
+        (0, False, 2.1614, True),
+        (0.011, False, 2.1614, True),
+        (0.055, True, 2.42, True),
+    ],
+)
 def test_trailing_stop_loss_positive(
-    default_conf_usdt, limit_order, limit_order_open,
-    offset, fee, caplog, mocker, trail_if_reached, second_sl, is_short
+    default_conf_usdt,
+    limit_order,
+    limit_order_open,
+    offset,
+    fee,
+    caplog,
+    mocker,
+    trail_if_reached,
+    second_sl,
+    is_short,
 ) -> None:
-    enter_price = limit_order[entry_side(is_short)]['price']
+    enter_price = limit_order[entry_side(is_short)]["price"]
     patch_RPCManager(mocker)
     patch_exchange(mocker)
     eside = entry_side(is_short)
     mocker.patch.multiple(
-        'coingro.exchange.Exchange',
-        fetch_ticker=MagicMock(return_value={
-            'bid': enter_price - (-0.01 if is_short else 0.01),
-            'ask': enter_price - (-0.01 if is_short else 0.01),
-            'last': enter_price - (-0.01 if is_short else 0.01),
-        }),
-        create_order=MagicMock(side_effect=[
-            limit_order_open[eside],
-            {'id': 1234553382},
-        ]),
+        "coingro.exchange.Exchange",
+        fetch_ticker=MagicMock(
+            return_value={
+                "bid": enter_price - (-0.01 if is_short else 0.01),
+                "ask": enter_price - (-0.01 if is_short else 0.01),
+                "last": enter_price - (-0.01 if is_short else 0.01),
+            }
+        ),
+        create_order=MagicMock(
+            side_effect=[
+                limit_order_open[eside],
+                {"id": 1234553382},
+            ]
+        ),
         get_fee=fee,
     )
-    default_conf_usdt['trailing_stop'] = True
-    default_conf_usdt['trailing_stop_positive'] = 0.01
+    default_conf_usdt["trailing_stop"] = True
+    default_conf_usdt["trailing_stop_positive"] = 0.01
     if offset:
-        default_conf_usdt['trailing_stop_positive_offset'] = offset
-        default_conf_usdt['trailing_only_offset_is_reached'] = trail_if_reached
+        default_conf_usdt["trailing_stop_positive_offset"] = offset
+        default_conf_usdt["trailing_only_offset_is_reached"] = trail_if_reached
     patch_whitelist(mocker, default_conf_usdt)
 
     coingro = CoingroBot(default_conf_usdt)
@@ -4063,7 +4278,7 @@ def test_trailing_stop_loss_positive(
 
     trade = Trade.query.first()
     assert trade.is_short == is_short
-    oobj = Order.parse_from_ccxt_object(limit_order[eside], limit_order[eside]['symbol'], eside)
+    oobj = Order.parse_from_ccxt_object(limit_order[eside], limit_order[eside]["symbol"], eside)
     trade.update_order(limit_order[eside])
     trade.update_trade(oobj)
     caplog.set_level(logging.DEBUG)
@@ -4072,17 +4287,21 @@ def test_trailing_stop_loss_positive(
 
     # Raise ticker_usdt above buy price
     mocker.patch(
-        'coingro.exchange.Exchange.fetch_ticker',
-        MagicMock(return_value={
-            'bid': enter_price + (-0.06 if is_short else 0.06),
-            'ask': enter_price + (-0.06 if is_short else 0.06),
-            'last': enter_price + (-0.06 if is_short else 0.06),
-        })
+        "coingro.exchange.Exchange.fetch_ticker",
+        MagicMock(
+            return_value={
+                "bid": enter_price + (-0.06 if is_short else 0.06),
+                "ask": enter_price + (-0.06 if is_short else 0.06),
+                "last": enter_price + (-0.06 if is_short else 0.06),
+            }
+        ),
     )
     # stop-loss not reached, adjusted stoploss
     assert coingro.handle_trade(trade) is False
-    caplog_text = (f"ETH/USDT - Using positive stoploss: 0.01 offset: {offset} profit: "
-                   f"{'2.49' if not is_short else '2.24'}%")
+    caplog_text = (
+        f"ETH/USDT - Using positive stoploss: 0.01 offset: {offset} profit: "
+        f"{'2.49' if not is_short else '2.24'}%"
+    )
     if trail_if_reached:
         assert not log_has(caplog_text, caplog)
         assert not log_has("ETH/USDT - Adjusting stoploss...", caplog)
@@ -4093,28 +4312,32 @@ def test_trailing_stop_loss_positive(
     caplog.clear()
 
     mocker.patch(
-        'coingro.exchange.Exchange.fetch_ticker',
-        MagicMock(return_value={
-            'bid': enter_price + (-0.135 if is_short else 0.125),
-            'ask': enter_price + (-0.135 if is_short else 0.125),
-            'last': enter_price + (-0.135 if is_short else 0.125),
-        })
+        "coingro.exchange.Exchange.fetch_ticker",
+        MagicMock(
+            return_value={
+                "bid": enter_price + (-0.135 if is_short else 0.125),
+                "ask": enter_price + (-0.135 if is_short else 0.125),
+                "last": enter_price + (-0.135 if is_short else 0.125),
+            }
+        ),
     )
     assert coingro.handle_trade(trade) is False
     assert log_has(
         f"ETH/USDT - Using positive stoploss: 0.01 offset: {offset} profit: "
         f"{'5.72' if not is_short else '5.67'}%",
-        caplog
+        caplog,
     )
     assert log_has("ETH/USDT - Adjusting stoploss...", caplog)
 
     mocker.patch(
-        'coingro.exchange.Exchange.fetch_ticker',
-        MagicMock(return_value={
-            'bid': enter_price + (-0.02 if is_short else 0.02),
-            'ask': enter_price + (-0.02 if is_short else 0.02),
-            'last': enter_price + (-0.02 if is_short else 0.02),
-        })
+        "coingro.exchange.Exchange.fetch_ticker",
+        MagicMock(
+            return_value={
+                "bid": enter_price + (-0.02 if is_short else 0.02),
+                "ask": enter_price + (-0.02 if is_short else 0.02),
+                "last": enter_price + (-0.02 if is_short else 0.02),
+            }
+        ),
     )
     # Lower price again (but still positive)
     assert coingro.handle_trade(trade) is True
@@ -4123,34 +4346,28 @@ def test_trailing_stop_loss_positive(
         f"stoploss is {trade.stop_loss:.6f}, "
         f"initial stoploss was at {'2.42' if is_short else '1.80'}0000, "
         f"trade opened at {2.2 if is_short else 2.0}00000",
-        caplog)
+        caplog,
+    )
     assert trade.exit_reason == ExitType.TRAILING_STOP_LOSS.value
 
 
 @pytest.mark.parametrize("is_short", [False, True])
-def test_disable_ignore_roi_if_entry_signal(default_conf_usdt, limit_order, limit_order_open,
-                                            is_short, fee, mocker) -> None:
+def test_disable_ignore_roi_if_entry_signal(
+    default_conf_usdt, limit_order, limit_order_open, is_short, fee, mocker
+) -> None:
     patch_RPCManager(mocker)
     patch_exchange(mocker)
     eside = entry_side(is_short)
     mocker.patch.multiple(
-        'coingro.exchange.Exchange',
-        fetch_ticker=MagicMock(return_value={
-            'bid': 2.0,
-            'ask': 2.0,
-            'last': 2.0
-        }),
-        create_order=MagicMock(side_effect=[
-            limit_order_open[eside],
-            {'id': 1234553382},
-            {'id': 1234553383}
-        ]),
+        "coingro.exchange.Exchange",
+        fetch_ticker=MagicMock(return_value={"bid": 2.0, "ask": 2.0, "last": 2.0}),
+        create_order=MagicMock(
+            side_effect=[limit_order_open[eside], {"id": 1234553382}, {"id": 1234553383}]
+        ),
         get_fee=fee,
         _is_dry_limit_order_filled=MagicMock(return_value=False),
     )
-    default_conf_usdt['exit_pricing'] = {
-        'ignore_roi_if_entry_signal': False
-    }
+    default_conf_usdt["exit_pricing"] = {"ignore_roi_if_entry_signal": False}
     coingro = CoingroBot(default_conf_usdt)
     patch_get_signal(coingro, enter_short=is_short, enter_long=not is_short)
     coingro.strategy.min_roi_reached = MagicMock(return_value=True)
@@ -4160,8 +4377,7 @@ def test_disable_ignore_roi_if_entry_signal(default_conf_usdt, limit_order, limi
     trade = Trade.query.first()
     trade.is_short = is_short
 
-    oobj = Order.parse_from_ccxt_object(
-        limit_order[eside], limit_order[eside]['symbol'], eside)
+    oobj = Order.parse_from_ccxt_object(limit_order[eside], limit_order[eside]["symbol"], eside)
     trade.update_trade(oobj)
     # Sell due to min_roi_reached
     patch_get_signal(coingro, enter_long=not is_short, enter_short=is_short, exit_short=is_short)
@@ -4173,132 +4389,155 @@ def test_disable_ignore_roi_if_entry_signal(default_conf_usdt, limit_order, limi
     assert trade.exit_reason == ExitType.ROI.value
 
 
-def test_get_real_amount_quote(default_conf_usdt, trades_for_order, buy_order_fee, fee, caplog,
-                               mocker):
-    mocker.patch('coingro.exchange.Exchange.get_trades_for_order', return_value=trades_for_order)
-    amount = sum(x['amount'] for x in trades_for_order)
+def test_get_real_amount_quote(
+    default_conf_usdt, trades_for_order, buy_order_fee, fee, caplog, mocker
+):
+    mocker.patch("coingro.exchange.Exchange.get_trades_for_order", return_value=trades_for_order)
+    amount = sum(x["amount"] for x in trades_for_order)
     trade = Trade(
-        pair='LTC/ETH',
+        pair="LTC/ETH",
         amount=amount,
-        exchange='binance',
+        exchange="binance",
         open_rate=0.245441,
         fee_open=fee.return_value,
         fee_close=fee.return_value,
-        open_order_id="123456"
+        open_order_id="123456",
     )
     coingro = get_patched_coingrobot(mocker, default_conf_usdt)
 
     caplog.clear()
-    order_obj = Order.parse_from_ccxt_object(buy_order_fee, 'LTC/ETH', 'buy')
+    order_obj = Order.parse_from_ccxt_object(buy_order_fee, "LTC/ETH", "buy")
     # Amount is reduced by "fee"
     assert coingro.get_real_amount(trade, buy_order_fee, order_obj) == amount - (amount * 0.001)
     assert log_has(
-        'Applying fee on amount for Trade(id=None, pair=LTC/ETH, amount=8.00000000, is_short=False,'
-        ' leverage=1.0, open_rate=0.24544100, open_since=closed) (from 8.0 to 7.992).',
-        caplog
+        "Applying fee on amount for Trade(id=None, pair=LTC/ETH, amount=8.00000000, is_short=False,"
+        " leverage=1.0, open_rate=0.24544100, open_since=closed) (from 8.0 to 7.992).",
+        caplog,
     )
 
 
-def test_get_real_amount_quote_dust(default_conf_usdt, trades_for_order, buy_order_fee, fee,
-                                    caplog, mocker):
-    mocker.patch('coingro.exchange.Exchange.get_trades_for_order', return_value=trades_for_order)
-    walletmock = mocker.patch('coingro.wallets.Wallets.update')
-    mocker.patch('coingro.wallets.Wallets.get_free', return_value=8.1122)
-    amount = sum(x['amount'] for x in trades_for_order)
+def test_get_real_amount_quote_dust(
+    default_conf_usdt, trades_for_order, buy_order_fee, fee, caplog, mocker
+):
+    mocker.patch("coingro.exchange.Exchange.get_trades_for_order", return_value=trades_for_order)
+    walletmock = mocker.patch("coingro.wallets.Wallets.update")
+    mocker.patch("coingro.wallets.Wallets.get_free", return_value=8.1122)
+    amount = sum(x["amount"] for x in trades_for_order)
     trade = Trade(
-        pair='LTC/ETH',
+        pair="LTC/ETH",
         amount=amount,
-        exchange='binance',
+        exchange="binance",
         open_rate=0.245441,
         fee_open=fee.return_value,
         fee_close=fee.return_value,
-        open_order_id="123456"
+        open_order_id="123456",
     )
     coingro = get_patched_coingrobot(mocker, default_conf_usdt)
 
     walletmock.reset_mock()
-    order_obj = Order.parse_from_ccxt_object(buy_order_fee, 'LTC/ETH', 'buy')
+    order_obj = Order.parse_from_ccxt_object(buy_order_fee, "LTC/ETH", "buy")
     # Amount is kept as is
     assert coingro.get_real_amount(trade, buy_order_fee, order_obj) == amount
     assert walletmock.call_count == 1
-    assert log_has_re(r'Fee amount for Trade.* was in base currency '
-                      '- Eating Fee 0.008 into dust', caplog)
+    assert log_has_re(
+        r"Fee amount for Trade.* was in base currency " "- Eating Fee 0.008 into dust", caplog
+    )
 
 
 def test_get_real_amount_no_trade(default_conf_usdt, buy_order_fee, caplog, mocker, fee):
-    mocker.patch('coingro.exchange.Exchange.get_trades_for_order', return_value=[])
+    mocker.patch("coingro.exchange.Exchange.get_trades_for_order", return_value=[])
 
-    amount = buy_order_fee['amount']
+    amount = buy_order_fee["amount"]
     trade = Trade(
-        pair='LTC/ETH',
+        pair="LTC/ETH",
         amount=amount,
-        exchange='binance',
+        exchange="binance",
         open_rate=0.245441,
         fee_open=fee.return_value,
         fee_close=fee.return_value,
-        open_order_id="123456"
+        open_order_id="123456",
     )
     coingro = get_patched_coingrobot(mocker, default_conf_usdt)
 
-    order_obj = Order.parse_from_ccxt_object(buy_order_fee, 'LTC/ETH', 'buy')
+    order_obj = Order.parse_from_ccxt_object(buy_order_fee, "LTC/ETH", "buy")
     # Amount is reduced by "fee"
     assert coingro.get_real_amount(trade, buy_order_fee, order_obj) == amount
     assert log_has(
-        'Applying fee on amount for Trade(id=None, pair=LTC/ETH, amount=8.00000000, '
-        'is_short=False, leverage=1.0, open_rate=0.24544100, open_since=closed) failed: '
-        'myTrade-Dict empty found',
-        caplog
+        "Applying fee on amount for Trade(id=None, pair=LTC/ETH, amount=8.00000000, "
+        "is_short=False, leverage=1.0, open_rate=0.24544100, open_since=closed) failed: "
+        "myTrade-Dict empty found",
+        caplog,
     )
 
 
 @pytest.mark.parametrize(
-    'fee_par,fee_reduction_amount,use_ticker_usdt_rate,expected_log', [
+    "fee_par,fee_reduction_amount,use_ticker_usdt_rate,expected_log",
+    [
         # basic, amount does not change
-        ({'cost': 0.008, 'currency': 'ETH'}, 0, False, None),
+        ({"cost": 0.008, "currency": "ETH"}, 0, False, None),
         # no currency in fee
-        ({'cost': 0.004, 'currency': None}, 0, True, None),
+        ({"cost": 0.004, "currency": None}, 0, True, None),
         # BNB no rate
-        ({'cost': 0.00094518, 'currency': 'BNB'}, 0, True, (
-            'Fee for Trade Trade(id=None, pair=LTC/ETH, amount=8.00000000, is_short=False, '
-            'leverage=1.0, open_rate=0.24544100, open_since=closed) [buy]: 0.00094518 BNB -'
-            ' rate: None'
-        )),
+        (
+            {"cost": 0.00094518, "currency": "BNB"},
+            0,
+            True,
+            (
+                "Fee for Trade Trade(id=None, pair=LTC/ETH, amount=8.00000000, is_short=False, "
+                "leverage=1.0, open_rate=0.24544100, open_since=closed) [buy]: 0.00094518 BNB -"
+                " rate: None"
+            ),
+        ),
         # from order
-        ({'cost': 0.004, 'currency': 'LTC'}, 0.004, False, (
-            'Applying fee on amount for Trade(id=None, pair=LTC/ETH, amount=8.00000000, '
-            'is_short=False, leverage=1.0, open_rate=0.24544100, open_since=closed) (from'
-            ' 8.0 to 7.996).'
-        )),
+        (
+            {"cost": 0.004, "currency": "LTC"},
+            0.004,
+            False,
+            (
+                "Applying fee on amount for Trade(id=None, pair=LTC/ETH, amount=8.00000000, "
+                "is_short=False, leverage=1.0, open_rate=0.24544100, open_since=closed) (from"
+                " 8.0 to 7.996)."
+            ),
+        ),
         # invalid, no currency in from fee dict
-        ({'cost': 0.008, 'currency': None}, 0, True, None),
-    ])
+        ({"cost": 0.008, "currency": None}, 0, True, None),
+    ],
+)
 def test_get_real_amount(
-    default_conf_usdt, trades_for_order, buy_order_fee, fee, mocker, caplog,
-    fee_par, fee_reduction_amount, use_ticker_usdt_rate, expected_log
+    default_conf_usdt,
+    trades_for_order,
+    buy_order_fee,
+    fee,
+    mocker,
+    caplog,
+    fee_par,
+    fee_reduction_amount,
+    use_ticker_usdt_rate,
+    expected_log,
 ):
 
     buy_order = deepcopy(buy_order_fee)
-    buy_order['fee'] = fee_par
-    trades_for_order[0]['fee'] = fee_par
+    buy_order["fee"] = fee_par
+    trades_for_order[0]["fee"] = fee_par
 
-    mocker.patch('coingro.exchange.Exchange.get_trades_for_order', return_value=trades_for_order)
-    amount = sum(x['amount'] for x in trades_for_order)
+    mocker.patch("coingro.exchange.Exchange.get_trades_for_order", return_value=trades_for_order)
+    amount = sum(x["amount"] for x in trades_for_order)
     trade = Trade(
-        pair='LTC/ETH',
+        pair="LTC/ETH",
         amount=amount,
-        exchange='binance',
+        exchange="binance",
         fee_open=fee.return_value,
         fee_close=fee.return_value,
         open_rate=0.245441,
-        open_order_id="123456"
+        open_order_id="123456",
     )
     coingro = get_patched_coingrobot(mocker, default_conf_usdt)
 
     if not use_ticker_usdt_rate:
-        mocker.patch('coingro.exchange.Exchange.fetch_ticker', side_effect=ExchangeError)
+        mocker.patch("coingro.exchange.Exchange.fetch_ticker", side_effect=ExchangeError)
 
     caplog.clear()
-    order_obj = Order.parse_from_ccxt_object(buy_order_fee, 'LTC/ETH', 'buy')
+    order_obj = Order.parse_from_ccxt_object(buy_order_fee, "LTC/ETH", "buy")
     assert coingro.get_real_amount(trade, buy_order, order_obj) == amount - fee_reduction_amount
 
     if expected_log:
@@ -4306,55 +4545,66 @@ def test_get_real_amount(
 
 
 @pytest.mark.parametrize(
-    'fee_cost, fee_currency, fee_reduction_amount, expected_fee, expected_log_amount', [
+    "fee_cost, fee_currency, fee_reduction_amount, expected_fee, expected_log_amount",
+    [
         # basic, amount is reduced by fee
         (None, None, 0.001, 0.001, 7.992),
         # different fee currency on both trades, fee is average of both trade's fee
-        (0.02, 'BNB', 0.0005, 0.001518575, 7.996),
-    ])
+        (0.02, "BNB", 0.0005, 0.001518575, 7.996),
+    ],
+)
 def test_get_real_amount_multi(
-    default_conf_usdt, trades_for_order2, buy_order_fee, caplog, fee, mocker, markets,
-    fee_cost, fee_currency, fee_reduction_amount, expected_fee, expected_log_amount,
+    default_conf_usdt,
+    trades_for_order2,
+    buy_order_fee,
+    caplog,
+    fee,
+    mocker,
+    markets,
+    fee_cost,
+    fee_currency,
+    fee_reduction_amount,
+    expected_fee,
+    expected_log_amount,
 ):
 
     trades_for_order = deepcopy(trades_for_order2)
     if fee_cost:
-        trades_for_order[0]['fee']['cost'] = fee_cost
+        trades_for_order[0]["fee"]["cost"] = fee_cost
     if fee_currency:
-        trades_for_order[0]['fee']['currency'] = fee_currency
+        trades_for_order[0]["fee"]["currency"] = fee_currency
 
-    mocker.patch('coingro.exchange.Exchange.get_trades_for_order', return_value=trades_for_order)
-    amount = float(sum(x['amount'] for x in trades_for_order))
-    default_conf_usdt['stake_currency'] = "ETH"
+    mocker.patch("coingro.exchange.Exchange.get_trades_for_order", return_value=trades_for_order)
+    amount = float(sum(x["amount"] for x in trades_for_order))
+    default_conf_usdt["stake_currency"] = "ETH"
 
     trade = Trade(
-        pair='LTC/ETH',
+        pair="LTC/ETH",
         amount=amount,
-        exchange='binance',
+        exchange="binance",
         fee_open=fee.return_value,
         fee_close=fee.return_value,
         open_rate=0.245441,
-        open_order_id="123456"
+        open_order_id="123456",
     )
 
     # Fake markets entry to enable fee parsing
-    markets['BNB/ETH'] = markets['ETH/USDT']
+    markets["BNB/ETH"] = markets["ETH/USDT"]
     coingro = get_patched_coingrobot(mocker, default_conf_usdt)
-    mocker.patch('coingro.exchange.Exchange.markets', PropertyMock(return_value=markets))
-    mocker.patch('coingro.exchange.Exchange.fetch_ticker',
-                 return_value={'ask': 0.19, 'last': 0.2})
+    mocker.patch("coingro.exchange.Exchange.markets", PropertyMock(return_value=markets))
+    mocker.patch("coingro.exchange.Exchange.fetch_ticker", return_value={"ask": 0.19, "last": 0.2})
 
     # Amount is reduced by "fee"
     expected_amount = amount - (amount * fee_reduction_amount)
-    order_obj = Order.parse_from_ccxt_object(buy_order_fee, 'LTC/ETH', 'buy')
+    order_obj = Order.parse_from_ccxt_object(buy_order_fee, "LTC/ETH", "buy")
     assert coingro.get_real_amount(trade, buy_order_fee, order_obj) == expected_amount
     assert log_has(
         (
-            'Applying fee on amount for Trade(id=None, pair=LTC/ETH, amount=8.00000000, '
-            'is_short=False, leverage=1.0, open_rate=0.24544100, open_since=closed) '
-            f'(from 8.0 to {expected_log_amount}).'
+            "Applying fee on amount for Trade(id=None, pair=LTC/ETH, amount=8.00000000, "
+            "is_short=False, leverage=1.0, open_rate=0.24544100, open_since=closed) "
+            f"(from 8.0 to {expected_log_amount})."
         ),
-        caplog
+        caplog,
     )
 
     assert trade.fee_open == expected_fee
@@ -4365,99 +4615,103 @@ def test_get_real_amount_multi(
     assert trade.fee_close_currency is None
 
 
-def test_get_real_amount_invalid_order(default_conf_usdt, trades_for_order, buy_order_fee, fee,
-                                       mocker):
+def test_get_real_amount_invalid_order(
+    default_conf_usdt, trades_for_order, buy_order_fee, fee, mocker
+):
     limit_buy_order_usdt = deepcopy(buy_order_fee)
-    limit_buy_order_usdt['fee'] = {'cost': 0.004}
+    limit_buy_order_usdt["fee"] = {"cost": 0.004}
 
-    mocker.patch('coingro.exchange.Exchange.get_trades_for_order', return_value=[])
-    amount = float(sum(x['amount'] for x in trades_for_order))
+    mocker.patch("coingro.exchange.Exchange.get_trades_for_order", return_value=[])
+    amount = float(sum(x["amount"] for x in trades_for_order))
     trade = Trade(
-        pair='LTC/ETH',
+        pair="LTC/ETH",
         amount=amount,
-        exchange='binance',
+        exchange="binance",
         fee_open=fee.return_value,
         fee_close=fee.return_value,
         open_rate=0.245441,
-        open_order_id="123456"
+        open_order_id="123456",
     )
     coingro = get_patched_coingrobot(mocker, default_conf_usdt)
 
-    order_obj = Order.parse_from_ccxt_object(buy_order_fee, 'LTC/ETH', 'buy')
+    order_obj = Order.parse_from_ccxt_object(buy_order_fee, "LTC/ETH", "buy")
     # Amount does not change
     assert coingro.get_real_amount(trade, limit_buy_order_usdt, order_obj) == amount
 
 
-def test_get_real_amount_fees_order(default_conf_usdt, market_buy_order_usdt_doublefee,
-                                    fee, mocker):
+def test_get_real_amount_fees_order(
+    default_conf_usdt, market_buy_order_usdt_doublefee, fee, mocker
+):
 
-    tfo_mock = mocker.patch('coingro.exchange.Exchange.get_trades_for_order', return_value=[])
-    mocker.patch('coingro.exchange.Exchange.get_valid_pair_combination', return_value='BNB/USDT')
-    mocker.patch('coingro.exchange.Exchange.fetch_ticker', return_value={'last': 200})
+    tfo_mock = mocker.patch("coingro.exchange.Exchange.get_trades_for_order", return_value=[])
+    mocker.patch("coingro.exchange.Exchange.get_valid_pair_combination", return_value="BNB/USDT")
+    mocker.patch("coingro.exchange.Exchange.fetch_ticker", return_value={"last": 200})
     trade = Trade(
-        pair='LTC/USDT',
+        pair="LTC/USDT",
         amount=30.0,
-        exchange='binance',
+        exchange="binance",
         fee_open=fee.return_value,
         fee_close=fee.return_value,
         open_rate=0.245441,
-        open_order_id="123456"
+        open_order_id="123456",
     )
     coingro = get_patched_coingrobot(mocker, default_conf_usdt)
 
     # Amount does not change
     assert trade.fee_open == 0.0025
-    order_obj = Order.parse_from_ccxt_object(market_buy_order_usdt_doublefee, 'LTC/ETH', 'buy')
+    order_obj = Order.parse_from_ccxt_object(market_buy_order_usdt_doublefee, "LTC/ETH", "buy")
     assert coingro.get_real_amount(trade, market_buy_order_usdt_doublefee, order_obj) == 30.0
     assert tfo_mock.call_count == 0
     # Fetch fees from trades dict if available to get "proper" values
     assert round(trade.fee_open, 4) == 0.001
 
 
-def test_get_real_amount_wrong_amount(default_conf_usdt, trades_for_order, buy_order_fee, fee,
-                                      mocker):
+def test_get_real_amount_wrong_amount(
+    default_conf_usdt, trades_for_order, buy_order_fee, fee, mocker
+):
     limit_buy_order_usdt = deepcopy(buy_order_fee)
-    limit_buy_order_usdt['amount'] = limit_buy_order_usdt['amount'] - 0.001
+    limit_buy_order_usdt["amount"] = limit_buy_order_usdt["amount"] - 0.001
 
-    mocker.patch('coingro.exchange.Exchange.get_trades_for_order', return_value=trades_for_order)
-    amount = float(sum(x['amount'] for x in trades_for_order))
+    mocker.patch("coingro.exchange.Exchange.get_trades_for_order", return_value=trades_for_order)
+    amount = float(sum(x["amount"] for x in trades_for_order))
     trade = Trade(
-        pair='LTC/ETH',
+        pair="LTC/ETH",
         amount=amount,
-        exchange='binance',
+        exchange="binance",
         open_rate=0.245441,
         fee_open=fee.return_value,
         fee_close=fee.return_value,
-        open_order_id="123456"
+        open_order_id="123456",
     )
     coingro = get_patched_coingrobot(mocker, default_conf_usdt)
 
-    order_obj = Order.parse_from_ccxt_object(buy_order_fee, 'LTC/ETH', 'buy')
+    order_obj = Order.parse_from_ccxt_object(buy_order_fee, "LTC/ETH", "buy")
     # Amount does not change
     with pytest.raises(DependencyException, match=r"Half bought\? Amounts don't match"):
         coingro.get_real_amount(trade, limit_buy_order_usdt, order_obj)
 
 
-def test_get_real_amount_wrong_amount_rounding(default_conf_usdt, trades_for_order, buy_order_fee,
-                                               fee, mocker):
+def test_get_real_amount_wrong_amount_rounding(
+    default_conf_usdt, trades_for_order, buy_order_fee, fee, mocker
+):
     # Floats should not be compared directly.
     limit_buy_order_usdt = deepcopy(buy_order_fee)
-    trades_for_order[0]['amount'] = trades_for_order[0]['amount'] + 1e-15
+    trades_for_order[0]["amount"] = trades_for_order[0]["amount"] + 1e-15
 
-    mocker.patch('coingro.exchange.Exchange.get_trades_for_order', return_value=trades_for_order)
-    amount = float(sum(x['amount'] for x in trades_for_order))
+    mocker.patch("coingro.exchange.Exchange.get_trades_for_order", return_value=trades_for_order)
+    amount = float(sum(x["amount"] for x in trades_for_order))
     trade = Trade(
-        pair='LTC/ETH',
+        pair="LTC/ETH",
         amount=amount,
-        exchange='binance',
+        exchange="binance",
         fee_open=fee.return_value,
         fee_close=fee.return_value,
         open_rate=0.245441,
-        open_order_id="123456"
+        open_order_id="123456",
     )
     coingro = get_patched_coingrobot(mocker, default_conf_usdt)
 
-    order_obj = Order.parse_from_ccxt_object(buy_order_fee, 'LTC/ETH', 'buy')
+    order_obj = Order.parse_from_ccxt_object(buy_order_fee, "LTC/ETH", "buy")
     # Amount changes by fee amount.
     assert isclose(
         coingro.get_real_amount(trade, limit_buy_order_usdt, order_obj),
@@ -4469,79 +4723,91 @@ def test_get_real_amount_wrong_amount_rounding(default_conf_usdt, trades_for_ord
 def test_get_real_amount_open_trade_usdt(default_conf_usdt, fee, mocker):
     amount = 12345
     trade = Trade(
-        pair='LTC/ETH',
+        pair="LTC/ETH",
         amount=amount,
-        exchange='binance',
+        exchange="binance",
         open_rate=0.245441,
         fee_open=fee.return_value,
         fee_close=fee.return_value,
-        open_order_id="123456"
+        open_order_id="123456",
     )
     order = {
-        'id': 'mocked_order',
-        'amount': amount,
-        'status': 'open',
-        'side': 'buy',
+        "id": "mocked_order",
+        "amount": amount,
+        "status": "open",
+        "side": "buy",
     }
     coingro = get_patched_coingrobot(mocker, default_conf_usdt)
-    order_obj = Order.parse_from_ccxt_object(order, 'LTC/ETH', 'buy')
+    order_obj = Order.parse_from_ccxt_object(order, "LTC/ETH", "buy")
     assert coingro.get_real_amount(trade, order, order_obj) == amount
 
 
-@pytest.mark.parametrize('amount,fee_abs,wallet,amount_exp', [
-    (8.0, 0.0, 10, 8),
-    (8.0, 0.0, 0, 8),
-    (8.0, 0.1, 0, 7.9),
-    (8.0, 0.1, 10, 8),
-    (8.0, 0.1, 8.0, 8.0),
-    (8.0, 0.1, 7.9, 7.9),
-])
-def test_apply_fee_conditional(default_conf_usdt, fee, mocker,
-                               amount, fee_abs, wallet, amount_exp):
-    walletmock = mocker.patch('coingro.wallets.Wallets.update')
-    mocker.patch('coingro.wallets.Wallets.get_free', return_value=wallet)
+@pytest.mark.parametrize(
+    "amount,fee_abs,wallet,amount_exp",
+    [
+        (8.0, 0.0, 10, 8),
+        (8.0, 0.0, 0, 8),
+        (8.0, 0.1, 0, 7.9),
+        (8.0, 0.1, 10, 8),
+        (8.0, 0.1, 8.0, 8.0),
+        (8.0, 0.1, 7.9, 7.9),
+    ],
+)
+def test_apply_fee_conditional(default_conf_usdt, fee, mocker, amount, fee_abs, wallet, amount_exp):
+    walletmock = mocker.patch("coingro.wallets.Wallets.update")
+    mocker.patch("coingro.wallets.Wallets.get_free", return_value=wallet)
     trade = Trade(
-        pair='LTC/ETH',
+        pair="LTC/ETH",
         amount=amount,
-        exchange='binance',
+        exchange="binance",
         open_rate=0.245441,
         fee_open=fee.return_value,
         fee_close=fee.return_value,
-        open_order_id="123456"
+        open_order_id="123456",
     )
     coingro = get_patched_coingrobot(mocker, default_conf_usdt)
 
     walletmock.reset_mock()
     # Amount is kept as is
-    assert coingro.apply_fee_conditional(trade, 'LTC', amount, fee_abs) == amount_exp
+    assert coingro.apply_fee_conditional(trade, "LTC", amount, fee_abs) == amount_exp
     assert walletmock.call_count == 1
 
 
-@pytest.mark.parametrize("delta, is_high_delta", [
-    (0.1, False),
-    (100, True),
-])
-@pytest.mark.parametrize('is_short', [False, True])
+@pytest.mark.parametrize(
+    "delta, is_high_delta",
+    [
+        (0.1, False),
+        (100, True),
+    ],
+)
+@pytest.mark.parametrize("is_short", [False, True])
 def test_order_book_depth_of_market(
-    default_conf_usdt, ticker_usdt, limit_order_open,
-    fee, mocker, order_book_l2, delta, is_high_delta, is_short
+    default_conf_usdt,
+    ticker_usdt,
+    limit_order_open,
+    fee,
+    mocker,
+    order_book_l2,
+    delta,
+    is_high_delta,
+    is_short,
 ):
-    ticker_side = 'ask' if is_short else 'bid'
+    ticker_side = "ask" if is_short else "bid"
 
-    default_conf_usdt['entry_pricing']['check_depth_of_market']['enabled'] = True
-    default_conf_usdt['entry_pricing']['check_depth_of_market']['bids_to_ask_delta'] = delta
+    default_conf_usdt["entry_pricing"]["check_depth_of_market"]["enabled"] = True
+    default_conf_usdt["entry_pricing"]["check_depth_of_market"]["bids_to_ask_delta"] = delta
     patch_RPCManager(mocker)
     patch_exchange(mocker)
-    mocker.patch('coingro.exchange.Exchange.fetch_l2_order_book', order_book_l2)
+    mocker.patch("coingro.exchange.Exchange.fetch_l2_order_book", order_book_l2)
     mocker.patch.multiple(
-        'coingro.exchange.Exchange',
+        "coingro.exchange.Exchange",
         fetch_ticker=ticker_usdt,
         create_order=MagicMock(return_value=limit_order_open[entry_side(is_short)]),
         get_fee=fee,
     )
 
     # Save state of current whitelist
-    whitelist = deepcopy(default_conf_usdt['exchange']['pair_whitelist'])
+    whitelist = deepcopy(default_conf_usdt["exchange"]["pair_whitelist"])
     coingro = CoingroBot(default_conf_usdt)
     patch_get_signal(coingro, enter_short=is_short, enter_long=not is_short)
     coingro.enter_positions()
@@ -4555,50 +4821,63 @@ def test_order_book_depth_of_market(
         assert pytest.approx(trade.stake_amount) == 60.0
         assert trade.is_open
         assert trade.open_date is not None
-        assert trade.exchange == 'binance'
+        assert trade.exchange == "binance"
 
         assert len(Trade.query.all()) == 1
 
         # Simulate fulfilled LIMIT_BUY order for trade
         oobj = Order.parse_from_ccxt_object(
-            limit_order_open[entry_side(is_short)], 'ADA/USDT', entry_side(is_short))
+            limit_order_open[entry_side(is_short)], "ADA/USDT", entry_side(is_short)
+        )
         trade.update_trade(oobj)
 
         assert trade.open_rate == ticker_usdt.return_value[ticker_side]
-        assert whitelist == default_conf_usdt['exchange']['pair_whitelist']
+        assert whitelist == default_conf_usdt["exchange"]["pair_whitelist"]
 
 
-@pytest.mark.parametrize('exception_thrown,ask,last,order_book_top,order_book', [
-    (False, 0.045, 0.046, 2, None),
-    (True,  0.042, 0.046, 1, {'bids': [[]], 'asks': [[]]})
-])
-def test_order_book_entry_pricing1(mocker, default_conf_usdt, order_book_l2, exception_thrown,
-                                   ask, last, order_book_top, order_book, caplog) -> None:
+@pytest.mark.parametrize(
+    "exception_thrown,ask,last,order_book_top,order_book",
+    [(False, 0.045, 0.046, 2, None), (True, 0.042, 0.046, 1, {"bids": [[]], "asks": [[]]})],
+)
+def test_order_book_entry_pricing1(
+    mocker,
+    default_conf_usdt,
+    order_book_l2,
+    exception_thrown,
+    ask,
+    last,
+    order_book_top,
+    order_book,
+    caplog,
+) -> None:
     """
     test if function get_rate will return the order book price instead of the ask rate
     """
     patch_exchange(mocker)
-    ticker_usdt_mock = MagicMock(return_value={'ask': ask, 'last': last})
+    ticker_usdt_mock = MagicMock(return_value={"ask": ask, "last": last})
     mocker.patch.multiple(
-        'coingro.exchange.Exchange',
+        "coingro.exchange.Exchange",
         fetch_l2_order_book=MagicMock(return_value=order_book) if order_book else order_book_l2,
         fetch_ticker=ticker_usdt_mock,
     )
-    default_conf_usdt['exchange']['name'] = 'binance'
-    default_conf_usdt['entry_pricing']['use_order_book'] = True
-    default_conf_usdt['entry_pricing']['order_book_top'] = order_book_top
-    default_conf_usdt['entry_pricing']['price_last_balance'] = 0
-    default_conf_usdt['telegram']['enabled'] = False
+    default_conf_usdt["exchange"]["name"] = "binance"
+    default_conf_usdt["entry_pricing"]["use_order_book"] = True
+    default_conf_usdt["entry_pricing"]["order_book_top"] = order_book_top
+    default_conf_usdt["entry_pricing"]["price_last_balance"] = 0
+    default_conf_usdt["telegram"]["enabled"] = False
 
     coingro = CoingroBot(default_conf_usdt)
     if exception_thrown:
         with pytest.raises(PricingError):
-            coingro.exchange.get_rate('ETH/USDT', side="entry", is_short=False, refresh=True)
+            coingro.exchange.get_rate("ETH/USDT", side="entry", is_short=False, refresh=True)
         assert log_has_re(
-            r'Entry Price at location 1 from orderbook could not be determined.', caplog)
+            r"Entry Price at location 1 from orderbook could not be determined.", caplog
+        )
     else:
-        assert coingro.exchange.get_rate(
-            'ETH/USDT', side="entry", is_short=False, refresh=True) == 0.043935
+        assert (
+            coingro.exchange.get_rate("ETH/USDT", side="entry", is_short=False, refresh=True)
+            == 0.043935
+        )
         assert ticker_usdt_mock.call_count == 0
 
 
@@ -4607,46 +4886,49 @@ def test_check_depth_of_market(default_conf_usdt, mocker, order_book_l2) -> None
     test check depth of market
     """
     patch_exchange(mocker)
-    mocker.patch.multiple(
-        'coingro.exchange.Exchange',
-        fetch_l2_order_book=order_book_l2
-    )
-    default_conf_usdt['telegram']['enabled'] = False
-    default_conf_usdt['exchange']['name'] = 'binance'
-    default_conf_usdt['entry_pricing']['check_depth_of_market']['enabled'] = True
+    mocker.patch.multiple("coingro.exchange.Exchange", fetch_l2_order_book=order_book_l2)
+    default_conf_usdt["telegram"]["enabled"] = False
+    default_conf_usdt["exchange"]["name"] = "binance"
+    default_conf_usdt["entry_pricing"]["check_depth_of_market"]["enabled"] = True
     # delta is 100 which is impossible to reach. hence function will return false
-    default_conf_usdt['entry_pricing']['check_depth_of_market']['bids_to_ask_delta'] = 100
+    default_conf_usdt["entry_pricing"]["check_depth_of_market"]["bids_to_ask_delta"] = 100
     coingro = CoingroBot(default_conf_usdt)
 
-    conf = default_conf_usdt['entry_pricing']['check_depth_of_market']
-    assert coingro._check_depth_of_market('ETH/BTC', conf, side=SignalDirection.LONG) is False
+    conf = default_conf_usdt["entry_pricing"]["check_depth_of_market"]
+    assert coingro._check_depth_of_market("ETH/BTC", conf, side=SignalDirection.LONG) is False
 
 
-@pytest.mark.parametrize('is_short', [False, True])
+@pytest.mark.parametrize("is_short", [False, True])
 def test_order_book_exit_pricing(
-        default_conf_usdt, limit_buy_order_usdt_open, limit_buy_order_usdt, fee, is_short,
-        limit_sell_order_usdt_open, mocker, order_book_l2, caplog) -> None:
+    default_conf_usdt,
+    limit_buy_order_usdt_open,
+    limit_buy_order_usdt,
+    fee,
+    is_short,
+    limit_sell_order_usdt_open,
+    mocker,
+    order_book_l2,
+    caplog,
+) -> None:
     """
     test order book ask strategy
     """
-    mocker.patch('coingro.exchange.Exchange.fetch_l2_order_book', order_book_l2)
-    default_conf_usdt['exchange']['name'] = 'binance'
-    default_conf_usdt['exit_pricing']['use_order_book'] = True
-    default_conf_usdt['exit_pricing']['order_book_top'] = 1
-    default_conf_usdt['telegram']['enabled'] = False
+    mocker.patch("coingro.exchange.Exchange.fetch_l2_order_book", order_book_l2)
+    default_conf_usdt["exchange"]["name"] = "binance"
+    default_conf_usdt["exit_pricing"]["use_order_book"] = True
+    default_conf_usdt["exit_pricing"]["order_book_top"] = 1
+    default_conf_usdt["telegram"]["enabled"] = False
     patch_RPCManager(mocker)
     patch_exchange(mocker)
     mocker.patch.multiple(
-        'coingro.exchange.Exchange',
-        fetch_ticker=MagicMock(return_value={
-            'bid': 1.9,
-            'ask': 2.2,
-            'last': 1.9
-        }),
-        create_order=MagicMock(side_effect=[
-            limit_buy_order_usdt_open,
-            limit_sell_order_usdt_open,
-        ]),
+        "coingro.exchange.Exchange",
+        fetch_ticker=MagicMock(return_value={"bid": 1.9, "ask": 2.2, "last": 1.9}),
+        create_order=MagicMock(
+            side_effect=[
+                limit_buy_order_usdt_open,
+                limit_sell_order_usdt_open,
+            ]
+        ),
         get_fee=fee,
     )
     coingro = CoingroBot(default_conf_usdt)
@@ -4658,40 +4940,40 @@ def test_order_book_exit_pricing(
     assert trade
 
     time.sleep(0.01)  # Race condition fix
-    oobj = Order.parse_from_ccxt_object(limit_buy_order_usdt, limit_buy_order_usdt['symbol'], 'buy')
+    oobj = Order.parse_from_ccxt_object(limit_buy_order_usdt, limit_buy_order_usdt["symbol"], "buy")
     trade.update_trade(oobj)
     coingro.wallets.update()
     assert trade.is_open is True
 
     if is_short:
-        patch_get_signal(coingro, enter_long=False,  exit_short=True)
+        patch_get_signal(coingro, enter_long=False, exit_short=True)
     else:
         patch_get_signal(coingro, enter_long=False, exit_long=True)
     assert coingro.handle_trade(trade) is True
-    assert trade.close_rate_requested == order_book_l2.return_value['asks'][0][0]
+    assert trade.close_rate_requested == order_book_l2.return_value["asks"][0][0]
 
-    mocker.patch('coingro.exchange.Exchange.fetch_l2_order_book',
-                 return_value={'bids': [[]], 'asks': [[]]})
+    mocker.patch(
+        "coingro.exchange.Exchange.fetch_l2_order_book", return_value={"bids": [[]], "asks": [[]]}
+    )
     with pytest.raises(PricingError):
         coingro.handle_trade(trade)
-    assert log_has_re(r'Exit Price at location 1 from orderbook could not be determined\..*',
-                      caplog)
+    assert log_has_re(
+        r"Exit Price at location 1 from orderbook could not be determined\..*", caplog
+    )
 
 
 def test_startup_state(default_conf_usdt, mocker):
-    default_conf_usdt['pairlist'] = {'method': 'VolumePairList',
-                                     'config': {'number_assets': 20}
-                                     }
-    mocker.patch('coingro.exchange.Exchange.exchange_has', MagicMock(return_value=True))
+    default_conf_usdt["pairlist"] = {"method": "VolumePairList", "config": {"number_assets": 20}}
+    mocker.patch("coingro.exchange.Exchange.exchange_has", MagicMock(return_value=True))
     worker = get_patched_worker(mocker, default_conf_usdt)
     assert worker.coingro.state is State.RUNNING
 
 
 def test_startup_trade_reinit(default_conf_usdt, edge_conf, mocker):
 
-    mocker.patch('coingro.exchange.Exchange.exchange_has', MagicMock(return_value=True))
+    mocker.patch("coingro.exchange.Exchange.exchange_has", MagicMock(return_value=True))
     reinit_mock = MagicMock()
-    mocker.patch('coingro.persistence.Trade.stoploss_reinitialization', reinit_mock)
+    mocker.patch("coingro.persistence.Trade.stoploss_reinitialization", reinit_mock)
 
     cgbot = get_patched_coingrobot(mocker, default_conf_usdt)
     cgbot.startup()
@@ -4705,16 +4987,17 @@ def test_startup_trade_reinit(default_conf_usdt, edge_conf, mocker):
 
 
 @pytest.mark.usefixtures("init_persistence")
-def test_sync_wallet_dry_run(mocker, default_conf_usdt, ticker_usdt, fee, limit_buy_order_usdt_open,
-                             caplog):
-    default_conf_usdt['dry_run'] = True
+def test_sync_wallet_dry_run(
+    mocker, default_conf_usdt, ticker_usdt, fee, limit_buy_order_usdt_open, caplog
+):
+    default_conf_usdt["dry_run"] = True
     # Initialize to 2 times stake amount
-    default_conf_usdt['dry_run_wallet'] = 120.0
-    default_conf_usdt['max_open_trades'] = 2
-    default_conf_usdt['tradable_balance_ratio'] = 1.0
+    default_conf_usdt["dry_run_wallet"] = 120.0
+    default_conf_usdt["max_open_trades"] = 2
+    default_conf_usdt["tradable_balance_ratio"] = 1.0
     patch_exchange(mocker)
     mocker.patch.multiple(
-        'coingro.exchange.Exchange',
+        "coingro.exchange.Exchange",
         fetch_ticker=ticker_usdt,
         create_order=MagicMock(return_value=limit_buy_order_usdt_open),
         get_fee=fee,
@@ -4722,40 +5005,46 @@ def test_sync_wallet_dry_run(mocker, default_conf_usdt, ticker_usdt, fee, limit_
 
     bot = get_patched_coingrobot(mocker, default_conf_usdt)
     patch_get_signal(bot)
-    assert bot.wallets.get_free('USDT') == 120.0
+    assert bot.wallets.get_free("USDT") == 120.0
 
     n = bot.enter_positions()
     assert n == 2
     trades = Trade.query.all()
     assert len(trades) == 2
 
-    bot.config['max_open_trades'] = 3
+    bot.config["max_open_trades"] = 3
     n = bot.enter_positions()
     assert n == 0
-    assert log_has_re(r"Unable to create trade for XRP/USDT: "
-                      r"Available balance \(0.0 USDT\) is lower than stake amount \(60.0 USDT\)",
-                      caplog)
+    assert log_has_re(
+        r"Unable to create trade for XRP/USDT: "
+        r"Available balance \(0.0 USDT\) is lower than stake amount \(60.0 USDT\)",
+        caplog,
+    )
 
 
 @pytest.mark.usefixtures("init_persistence")
-@pytest.mark.parametrize("is_short,buy_calls,sell_calls", [
-    (False, 1, 2),
-    (True, 1, 2),
-])
-def test_cancel_all_open_orders(mocker, default_conf_usdt, fee, limit_order, limit_order_open,
-                                is_short, buy_calls, sell_calls):
-    default_conf_usdt['cancel_open_orders_on_exit'] = True
+@pytest.mark.parametrize(
+    "is_short,buy_calls,sell_calls",
+    [
+        (False, 1, 2),
+        (True, 1, 2),
+    ],
+)
+def test_cancel_all_open_orders(
+    mocker, default_conf_usdt, fee, limit_order, limit_order_open, is_short, buy_calls, sell_calls
+):
+    default_conf_usdt["cancel_open_orders_on_exit"] = True
     mocker.patch(
-        'coingro.exchange.Exchange.fetch_order',
+        "coingro.exchange.Exchange.fetch_order",
         side_effect=[
             ExchangeError(),
             limit_order[exit_side(is_short)],
             limit_order_open[entry_side(is_short)],
             limit_order_open[exit_side(is_short)],
-        ]
+        ],
     )
-    buy_mock = mocker.patch('coingro.coingrobot.CoingroBot.handle_cancel_enter')
-    sell_mock = mocker.patch('coingro.coingrobot.CoingroBot.handle_cancel_exit')
+    buy_mock = mocker.patch("coingro.coingrobot.CoingroBot.handle_cancel_enter")
+    sell_mock = mocker.patch("coingro.coingrobot.CoingroBot.handle_cancel_exit")
 
     coingro = get_patched_coingrobot(mocker, default_conf_usdt)
     create_mock_trades(fee, is_short=is_short)
@@ -4781,7 +5070,7 @@ def test_check_for_open_trades(mocker, default_conf_usdt, fee, is_short):
 
     coingro.check_for_open_trades()
     assert coingro.rpc.send_msg.call_count == 1
-    assert 'Handle these trades manually' in coingro.rpc.send_msg.call_args[0][0]['status']
+    assert "Handle these trades manually" in coingro.rpc.send_msg.call_args[0][0]["status"]
 
 
 @pytest.mark.parametrize("is_short", [False, True])
@@ -4794,32 +5083,34 @@ def test_startup_update_open_orders(mocker, default_conf_usdt, fee, caplog, is_s
     assert not log_has_re(r"Error updating Order .*", caplog)
     caplog.clear()
 
-    coingro.config['dry_run'] = False
+    coingro.config["dry_run"] = False
     coingro.startup_update_open_orders()
 
     assert len(Order.get_open_orders()) == 3
     matching_buy_order = mock_order_4(is_short=is_short)
-    matching_buy_order.update({
-        'status': 'closed',
-    })
-    mocker.patch('coingro.exchange.Exchange.fetch_order', return_value=matching_buy_order)
+    matching_buy_order.update(
+        {
+            "status": "closed",
+        }
+    )
+    mocker.patch("coingro.exchange.Exchange.fetch_order", return_value=matching_buy_order)
     coingro.startup_update_open_orders()
     # Only stoploss and sell orders are kept open
     assert len(Order.get_open_orders()) == 2
 
     caplog.clear()
-    mocker.patch('coingro.exchange.Exchange.fetch_order', side_effect=ExchangeError)
+    mocker.patch("coingro.exchange.Exchange.fetch_order", side_effect=ExchangeError)
     coingro.startup_update_open_orders()
     assert log_has_re(r"Error updating Order .*", caplog)
 
-    mocker.patch('coingro.exchange.Exchange.fetch_order', side_effect=InvalidOrderException)
-    hto_mock = mocker.patch('coingro.coingrobot.CoingroBot.handle_timedout_order')
+    mocker.patch("coingro.exchange.Exchange.fetch_order", side_effect=InvalidOrderException)
+    hto_mock = mocker.patch("coingro.coingrobot.CoingroBot.handle_timedout_order")
     # Orders which are no longer found after X days should be assumed as canceled.
     coingro.startup_update_open_orders()
     assert log_has_re(r"Order is older than \d days.*", caplog)
     assert hto_mock.call_count == 2
-    assert hto_mock.call_args_list[0][0][0]['status'] == 'canceled'
-    assert hto_mock.call_args_list[1][0][0]['status'] == 'canceled'
+    assert hto_mock.call_args_list[0][0][0]["status"] == "canceled"
+    assert hto_mock.call_args_list[1][0][0]["status"] == "canceled"
 
 
 @pytest.mark.usefixtures("init_persistence")
@@ -4828,20 +5119,22 @@ def test_update_closed_trades_without_assigned_fees(mocker, default_conf_usdt, f
     coingro = get_patched_coingrobot(mocker, default_conf_usdt)
 
     def patch_with_fee(order):
-        order.update({'fee': {'cost': 0.1, 'rate': 0.01,
-                      'currency': order['symbol'].split('/')[0]}})
+        order.update(
+            {"fee": {"cost": 0.1, "rate": 0.01, "currency": order["symbol"].split("/")[0]}}
+        )
         return order
 
-    mocker.patch('coingro.exchange.Exchange.fetch_order_or_stoploss_order',
-                 side_effect=[
-                     patch_with_fee(mock_order_2_sell(is_short=is_short)),
-                     patch_with_fee(mock_order_3_sell(is_short=is_short)),
-                     patch_with_fee(mock_order_1(is_short=is_short)),
-                     patch_with_fee(mock_order_2(is_short=is_short)),
-                     patch_with_fee(mock_order_3(is_short=is_short)),
-                     patch_with_fee(mock_order_4(is_short=is_short)),
-                 ]
-                 )
+    mocker.patch(
+        "coingro.exchange.Exchange.fetch_order_or_stoploss_order",
+        side_effect=[
+            patch_with_fee(mock_order_2_sell(is_short=is_short)),
+            patch_with_fee(mock_order_3_sell(is_short=is_short)),
+            patch_with_fee(mock_order_1(is_short=is_short)),
+            patch_with_fee(mock_order_2(is_short=is_short)),
+            patch_with_fee(mock_order_3(is_short=is_short)),
+            patch_with_fee(mock_order_4(is_short=is_short)),
+        ],
+    )
 
     create_mock_trades(fee, is_short=is_short)
     trades = Trade.get_trades().all()
@@ -4864,7 +5157,7 @@ def test_update_closed_trades_without_assigned_fees(mocker, default_conf_usdt, f
         assert trade.fee_close_cost is None
         assert trade.fee_close_currency is None
 
-    coingro.config['dry_run'] = False
+    coingro.config["dry_run"] = False
 
     coingro.update_closed_trades_without_assigned_fees()
 
@@ -4890,10 +5183,11 @@ def test_update_closed_trades_without_assigned_fees(mocker, default_conf_usdt, f
 @pytest.mark.parametrize("is_short", [False, True])
 def test_reupdate_enter_order_fees(mocker, default_conf_usdt, fee, caplog, is_short):
     coingro = get_patched_coingrobot(mocker, default_conf_usdt)
-    mock_uts = mocker.patch('coingro.coingrobot.CoingroBot.update_trade_state')
+    mock_uts = mocker.patch("coingro.coingrobot.CoingroBot.update_trade_state")
 
-    mocker.patch('coingro.exchange.Exchange.fetch_order_or_stoploss_order',
-                 return_value={'status': 'open'})
+    mocker.patch(
+        "coingro.exchange.Exchange.fetch_order_or_stoploss_order", return_value={"status": "open"}
+    )
     create_mock_trades(fee, is_short)
     trades = Trade.get_trades().all()
 
@@ -4901,14 +5195,14 @@ def test_reupdate_enter_order_fees(mocker, default_conf_usdt, fee, caplog, is_sh
     # assert log_has_re(r"Trying to reupdate buy fees for .*", caplog)
     assert mock_uts.call_count == 1
     assert mock_uts.call_args_list[0][0][0] == trades[3]
-    assert mock_uts.call_args_list[0][0][1] == mock_order_4(is_short)['id']
+    assert mock_uts.call_args_list[0][0][1] == mock_order_4(is_short)["id"]
     assert log_has_re(r"Trying to refind lost order for .*", caplog)
     mock_uts.reset_mock()
     caplog.clear()
 
     # Test with trade without orders
     trade = Trade(
-        pair='XRP/ETH',
+        pair="XRP/ETH",
         stake_amount=60.0,
         fee_open=fee.return_value,
         fee_close=fee.return_value,
@@ -4916,8 +5210,8 @@ def test_reupdate_enter_order_fees(mocker, default_conf_usdt, fee, caplog, is_sh
         is_open=True,
         amount=30,
         open_rate=2.0,
-        exchange='binance',
-        is_short=is_short
+        exchange="binance",
+        is_short=is_short,
     )
     Trade.query.session.add(trade)
 
@@ -4931,10 +5225,11 @@ def test_reupdate_enter_order_fees(mocker, default_conf_usdt, fee, caplog, is_sh
 def test_handle_insufficient_funds(mocker, default_conf_usdt, fee, is_short, caplog):
     caplog.set_level(logging.DEBUG)
     coingro = get_patched_coingrobot(mocker, default_conf_usdt)
-    mock_uts = mocker.patch('coingro.coingrobot.CoingroBot.update_trade_state')
+    mock_uts = mocker.patch("coingro.coingrobot.CoingroBot.update_trade_state")
 
-    mock_fo = mocker.patch('coingro.exchange.Exchange.fetch_order_or_stoploss_order',
-                           return_value={'status': 'open'})
+    mock_fo = mocker.patch(
+        "coingro.exchange.Exchange.fetch_order_or_stoploss_order", return_value={"status": "open"}
+    )
 
     def reset_open_orders(trade):
         trade.open_order_id = None
@@ -4954,7 +5249,7 @@ def test_handle_insufficient_funds(mocker, default_conf_usdt, fee, is_short, cap
 
     coingro.handle_insufficient_funds(trade)
     order = mock_order_1(is_short=is_short)
-    assert log_has_re(r"Order Order(.*order_id=" + order['id'] + ".*) is no longer open.", caplog)
+    assert log_has_re(r"Order Order(.*order_id=" + order["id"] + ".*) is no longer open.", caplog)
     assert mock_fo.call_count == 0
     assert mock_uts.call_count == 0
     # No change to orderid - as update_trade_state is mocked
@@ -5013,14 +5308,15 @@ def test_handle_insufficient_funds(mocker, default_conf_usdt, fee, is_short, cap
     assert mock_fo.call_count == 1
     assert mock_uts.call_count == 1
     # sell-orderid is "refound" and added to the trade
-    assert trade.open_order_id == order['id']
+    assert trade.open_order_id == order["id"]
     assert trade.stoploss_order_id is None
 
     caplog.clear()
 
     # Test error case
-    mock_fo = mocker.patch('coingro.exchange.Exchange.fetch_order_or_stoploss_order',
-                           side_effect=ExchangeError())
+    mock_fo = mocker.patch(
+        "coingro.exchange.Exchange.fetch_order_or_stoploss_order", side_effect=ExchangeError()
+    )
     order = mock_order_5_stoploss(is_short=is_short)
 
     coingro.handle_insufficient_funds(trades[4])
@@ -5031,7 +5327,7 @@ def test_get_valid_price(mocker, default_conf_usdt) -> None:
     patch_RPCManager(mocker)
     patch_exchange(mocker)
     coingro = CoingroBot(default_conf_usdt)
-    coingro.config['custom_price_max_distance_ratio'] = 0.02
+    coingro.config["custom_price_max_distance_ratio"] = 0.02
 
     custom_price_string = "10"
     custom_price_badstring = "10abc"
@@ -5067,29 +5363,33 @@ def test_get_valid_price(mocker, default_conf_usdt) -> None:
     assert valid_price_at_min_alwd < proposed_price
 
 
-@pytest.mark.parametrize('trading_mode,calls,t1,t2', [
-    ('spot', 0, "2021-09-01 00:00:00", "2021-09-01 08:00:00"),
-    ('margin', 0, "2021-09-01 00:00:00", "2021-09-01 08:00:00"),
-    ('futures', 31, "2021-09-01 00:00:02", "2021-09-01 08:00:01"),
-    ('futures', 32, "2021-08-31 23:59:59", "2021-09-01 08:00:01"),
-    ('futures', 32, "2021-09-01 00:00:02", "2021-09-01 08:00:02"),
-    ('futures', 33, "2021-08-31 23:59:59", "2021-09-01 08:00:02"),
-    ('futures', 33, "2021-08-31 23:59:59", "2021-09-01 08:00:03"),
-    ('futures', 33, "2021-08-31 23:59:59", "2021-09-01 08:00:04"),
-    ('futures', 33, "2021-08-31 23:59:59", "2021-09-01 08:00:05"),
-    ('futures', 33, "2021-08-31 23:59:59", "2021-09-01 08:00:06"),
-    ('futures', 33, "2021-08-31 23:59:59", "2021-09-01 08:00:07"),
-    ('futures', 33, "2021-08-31 23:59:58", "2021-09-01 08:00:07"),
-])
-def test_update_funding_fees_schedule(mocker, default_conf, trading_mode, calls, time_machine,
-                                      t1, t2):
+@pytest.mark.parametrize(
+    "trading_mode,calls,t1,t2",
+    [
+        ("spot", 0, "2021-09-01 00:00:00", "2021-09-01 08:00:00"),
+        ("margin", 0, "2021-09-01 00:00:00", "2021-09-01 08:00:00"),
+        ("futures", 31, "2021-09-01 00:00:02", "2021-09-01 08:00:01"),
+        ("futures", 32, "2021-08-31 23:59:59", "2021-09-01 08:00:01"),
+        ("futures", 32, "2021-09-01 00:00:02", "2021-09-01 08:00:02"),
+        ("futures", 33, "2021-08-31 23:59:59", "2021-09-01 08:00:02"),
+        ("futures", 33, "2021-08-31 23:59:59", "2021-09-01 08:00:03"),
+        ("futures", 33, "2021-08-31 23:59:59", "2021-09-01 08:00:04"),
+        ("futures", 33, "2021-08-31 23:59:59", "2021-09-01 08:00:05"),
+        ("futures", 33, "2021-08-31 23:59:59", "2021-09-01 08:00:06"),
+        ("futures", 33, "2021-08-31 23:59:59", "2021-09-01 08:00:07"),
+        ("futures", 33, "2021-08-31 23:59:58", "2021-09-01 08:00:07"),
+    ],
+)
+def test_update_funding_fees_schedule(
+    mocker, default_conf, trading_mode, calls, time_machine, t1, t2
+):
     time_machine.move_to(f"{t1} +00:00")
 
     patch_RPCManager(mocker)
     patch_exchange(mocker)
-    mocker.patch('coingro.coingrobot.CoingroBot.update_funding_fees', return_value=True)
-    default_conf['trading_mode'] = trading_mode
-    default_conf['margin_mode'] = 'isolated'
+    mocker.patch("coingro.coingrobot.CoingroBot.update_funding_fees", return_value=True)
+    default_conf["trading_mode"] = trading_mode
+    default_conf["margin_mode"] = "isolated"
     coingro = get_patched_coingrobot(mocker, default_conf)
 
     time_machine.move_to(f"{t2} +00:00")
@@ -5099,8 +5399,8 @@ def test_update_funding_fees_schedule(mocker, default_conf, trading_mode, calls,
     assert coingro.update_funding_fees.call_count == calls
 
 
-@pytest.mark.parametrize('schedule_off', [False, True])
-@pytest.mark.parametrize('is_short', [True, False])
+@pytest.mark.parametrize("schedule_off", [False, True])
+@pytest.mark.parametrize("is_short", [True, False])
 def test_update_funding_fees(
     mocker,
     default_conf,
@@ -5109,7 +5409,7 @@ def test_update_funding_fees(
     ticker_usdt_sell_up,
     is_short,
     limit_order_open,
-    schedule_off
+    schedule_off,
 ):
     """
     nominal_value = mark_price * size
@@ -5138,55 +5438,67 @@ def test_update_funding_fees(
     enter_mm = MagicMock(return_value=open_order)
     patch_RPCManager(mocker)
     patch_exchange(mocker)
-    default_conf['trading_mode'] = 'futures'
-    default_conf['margin_mode'] = 'isolated'
+    default_conf["trading_mode"] = "futures"
+    default_conf["margin_mode"] = "isolated"
 
-    date_midnight = arrow.get('2021-09-01 00:00:00').datetime
-    date_eight = arrow.get('2021-09-01 08:00:00').datetime
-    date_sixteen = arrow.get('2021-09-01 16:00:00').datetime
-    columns = ['date', 'open', 'high', 'low', 'close', 'volume']
+    date_midnight = arrow.get("2021-09-01 00:00:00").datetime
+    date_eight = arrow.get("2021-09-01 08:00:00").datetime
+    date_sixteen = arrow.get("2021-09-01 16:00:00").datetime
+    columns = ["date", "open", "high", "low", "close", "volume"]
     # 16:00 entry is actually never used
     # But should be kept in the test to ensure we're filtering correctly.
     funding_rates = {
-        "LTC/USDT":
-            DataFrame([
+        "LTC/USDT": DataFrame(
+            [
                 [date_midnight, 0.00032583, 0, 0, 0, 0],
                 [date_eight, 0.00024472, 0, 0, 0, 0],
                 [date_sixteen, 0.00024472, 0, 0, 0, 0],
-            ], columns=columns),
-        "ETH/USDT":
-            DataFrame([
+            ],
+            columns=columns,
+        ),
+        "ETH/USDT": DataFrame(
+            [
                 [date_midnight, 0.0001, 0, 0, 0, 0],
                 [date_eight, 0.0001, 0, 0, 0, 0],
                 [date_sixteen, 0.0001, 0, 0, 0, 0],
-            ], columns=columns),
-        "XRP/USDT":
-            DataFrame([
+            ],
+            columns=columns,
+        ),
+        "XRP/USDT": DataFrame(
+            [
                 [date_midnight, 0.00049426, 0, 0, 0, 0],
                 [date_eight, 0.00032715, 0, 0, 0, 0],
                 [date_sixteen, 0.00032715, 0, 0, 0, 0],
-            ], columns=columns)
+            ],
+            columns=columns,
+        ),
     }
 
     mark_prices = {
-        "LTC/USDT":
-            DataFrame([
+        "LTC/USDT": DataFrame(
+            [
                 [date_midnight, 3.3, 0, 0, 0, 0],
                 [date_eight, 3.2, 0, 0, 0, 0],
                 [date_sixteen, 3.2, 0, 0, 0, 0],
-            ], columns=columns),
-        "ETH/USDT":
-            DataFrame([
+            ],
+            columns=columns,
+        ),
+        "ETH/USDT": DataFrame(
+            [
                 [date_midnight, 2.4, 0, 0, 0, 0],
                 [date_eight, 2.5, 0, 0, 0, 0],
                 [date_sixteen, 2.5, 0, 0, 0, 0],
-            ], columns=columns),
-        "XRP/USDT":
-            DataFrame([
+            ],
+            columns=columns,
+        ),
+        "XRP/USDT": DataFrame(
+            [
                 [date_midnight, 1.2, 0, 0, 0, 0],
                 [date_eight, 1.2, 0, 0, 0, 0],
                 [date_sixteen, 1.2, 0, 0, 0, 0],
-            ], columns=columns)
+            ],
+            columns=columns,
+        ),
     }
 
     def refresh_latest_ohlcv_mock(pairlist, **kwargs):
@@ -5199,17 +5511,14 @@ def test_update_funding_fees(
 
         return ret
 
-    mocker.patch('coingro.exchange.Exchange.refresh_latest_ohlcv',
-                 side_effect=refresh_latest_ohlcv_mock)
+    mocker.patch(
+        "coingro.exchange.Exchange.refresh_latest_ohlcv", side_effect=refresh_latest_ohlcv_mock
+    )
 
     mocker.patch.multiple(
-        'coingro.exchange.Exchange',
+        "coingro.exchange.Exchange",
         get_rate=enter_rate_mock,
-        fetch_ticker=MagicMock(return_value={
-            'bid': 1.9,
-            'ask': 2.2,
-            'last': 1.9
-        }),
+        fetch_ticker=MagicMock(return_value={"bid": 1.9, "ask": 2.2, "last": 1.9}),
         create_order=enter_mm,
         get_min_pair_stake_amount=MagicMock(return_value=1),
         get_fee=fee,
@@ -5219,92 +5528,99 @@ def test_update_funding_fees(
     coingro = get_patched_coingrobot(mocker, default_conf)
 
     # initial funding fees,
-    coingro.execute_entry('ETH/USDT', 123, is_short=is_short)
-    coingro.execute_entry('LTC/USDT', 2.0, is_short=is_short)
-    coingro.execute_entry('XRP/USDT', 123, is_short=is_short)
+    coingro.execute_entry("ETH/USDT", 123, is_short=is_short)
+    coingro.execute_entry("LTC/USDT", 2.0, is_short=is_short)
+    coingro.execute_entry("XRP/USDT", 123, is_short=is_short)
     multipl = 1 if is_short else -1
     trades = Trade.get_open_trades()
     assert len(trades) == 3
     for trade in trades:
         assert pytest.approx(trade.funding_fees) == 0
-    mocker.patch('coingro.exchange.Exchange.create_order', return_value=open_exit_order)
+    mocker.patch("coingro.exchange.Exchange.create_order", return_value=open_exit_order)
     time_machine.move_to("2021-09-01 08:00:00 +00:00")
     if schedule_off:
         for trade in trades:
             coingro.execute_trade_exit(
                 trade=trade,
                 # The values of the next 2 params are irrelevant for this test
-                limit=ticker_usdt_sell_up()['bid'],
-                exit_check=ExitCheckTuple(exit_type=ExitType.ROI)
+                limit=ticker_usdt_sell_up()["bid"],
+                exit_check=ExitCheckTuple(exit_type=ExitType.ROI),
             )
-            assert trade.funding_fees == pytest.approx(sum(
-                trade.amount *
-                mark_prices[trade.pair].iloc[1:2]['open'] *
-                funding_rates[trade.pair].iloc[1:2]['open'] * multipl
-            ))
+            assert trade.funding_fees == pytest.approx(
+                sum(
+                    trade.amount
+                    * mark_prices[trade.pair].iloc[1:2]["open"]
+                    * funding_rates[trade.pair].iloc[1:2]["open"]
+                    * multipl
+                )
+            )
 
     else:
         coingro._schedule.run_pending()
 
     # Funding fees for 00:00 and 08:00
     for trade in trades:
-        assert trade.funding_fees == pytest.approx(sum(
-            trade.amount *
-            mark_prices[trade.pair].iloc[1:2]['open'] *
-            funding_rates[trade.pair].iloc[1:2]['open'] *
-            multipl
-        ))
+        assert trade.funding_fees == pytest.approx(
+            sum(
+                trade.amount
+                * mark_prices[trade.pair].iloc[1:2]["open"]
+                * funding_rates[trade.pair].iloc[1:2]["open"]
+                * multipl
+            )
+        )
 
 
 def test_position_adjust(mocker, default_conf_usdt, fee) -> None:
     patch_RPCManager(mocker)
     patch_exchange(mocker)
     patch_wallet(mocker, free=10000)
-    default_conf_usdt.update({
-        "position_adjustment_enable": True,
-        "dry_run": False,
-        "stake_amount": 10.0,
-        "dry_run_wallet": 1000.0,
-    })
+    default_conf_usdt.update(
+        {
+            "position_adjustment_enable": True,
+            "dry_run": False,
+            "stake_amount": 10.0,
+            "dry_run_wallet": 1000.0,
+        }
+    )
     coingro = CoingroBot(default_conf_usdt)
     coingro.strategy.confirm_trade_entry = MagicMock(return_value=True)
     bid = 11
     stake_amount = 10
     buy_rate_mock = MagicMock(return_value=bid)
     mocker.patch.multiple(
-        'coingro.exchange.Exchange',
+        "coingro.exchange.Exchange",
         get_rate=buy_rate_mock,
-        fetch_ticker=MagicMock(return_value={
-            'bid': 10,
-            'ask': 12,
-            'last': 11
-        }),
+        fetch_ticker=MagicMock(return_value={"bid": 10, "ask": 12, "last": 11}),
         get_min_pair_stake_amount=MagicMock(return_value=1),
         get_fee=fee,
     )
-    pair = 'ETH/USDT'
+    pair = "ETH/USDT"
 
     # Initial buy
     closed_successful_buy_order = {
-        'pair': pair,
-        'cg_pair': pair,
-        'cg_order_side': 'buy',
-        'side': 'buy',
-        'type': 'limit',
-        'status': 'closed',
-        'price': bid,
-        'average': bid,
-        'cost': bid * stake_amount,
-        'amount': stake_amount,
-        'filled': stake_amount,
-        'cg_is_open': False,
-        'id': '650',
-        'order_id': '650'
+        "pair": pair,
+        "cg_pair": pair,
+        "cg_order_side": "buy",
+        "side": "buy",
+        "type": "limit",
+        "status": "closed",
+        "price": bid,
+        "average": bid,
+        "cost": bid * stake_amount,
+        "amount": stake_amount,
+        "filled": stake_amount,
+        "cg_is_open": False,
+        "id": "650",
+        "order_id": "650",
     }
-    mocker.patch('coingro.exchange.Exchange.create_order',
-                 MagicMock(return_value=closed_successful_buy_order))
-    mocker.patch('coingro.exchange.Exchange.fetch_order_or_stoploss_order',
-                 MagicMock(return_value=closed_successful_buy_order))
+    mocker.patch(
+        "coingro.exchange.Exchange.create_order",
+        MagicMock(return_value=closed_successful_buy_order),
+    )
+    mocker.patch(
+        "coingro.exchange.Exchange.fetch_order_or_stoploss_order",
+        MagicMock(return_value=closed_successful_buy_order),
+    )
     assert coingro.execute_entry(pair, stake_amount)
     # Should create an closed trade with an no open order id
     # Order is filled and trade is open
@@ -5327,7 +5643,7 @@ def test_position_adjust(mocker, default_conf_usdt, fee) -> None:
     assert trade.open_order_id is None
     assert trade.open_rate == 11
     assert trade.stake_amount == 110
-    assert not trade.fee_updated('buy')
+    assert not trade.fee_updated("buy")
 
     coingro.manage_open_orders()
 
@@ -5337,26 +5653,27 @@ def test_position_adjust(mocker, default_conf_usdt, fee) -> None:
     assert trade.open_order_id is None
     assert trade.open_rate == 11
     assert trade.stake_amount == 110
-    assert not trade.fee_updated('buy')
+    assert not trade.fee_updated("buy")
 
     # First position adjustment buy.
     open_dca_order_1 = {
-        'cg_pair': pair,
-        'cg_order_side': 'buy',
-        'side': 'buy',
-        'type': 'limit',
-        'status': None,
-        'price': 9,
-        'amount': 12,
-        'cost': 100,
-        'cg_is_open': True,
-        'id': '651',
-        'order_id': '651'
+        "cg_pair": pair,
+        "cg_order_side": "buy",
+        "side": "buy",
+        "type": "limit",
+        "status": None,
+        "price": 9,
+        "amount": 12,
+        "cost": 100,
+        "cg_is_open": True,
+        "id": "651",
+        "order_id": "651",
     }
-    mocker.patch('coingro.exchange.Exchange.create_order',
-                 MagicMock(return_value=open_dca_order_1))
-    mocker.patch('coingro.exchange.Exchange.fetch_order_or_stoploss_order',
-                 MagicMock(return_value=open_dca_order_1))
+    mocker.patch("coingro.exchange.Exchange.create_order", MagicMock(return_value=open_dca_order_1))
+    mocker.patch(
+        "coingro.exchange.Exchange.fetch_order_or_stoploss_order",
+        MagicMock(return_value=open_dca_order_1),
+    )
     assert coingro.execute_entry(pair, stake_amount, trade=trade)
 
     orders = Order.query.all()
@@ -5364,32 +5681,32 @@ def test_position_adjust(mocker, default_conf_usdt, fee) -> None:
     assert len(orders) == 2
     trade = Trade.query.first()
     assert trade
-    assert trade.open_order_id == '651'
+    assert trade.open_order_id == "651"
     assert trade.open_rate == 11
     assert trade.amount == 10
     assert trade.stake_amount == 110
-    assert not trade.fee_updated('buy')
+    assert not trade.fee_updated("buy")
     trades: List[Trade] = Trade.get_open_trades_without_assigned_fees()
     assert len(trades) == 1
     assert trade.is_open
-    assert not trade.fee_updated('buy')
-    order = trade.select_order('buy', False)
+    assert not trade.fee_updated("buy")
+    order = trade.select_order("buy", False)
     assert order
-    assert order.order_id == '650'
+    assert order.order_id == "650"
 
     def make_sure_its_651(*args, **kwargs):
 
-        if args[0] == '650':
+        if args[0] == "650":
             return closed_successful_buy_order
-        if args[0] == '651':
+        if args[0] == "651":
             return open_dca_order_1
         return None
 
     # Assume it does nothing since order is still open
     fetch_order_mm = MagicMock(side_effect=make_sure_its_651)
-    mocker.patch('coingro.exchange.Exchange.create_order', fetch_order_mm)
-    mocker.patch('coingro.exchange.Exchange.fetch_order', fetch_order_mm)
-    mocker.patch('coingro.exchange.Exchange.fetch_order_or_stoploss_order', fetch_order_mm)
+    mocker.patch("coingro.exchange.Exchange.create_order", fetch_order_mm)
+    mocker.patch("coingro.exchange.Exchange.fetch_order", fetch_order_mm)
+    mocker.patch("coingro.exchange.Exchange.fetch_order_or_stoploss_order", fetch_order_mm)
     coingro.update_closed_trades_without_assigned_fees()
 
     orders = Order.query.all()
@@ -5401,40 +5718,44 @@ def test_position_adjust(mocker, default_conf_usdt, fee) -> None:
     # Assert trade is as expected
     trade = Trade.query.first()
     assert trade
-    assert trade.open_order_id == '651'
+    assert trade.open_order_id == "651"
     assert trade.open_rate == 11
     assert trade.amount == 10
     assert trade.stake_amount == 110
-    assert not trade.fee_updated('buy')
+    assert not trade.fee_updated("buy")
 
     # Make sure the closed order is found as the first order.
-    order = trade.select_order('buy', False)
-    assert order.order_id == '650'
+    order = trade.select_order("buy", False)
+    assert order.order_id == "650"
 
     # Now close the order so it should update.
     closed_dca_order_1 = {
-        'cg_pair': pair,
-        'cg_order_side': 'buy',
-        'side': 'buy',
-        'type': 'limit',
-        'status': 'closed',
-        'price': 9,
-        'average': 9,
-        'amount': 12,
-        'filled': 12,
-        'cost': 108,
-        'cg_is_open': False,
-        'id': '651',
-        'order_id': '651',
-        'datetime': arrow.utcnow().isoformat(),
+        "cg_pair": pair,
+        "cg_order_side": "buy",
+        "side": "buy",
+        "type": "limit",
+        "status": "closed",
+        "price": 9,
+        "average": 9,
+        "amount": 12,
+        "filled": 12,
+        "cost": 108,
+        "cg_is_open": False,
+        "id": "651",
+        "order_id": "651",
+        "datetime": arrow.utcnow().isoformat(),
     }
 
-    mocker.patch('coingro.exchange.Exchange.create_order',
-                 MagicMock(return_value=closed_dca_order_1))
-    mocker.patch('coingro.exchange.Exchange.fetch_order',
-                 MagicMock(return_value=closed_dca_order_1))
-    mocker.patch('coingro.exchange.Exchange.fetch_order_or_stoploss_order',
-                 MagicMock(return_value=closed_dca_order_1))
+    mocker.patch(
+        "coingro.exchange.Exchange.create_order", MagicMock(return_value=closed_dca_order_1)
+    )
+    mocker.patch(
+        "coingro.exchange.Exchange.fetch_order", MagicMock(return_value=closed_dca_order_1)
+    )
+    mocker.patch(
+        "coingro.exchange.Exchange.fetch_order_or_stoploss_order",
+        MagicMock(return_value=closed_dca_order_1),
+    )
     coingro.manage_open_orders()
 
     # Assert trade is as expected (averaged dca)
@@ -5450,8 +5771,8 @@ def test_position_adjust(mocker, default_conf_usdt, fee) -> None:
     assert len(orders) == 2
 
     # Make sure the closed order is found as the second order.
-    order = trade.select_order('buy', False)
-    assert order.order_id == '651'
+    order = trade.select_order("buy", False)
+    assert order.order_id == "651"
 
     # Assert that the trade is not found as open and without fees
     trades: List[Trade] = Trade.get_open_trades_without_assigned_fees()
@@ -5459,26 +5780,30 @@ def test_position_adjust(mocker, default_conf_usdt, fee) -> None:
 
     # Add a second DCA
     closed_dca_order_2 = {
-        'cg_pair': pair,
-        'status': 'closed',
-        'cg_order_side': 'buy',
-        'side': 'buy',
-        'type': 'limit',
-        'price': 7,
-        'average': 7,
-        'amount': 15,
-        'filled': 15,
-        'cost': 105,
-        'cg_is_open': False,
-        'id': '652',
-        'order_id': '652'
+        "cg_pair": pair,
+        "status": "closed",
+        "cg_order_side": "buy",
+        "side": "buy",
+        "type": "limit",
+        "price": 7,
+        "average": 7,
+        "amount": 15,
+        "filled": 15,
+        "cost": 105,
+        "cg_is_open": False,
+        "id": "652",
+        "order_id": "652",
     }
-    mocker.patch('coingro.exchange.Exchange.create_order',
-                 MagicMock(return_value=closed_dca_order_2))
-    mocker.patch('coingro.exchange.Exchange.fetch_order',
-                 MagicMock(return_value=closed_dca_order_2))
-    mocker.patch('coingro.exchange.Exchange.fetch_order_or_stoploss_order',
-                 MagicMock(return_value=closed_dca_order_2))
+    mocker.patch(
+        "coingro.exchange.Exchange.create_order", MagicMock(return_value=closed_dca_order_2)
+    )
+    mocker.patch(
+        "coingro.exchange.Exchange.fetch_order", MagicMock(return_value=closed_dca_order_2)
+    )
+    mocker.patch(
+        "coingro.exchange.Exchange.fetch_order_or_stoploss_order",
+        MagicMock(return_value=closed_dca_order_2),
+    )
     assert coingro.execute_entry(pair, stake_amount, trade=trade)
 
     # Assert trade is as expected (averaged dca)
@@ -5494,18 +5819,22 @@ def test_position_adjust(mocker, default_conf_usdt, fee) -> None:
     assert len(orders) == 3
 
     # Make sure the closed order is found as the second order.
-    order = trade.select_order('buy', False)
-    assert order.order_id == '652'
+    order = trade.select_order("buy", False)
+    assert order.order_id == "652"
 
 
 def test_process_open_trade_positions_exception(mocker, default_conf_usdt, fee, caplog) -> None:
-    default_conf_usdt.update({
-        "position_adjustment_enable": True,
-    })
+    default_conf_usdt.update(
+        {
+            "position_adjustment_enable": True,
+        }
+    )
     coingro = get_patched_coingrobot(mocker, default_conf_usdt)
 
-    mocker.patch('coingro.coingrobot.CoingroBot.check_and_call_adjust_trade_position',
-                 side_effect=DependencyException())
+    mocker.patch(
+        "coingro.coingrobot.CoingroBot.check_and_call_adjust_trade_position",
+        side_effect=DependencyException(),
+    )
 
     create_mock_trades(fee)
 
@@ -5514,10 +5843,12 @@ def test_process_open_trade_positions_exception(mocker, default_conf_usdt, fee, 
 
 
 def test_check_and_call_adjust_trade_position(mocker, default_conf_usdt, fee, caplog) -> None:
-    default_conf_usdt.update({
-        "position_adjustment_enable": True,
-        "max_entry_position_adjustment": 0,
-    })
+    default_conf_usdt.update(
+        {
+            "position_adjustment_enable": True,
+            "max_entry_position_adjustment": 0,
+        }
+    )
     coingro = get_patched_coingrobot(mocker, default_conf_usdt)
 
     create_mock_trades(fee)

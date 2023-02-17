@@ -6,15 +6,15 @@ from pandas import DataFrame
 from coingro.enums import ExitType
 from coingro.exchange import timeframe_to_minutes
 
-
 tests_start_time = arrow.get(2018, 10, 3)
-tests_timeframe = '1h'
+tests_timeframe = "1h"
 
 
 class BTrade(NamedTuple):
     """
     Minimalistic Trade result used for functional backtesting
     """
+
     exit_reason: ExitType
     open_tick: int
     close_tick: int
@@ -26,6 +26,7 @@ class BTContainer(NamedTuple):
     """
     Minimal BacktestContainer defining Backtest inputs and results.
     """
+
     data: List[List[float]]
     stop_loss: float
     roi: Dict[str, float]
@@ -50,22 +51,32 @@ def _get_frame_time_from_offset(offset):
 
 
 def _build_backtest_dataframe(data):
-    columns = ['date', 'open', 'high', 'low', 'close', 'volume', 'enter_long', 'exit_long',
-               'enter_short', 'exit_short']
+    columns = [
+        "date",
+        "open",
+        "high",
+        "low",
+        "close",
+        "volume",
+        "enter_long",
+        "exit_long",
+        "enter_short",
+        "exit_short",
+    ]
     if len(data[0]) == 8:
         # No short columns
         data = [d + [0, 0] for d in data]
-    columns = columns + ['enter_tag'] if len(data[0]) == 11 else columns
+    columns = columns + ["enter_tag"] if len(data[0]) == 11 else columns
 
     frame = DataFrame.from_records(data, columns=columns)
-    frame['date'] = frame['date'].apply(_get_frame_time_from_offset)
+    frame["date"] = frame["date"].apply(_get_frame_time_from_offset)
     # Ensure floats are in place
-    for column in ['open', 'high', 'low', 'close', 'volume']:
-        frame[column] = frame[column].astype('float64')
+    for column in ["open", "high", "low", "close", "volume"]:
+        frame[column] = frame[column].astype("float64")
 
     # Ensure all candles make kindof sense
-    assert all(frame['low'] <= frame['close'])
-    assert all(frame['low'] <= frame['open'])
-    assert all(frame['high'] >= frame['close'])
-    assert all(frame['high'] >= frame['open'])
+    assert all(frame["low"] <= frame["close"])
+    assert all(frame["low"] <= frame["open"])
+    assert all(frame["high"] >= frame["close"])
+    assert all(frame["high"] >= frame["open"])
     return frame

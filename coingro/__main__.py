@@ -8,6 +8,5 @@ To launch Coingro as a module
 
 from coingro import main
 
-
-if __name__ == '__main__':
+if __name__ == "__main__":
     main.main()

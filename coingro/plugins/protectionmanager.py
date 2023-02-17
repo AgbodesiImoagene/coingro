@@ -11,19 +11,17 @@ from coingro.persistence.models import PairLock
 from coingro.plugins.protections import IProtection
 from coingro.resolvers import ProtectionResolver
 
-
 logger = logging.getLogger(__name__)
 
 
-class ProtectionManager():
-
+class ProtectionManager:
     def __init__(self, config: Dict, protections: List) -> None:
         self._config = config
 
         self._protection_handlers: List[IProtection] = []
         for protection_handler_config in protections:
             protection_handler = ProtectionResolver.load_protection(
-                protection_handler_config['method'],
+                protection_handler_config["method"],
                 config=config,
                 protection_config=protection_handler_config,
             )
@@ -45,8 +43,9 @@ class ProtectionManager():
         """
         return [{p.name: p.short_desc()} for p in self._protection_handlers]
 
-    def global_stop(self, now: Optional[datetime] = None,
-                    side: LongShort = 'long') -> Optional[PairLock]:
+    def global_stop(
+        self, now: Optional[datetime] = None, side: LongShort = "long"
+    ) -> Optional[PairLock]:
         if not now:
             now = datetime.now(timezone.utc)
         result = None
@@ -56,20 +55,22 @@ class ProtectionManager():
                 if lock and lock.until:
                     if not PairLocks.is_global_lock(lock.until, side=lock.lock_side):
                         result = PairLocks.lock_pair(
-                            '*', lock.until, lock.reason, now=now, side=lock.lock_side)
+                            "*", lock.until, lock.reason, now=now, side=lock.lock_side
+                        )
         return result
 
-    def stop_per_pair(self, pair, now: Optional[datetime] = None,
-                      side: LongShort = 'long') -> Optional[PairLock]:
+    def stop_per_pair(
+        self, pair, now: Optional[datetime] = None, side: LongShort = "long"
+    ) -> Optional[PairLock]:
         if not now:
             now = datetime.now(timezone.utc)
         result = None
         for protection_handler in self._protection_handlers:
             if protection_handler.has_local_stop:
-                lock = protection_handler.stop_per_pair(
-                    pair=pair, date_now=now, side=side)
+                lock = protection_handler.stop_per_pair(pair=pair, date_now=now, side=side)
                 if lock and lock.until:
                     if not PairLocks.is_pair_locked(pair, lock.until, lock.lock_side):
                         result = PairLocks.lock_pair(
-                            pair, lock.until, lock.reason, now=now, side=lock.lock_side)
+                            pair, lock.until, lock.reason, now=now, side=lock.lock_side
+                        )
         return result

@@ -12,7 +12,6 @@ from pandas import DataFrame
 from coingro.data.metrics import calculate_max_drawdown
 from coingro.optimize.hyperopt import IHyperOptLoss
 
-
 # higher numbers penalize drawdowns more severely
 DRAWDOWN_MULT = 0.075
 

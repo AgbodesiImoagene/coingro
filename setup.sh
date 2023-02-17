@@ -207,7 +207,7 @@ function reset() {
         rm -rf .env
     fi
     echo
-    ${PYTHON} -m venv .env
+    ${PYTHON} -m virtualenv .env
     if [ $? -ne 0 ]; then
         echo "Could not create virtual environment. Leaving now"
         exit 1

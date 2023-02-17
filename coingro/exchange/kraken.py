@@ -8,11 +8,15 @@ from pandas import DataFrame
 
 from coingro.constants import BuySell
 from coingro.enums import MarginMode, TradingMode
-from coingro.exceptions import (DDosProtection, InsufficientFundsError, InvalidOrderException,
-                                OperationalException, TemporaryError)
+from coingro.exceptions import (
+    DDosProtection,
+    InsufficientFundsError,
+    InvalidOrderException,
+    OperationalException,
+    TemporaryError,
+)
 from coingro.exchange import Exchange
 from coingro.exchange.common import retrier
-
 
 logger = logging.getLogger(__name__)
 
@@ -42,18 +46,17 @@ class Kraken(Exchange):
         """
         parent_check = super().market_is_tradable(market)
 
-        return (parent_check and
-                market.get('darkpool', False) is False)
+        return parent_check and market.get("darkpool", False) is False
 
     def get_tickers(self, symbols: Optional[List[str]] = None, cached: bool = False) -> Dict:
         # Only fetch tickers for current stake currency
         # Otherwise the request for kraken becomes too large.
-        symbols = list(self.get_markets(quote_currencies=[self._config['stake_currency']]))
+        symbols = list(self.get_markets(quote_currencies=[self._config["stake_currency"]]))
         return super().get_tickers(symbols=symbols, cached=cached)
 
     @retrier
     def get_balances(self) -> dict:
-        if self._config['dry_run']:
+        if self._config["dry_run"]:
             return {}
 
         try:
@@ -65,23 +68,28 @@ class Kraken(Exchange):
             balances.pop("used", None)
 
             orders = self._api.fetch_open_orders()
-            order_list = [(x["symbol"].split("/")[0 if x["side"] == "sell" else 1],
-                           x["remaining"] if x["side"] == "sell" else x["remaining"] * x["price"],
-                           # Don't remove the below comment, this can be important for debugging
-                           # x["side"], x["amount"],
-                           ) for x in orders]
+            order_list = [
+                (
+                    x["symbol"].split("/")[0 if x["side"] == "sell" else 1],
+                    x["remaining"] if x["side"] == "sell" else x["remaining"] * x["price"],
+                    # Don't remove the below comment, this can be important for debugging
+                    # x["side"], x["amount"],
+                )
+                for x in orders
+            ]
             for bal in balances:
                 if not isinstance(balances[bal], dict):
                     continue
-                balances[bal]['used'] = sum(order[1] for order in order_list if order[0] == bal)
-                balances[bal]['free'] = balances[bal]['total'] - balances[bal]['used']
+                balances[bal]["used"] = sum(order[1] for order in order_list if order[0] == bal)
+                balances[bal]["free"] = balances[bal]["total"] - balances[bal]["used"]
 
             return balances
         except ccxt.DDoSProtection as e:
             raise DDosProtection(e) from e
         except (ccxt.NetworkError, ccxt.ExchangeError) as e:
             raise TemporaryError(
-                f'Could not get balance due to {e.__class__.__name__}. Message: {e}') from e
+                f"Could not get balance due to {e.__class__.__name__}. Message: {e}"
+            ) from e
         except ccxt.BaseError as e:
             raise OperationalException(e) from e
 
@@ -90,14 +98,21 @@ class Kraken(Exchange):
         Verify stop_loss against stoploss-order value (limit or price)
         Returns True if adjustment is necessary.
         """
-        return (order['type'] in ('stop-loss', 'stop-loss-limit') and (
-                (side == "sell" and stop_loss > float(order['price'])) or
-                (side == "buy" and stop_loss < float(order['price']))
-                ))
+        return order["type"] in ("stop-loss", "stop-loss-limit") and (
+            (side == "sell" and stop_loss > float(order["price"]))
+            or (side == "buy" and stop_loss < float(order["price"]))
+        )
 
     @retrier(retries=0)
-    def stoploss(self, pair: str, amount: float, stop_price: float,
-                 order_types: Dict, side: BuySell, leverage: float) -> Dict:
+    def stoploss(
+        self,
+        pair: str,
+        amount: float,
+        stop_price: float,
+        order_types: Dict,
+        side: BuySell,
+        leverage: float,
+    ) -> Dict:
         """
         Creates a stoploss market order.
         Stoploss market orders is the only stoploss type supported by kraken.
@@ -106,50 +121,59 @@ class Kraken(Exchange):
         """
         params = self._params.copy()
         if self.trading_mode == TradingMode.FUTURES:
-            params.update({'reduceOnly': True})
+            params.update({"reduceOnly": True})
 
-        if order_types.get('stoploss', 'market') == 'limit':
+        if order_types.get("stoploss", "market") == "limit":
             ordertype = "stop-loss-limit"
-            limit_price_pct = order_types.get('stoploss_on_exchange_limit_ratio', 0.99)
+            limit_price_pct = order_types.get("stoploss_on_exchange_limit_ratio", 0.99)
             if side == "sell":
                 limit_rate = stop_price * limit_price_pct
             else:
                 limit_rate = stop_price * (2 - limit_price_pct)
-            params['price2'] = self.price_to_precision(pair, limit_rate)
+            params["price2"] = self.price_to_precision(pair, limit_rate)
         else:
             ordertype = "stop-loss"
 
         stop_price = self.price_to_precision(pair, stop_price)
 
-        if self._config['dry_run']:
+        if self._config["dry_run"]:
             dry_order = self.create_dry_run_order(
-                pair, ordertype, side, amount, stop_price, leverage, stop_loss=True)
+                pair, ordertype, side, amount, stop_price, leverage, stop_loss=True
+            )
             return dry_order
 
         try:
             amount = self.amount_to_precision(pair, amount)
 
-            order = self._api.create_order(symbol=pair, type=ordertype, side=side,
-                                           amount=amount, price=stop_price, params=params)
-            self._log_exchange_response('create_stoploss_order', order)
-            logger.info('stoploss order added for %s. '
-                        'stop price: %s.', pair, stop_price)
+            order = self._api.create_order(
+                symbol=pair,
+                type=ordertype,
+                side=side,
+                amount=amount,
+                price=stop_price,
+                params=params,
+            )
+            self._log_exchange_response("create_stoploss_order", order)
+            logger.info("stoploss order added for %s. " "stop price: %s.", pair, stop_price)
             return order
         except ccxt.InsufficientFunds as e:
             raise InsufficientFundsError(
-                f'Insufficient funds to create {ordertype} {side} order on market {pair}. '
-                f'Tried to create stoploss with amount {amount} at stoploss {stop_price}. '
-                f'Message: {e}') from e
+                f"Insufficient funds to create {ordertype} {side} order on market {pair}. "
+                f"Tried to create stoploss with amount {amount} at stoploss {stop_price}. "
+                f"Message: {e}"
+            ) from e
         except ccxt.InvalidOrder as e:
             raise InvalidOrderException(
-                f'Could not create {ordertype} {side} order on market {pair}. '
-                f'Tried to create stoploss with amount {amount} at stoploss {stop_price}. '
-                f'Message: {e}') from e
+                f"Could not create {ordertype} {side} order on market {pair}. "
+                f"Tried to create stoploss with amount {amount} at stoploss {stop_price}. "
+                f"Message: {e}"
+            ) from e
         except ccxt.DDoSProtection as e:
             raise DDosProtection(e) from e
         except (ccxt.NetworkError, ccxt.ExchangeError) as e:
             raise TemporaryError(
-                f'Could not place {side} order due to {e.__class__.__name__}. Message: {e}') from e
+                f"Could not place {side} order due to {e.__class__.__name__}. Message: {e}"
+            ) from e
         except ccxt.BaseError as e:
             raise OperationalException(e) from e
 
@@ -157,7 +181,7 @@ class Kraken(Exchange):
         self,
         leverage: float,
         pair: Optional[str] = None,
-        trading_mode: Optional[TradingMode] = None
+        trading_mode: Optional[TradingMode] = None,
     ):
         """
         Kraken set's the leverage as an option in the order object, so we need to
@@ -171,7 +195,7 @@ class Kraken(Exchange):
         ordertype: str,
         leverage: float,
         reduceOnly: bool,
-        time_in_force: str = 'gtc'
+        time_in_force: str = "gtc",
     ) -> Dict:
         params = super()._get_params(
             side=side,
@@ -181,7 +205,7 @@ class Kraken(Exchange):
             time_in_force=time_in_force,
         )
         if leverage > 1.0:
-            params['leverage'] = round(leverage)
+            params["leverage"] = round(leverage)
         return params
 
     def calculate_funding_fees(
@@ -191,7 +215,7 @@ class Kraken(Exchange):
         is_short: bool,
         open_date: datetime,
         close_date: Optional[datetime] = None,
-        time_in_ratio: Optional[float] = None
+        time_in_ratio: Optional[float] = None,
     ) -> float:
         """
         # ! This method will always error when run by Coingro because time_in_ratio is never
@@ -209,11 +233,12 @@ class Kraken(Exchange):
         """
         if not time_in_ratio:
             raise OperationalException(
-                f"time_in_ratio is required for {self.name}._get_funding_fee")
+                f"time_in_ratio is required for {self.name}._get_funding_fee"
+            )
         fees: float = 0
 
         if not df.empty:
-            df = df[(df['date'] >= open_date) & (df['date'] <= close_date)]
-            fees = sum(df['open_fund'] * df['open_mark'] * amount * time_in_ratio)
+            df = df[(df["date"] >= open_date) & (df["date"] <= close_date)]
+            fees = sum(df["open_fund"] * df["open_mark"] * amount * time_in_ratio)
 
         return fees if is_short else -fees

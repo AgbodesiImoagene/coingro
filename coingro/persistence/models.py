@@ -11,19 +11,19 @@ from sqlalchemy.orm import scoped_session, sessionmaker
 from sqlalchemy.pool import StaticPool
 from sqlalchemy_utils import create_database, database_exists
 
-from coingro import __id__
 from coingro.exceptions import OperationalException, TemporaryError
 from coingro.misc import retrier
 from coingro.persistence.base import _DECL_BASE
 from coingro.persistence.migrations import set_sqlite_to_wal  # check_migrate
 from coingro.persistence.pairlock import PairLock
+from coingro.persistence.pairlock import set_dry_run as set_pairlock_dry_run
 from coingro.persistence.trade_model import Order, Trade
-
+from coingro.persistence.trade_model import set_dry_run as set_trade_dry_run
 
 logger = logging.getLogger(__name__)
 
 
-_SQL_DOCS_URL = 'http://docs.sqlalchemy.org/en/latest/core/engines.html#database-urls'
+_SQL_DOCS_URL = "http://docs.sqlalchemy.org/en/latest/core/engines.html#database-urls"
 
 
 def ping_connection(connection, branch):
@@ -61,7 +61,8 @@ def ping_connection(connection, branch):
                 logger.error(
                     "Failed to re-establish DB connection within %s secs: %s",
                     reconnect_timeout_seconds,
-                    err)
+                    err,
+                )
                 raise OperationalException(err)
             # if err.connection_invalidated:
             logger.warning("DB connection invalidated. Reconnecting...")
@@ -97,43 +98,42 @@ def init_db(db_url: str, dry_run: bool) -> None:
     """
     kwargs = {}
 
-    if db_url == 'sqlite:///':
+    if db_url == "sqlite:///":
         raise OperationalException(
-            f'Bad db-url {db_url}. For in-memory database, please use `sqlite://`.')
-    if db_url == 'sqlite://':
-        kwargs.update({
-            'poolclass': StaticPool,
-        })
+            f"Bad db-url {db_url}. For in-memory database, please use `sqlite://`."
+        )
+    if db_url == "sqlite://":
+        kwargs.update(
+            {
+                "poolclass": StaticPool,
+            }
+        )
     # Take care of thread ownership
-    if db_url.startswith('sqlite://'):
-        kwargs.update({
-            'connect_args': {'check_same_thread': False},
-        })
+    if db_url.startswith("sqlite://"):
+        kwargs.update(
+            {
+                "connect_args": {"check_same_thread": False},
+            }
+        )
 
     try:
         engine = create_engine(db_url, future=True, **kwargs)
     except NoSuchModuleError:
-        raise OperationalException(f"Given value for db_url: '{db_url}' "
-                                   f"is no valid database URL! (See {_SQL_DOCS_URL})")
+        raise OperationalException(
+            f"Given value for db_url: '{db_url}' "
+            f"is no valid database URL! (See {_SQL_DOCS_URL})"
+        )
 
     event.listen(engine, "engine_connect", ping_connection)
+
+    set_trade_dry_run(dry_run)
+    set_pairlock_dry_run(dry_run)
 
     create_db(db_url)
 
     # https://docs.sqlalchemy.org/en/13/orm/contextual.html#thread-local-scope
     # Scoped sessions proxy requests to the appropriate thread-local session.
     # We should use the scoped_session object - not a seperately initialized version
-    if dry_run:
-        Trade.__table__.name = f'{__id__}-trades-dryrun'
-        Order.__table__.name = f'{__id__}-orders-dryrun'
-        Order._trade_table_name = f'{__id__}-trades-dryrun'
-        PairLock.__table__.name = f'{__id__}-pairlocks-dryrun'
-    else:
-        Trade.__table__.name = f'{__id__}-trades'
-        Order.__table__.name = f'{__id__}-orders'
-        Order._trade_table_name = f'{__id__}-trades'
-        PairLock.__table__.name = f'{__id__}-pairlocks'
-
     Trade._session = scoped_session(sessionmaker(bind=engine, autoflush=True))
     Trade.query = Trade._session.query_property()
     Order.query = Trade._session.query_property()
@@ -153,7 +153,8 @@ def create_db(db_url: str) -> None:
             create_database(db_url)
     except OperationalError as e:
         raise TemporaryError(
-            f'Could not connect to database due to {e.__class__.__name__}. Message: {e}') from e
+            f"Could not connect to database due to {e.__class__.__name__}. Message: {e}"
+        ) from e
 
 
 def cleanup_db() -> None:

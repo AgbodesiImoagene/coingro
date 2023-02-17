@@ -1,7 +1,6 @@
 """ Coingro bot """
 import os
 
-
-__version__ = '1.0.11'
-__id__ = os.environ.get('CG_BOT_ID', 'coingro-bot')
-__env__ = os.environ.get('CG_APP_ENV')
+__version__ = "1.0.12"
+__id__ = os.environ.get("CG_BOT_ID", "coingro-bot")
+__env__ = os.environ.get("CG_APP_ENV", "")

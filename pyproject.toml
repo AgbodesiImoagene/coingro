@@ -20,9 +20,10 @@ exclude = '''
 '''
 
 [tool.isort]
+profile = "black"
 line_length = 100
-multi_line_output=0
-lines_after_imports=2
+# multi_line_output = 0
+# lines_after_imports = 2
 skip_glob = ["**/.env*", "**/env/*", "**/.venv/*", "**/docs/*", "**/user_data/*"]
 
 [tool.pytest.ini_options]
@@ -31,8 +32,11 @@ asyncio_mode = "auto"
 [tool.mypy]
 ignore_missing_imports = true
 warn_unused_ignores = true
+namespace_packages = false
 exclude = [
-    '^build_helpers\.py$'
+    '^build_helpers\.py$',
+    'build',
+    'user_data'
 ]
 
 [tool.bandit]

@@ -9,18 +9,21 @@ from typing import Any, Dict, List
 
 from coingro.plugins.pairlist.IPairList import IPairList
 
-
 logger = logging.getLogger(__name__)
 
 
 class StaticPairList(IPairList):
-
-    def __init__(self, exchange, pairlistmanager,
-                 config: Dict[str, Any], pairlistconfig: Dict[str, Any],
-                 pairlist_pos: int) -> None:
+    def __init__(
+        self,
+        exchange,
+        pairlistmanager,
+        config: Dict[str, Any],
+        pairlistconfig: Dict[str, Any],
+        pairlist_pos: int,
+    ) -> None:
         super().__init__(exchange, pairlistmanager, config, pairlistconfig, pairlist_pos)
 
-        self._allow_inactive = self._pairlistconfig.get('allow_inactive', False)
+        self._allow_inactive = self._pairlistconfig.get("allow_inactive", False)
 
     @property
     def needstickers(self) -> bool:
@@ -46,11 +49,12 @@ class StaticPairList(IPairList):
         """
         if self._allow_inactive:
             return self.verify_whitelist(
-                self._config['exchange']['pair_whitelist'], logger.info, keep_invalid=True
+                self._config["exchange"]["pair_whitelist"], logger.info, keep_invalid=True
             )
         else:
             return self._whitelist_for_active_markets(
-                self.verify_whitelist(self._config['exchange']['pair_whitelist'], logger.info))
+                self.verify_whitelist(self._config["exchange"]["pair_whitelist"], logger.info)
+            )
 
     def filter_pairlist(self, pairlist: List[str], tickers: Dict) -> List[str]:
         """
@@ -61,7 +65,7 @@ class StaticPairList(IPairList):
         :return: new whitelist
         """
         pairlist_ = deepcopy(pairlist)
-        for pair in self._config['exchange']['pair_whitelist']:
+        for pair in self._config["exchange"]["pair_whitelist"]:
             if pair not in pairlist_:
                 pairlist_.append(pair)
         return pairlist_

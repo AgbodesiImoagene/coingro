@@ -2,6 +2,6 @@ from enum import Enum
 
 
 class TimeUnit(str, Enum):
-    days = 'days'
-    weeks = 'weeks'
-    months = 'months'
+    days = "days"
+    weeks = "weeks"
+    months = "months"

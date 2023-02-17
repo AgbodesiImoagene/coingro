@@ -6,8 +6,19 @@ from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 from typing import Any, Dict, List, Optional
 
-from sqlalchemy import (Boolean, Column, DateTime, Enum, Float, ForeignKey, Integer, String,
-                        UniqueConstraint, desc, func)
+from sqlalchemy import (
+    Boolean,
+    Column,
+    DateTime,
+    Enum,
+    Float,
+    ForeignKey,
+    Integer,
+    String,
+    UniqueConstraint,
+    desc,
+    func,
+)
 from sqlalchemy.orm import Query, lazyload, relationship
 
 from coingro import __id__
@@ -17,8 +28,17 @@ from coingro.exceptions import DependencyException, OperationalException
 from coingro.leverage import interest
 from coingro.persistence.base import _DECL_BASE
 
-
 logger = logging.getLogger(__name__)
+__dry_run = True
+
+
+def _dry_run():
+    return __dry_run
+
+
+def set_dry_run(dry_run: bool):
+    global __dry_run
+    __dry_run = dry_run
 
 
 class Order(_DECL_BASE):
@@ -32,16 +52,19 @@ class Order(_DECL_BASE):
 
     Mirrors CCXT Order structure
     """
-    __tablename__ = f'{__id__}-orders'
 
-    _trade_table_name = f'{__id__}-trades'
+    __tablename__ = "orders"
 
     # Uniqueness should be ensured over pair, order_id
     # its likely that order_id is unique per Pair on some exchanges.
-    __table_args__ = (UniqueConstraint('cg_pair', 'order_id', name="_order_pair_order_id"),)
+    __table_args__ = (
+        UniqueConstraint("bot_id", "cg_pair", "order_id", name="_bot_order_pair_order_id"),
+    )
 
     id = Column(Integer, primary_key=True)
-    cg_trade_id = Column(Integer, ForeignKey(f'{_trade_table_name}.id'), index=True)
+    bot_id = Column(String(255), nullable=False, default=__id__, index=True)
+    dry_run = Column(Boolean, nullable=False, default=_dry_run, index=True)
+    cg_trade_id = Column(Integer, ForeignKey("trades.id"), index=True)
 
     trade = relationship("Trade", back_populates="orders")
 
@@ -70,7 +93,7 @@ class Order(_DECL_BASE):
 
     @property
     def order_date_utc(self) -> datetime:
-        """ Order-date with UTC timezoneinfo"""
+        """Order-date with UTC timezoneinfo"""
         return self.order_date.replace(tzinfo=timezone.utc)
 
     @property
@@ -91,103 +114,117 @@ class Order(_DECL_BASE):
 
     def __repr__(self):
 
-        return (f'Order(id={self.id}, order_id={self.order_id}, trade_id={self.cg_trade_id}, '
-                f'side={self.side}, order_type={self.order_type}, status={self.status})')
+        return (
+            f"Order(id={self.id}, order_id={self.order_id}, trade_id={self.cg_trade_id}, "
+            f"side={self.side}, order_type={self.order_type}, status={self.status})"
+        )
 
     def update_from_ccxt_object(self, order):
         """
         Update Order from ccxt response
         Only updates if fields are available from ccxt -
         """
-        if self.order_id != str(order['id']):
+        if self.order_id != str(order["id"]):
             raise DependencyException("Order-id's don't match")
 
-        self.status = order.get('status', self.status)
-        self.symbol = order.get('symbol', self.symbol)
-        self.order_type = order.get('type', self.order_type)
-        self.side = order.get('side', self.side)
-        self.price = order.get('price', self.price)
-        self.amount = order.get('amount', self.amount)
-        self.filled = order.get('filled', self.filled)
-        self.average = order.get('average', self.average)
-        self.remaining = order.get('remaining', self.remaining)
-        self.cost = order.get('cost', self.cost)
-        self.stop_price = order.get('stopPrice', self.stop_price)
+        self.status = order.get("status", self.status)
+        self.symbol = order.get("symbol", self.symbol)
+        self.order_type = order.get("type", self.order_type)
+        self.side = order.get("side", self.side)
+        self.price = order.get("price", self.price)
+        self.amount = order.get("amount", self.amount)
+        self.filled = order.get("filled", self.filled)
+        self.average = order.get("average", self.average)
+        self.remaining = order.get("remaining", self.remaining)
+        self.cost = order.get("cost", self.cost)
+        self.stop_price = order.get("stopPrice", self.stop_price)
 
-        if 'timestamp' in order and order['timestamp'] is not None:
-            self.order_date = datetime.fromtimestamp(order['timestamp'] / 1000, tz=timezone.utc)
+        if "timestamp" in order and order["timestamp"] is not None:
+            self.order_date = datetime.fromtimestamp(order["timestamp"] / 1000, tz=timezone.utc)
 
         self.cg_is_open = True
         if self.status in NON_OPEN_EXCHANGE_STATES:
             self.cg_is_open = False
-            if (order.get('filled', 0.0) or 0.0) > 0:
+            if (order.get("filled", 0.0) or 0.0) > 0:
                 self.order_filled_date = datetime.now(timezone.utc)
         self.order_update_date = datetime.now(timezone.utc)
 
     def to_ccxt_object(self) -> Dict[str, Any]:
         return {
-            'id': self.order_id,
-            'symbol': self.cg_pair,
-            'price': self.price,
-            'average': self.average,
-            'amount': self.amount,
-            'cost': self.cost,
-            'type': self.order_type,
-            'side': self.cg_order_side,
-            'filled': self.filled,
-            'remaining': self.remaining,
-            'stopPrice': self.stop_price,
-            'datetime': self.order_date_utc.strftime('%Y-%m-%dT%H:%M:%S.%f'),
-            'timestamp': int(self.order_date_utc.timestamp() * 1000),
-            'status': self.status,
-            'fee': None,
-            'info': {},
+            "id": self.order_id,
+            "symbol": self.cg_pair,
+            "price": self.price,
+            "average": self.average,
+            "amount": self.amount,
+            "cost": self.cost,
+            "type": self.order_type,
+            "side": self.cg_order_side,
+            "filled": self.filled,
+            "remaining": self.remaining,
+            "stopPrice": self.stop_price,
+            "datetime": self.order_date_utc.strftime("%Y-%m-%dT%H:%M:%S.%f"),
+            "timestamp": int(self.order_date_utc.timestamp() * 1000),
+            "status": self.status,
+            "fee": None,
+            "info": {},
         }
 
     def to_json(self, entry_side: str, minified: bool = False) -> Dict[str, Any]:
         resp = {
-            'amount': self.amount,
-            'safe_price': self.safe_price,
-            'cg_order_side': self.cg_order_side,
-            'order_filled_timestamp': int(self.order_filled_date.replace(
-                tzinfo=timezone.utc).timestamp() * 1000) if self.order_filled_date else None,
-            'cg_is_entry': self.cg_order_side == entry_side,
+            "amount": self.amount,
+            "safe_price": self.safe_price,
+            "cg_order_side": self.cg_order_side,
+            "order_filled_timestamp": int(
+                self.order_filled_date.replace(tzinfo=timezone.utc).timestamp() * 1000
+            )
+            if self.order_filled_date
+            else None,
+            "cg_is_entry": self.cg_order_side == entry_side,
         }
         if not minified:
-            resp.update({
-                'pair': self.cg_pair,
-                'order_id': self.order_id,
-                'status': self.status,
-                'average': round(self.average, 8) if self.average else 0,
-                'cost': self.cost if self.cost else 0,
-                'filled': self.filled,
-                'is_open': self.cg_is_open,
-                'order_date': self.order_date.strftime(DATETIME_PRINT_FORMAT)
-                if self.order_date else None,
-                'order_timestamp': int(self.order_date.replace(
-                    tzinfo=timezone.utc).timestamp() * 1000) if self.order_date else None,
-                'order_filled_date': self.order_filled_date.strftime(DATETIME_PRINT_FORMAT)
-                if self.order_filled_date else None,
-                'order_type': self.order_type,
-                'price': self.price,
-                'remaining': self.remaining,
-            })
+            resp.update(
+                {
+                    "pair": self.cg_pair,
+                    "order_id": self.order_id,
+                    "status": self.status,
+                    "average": round(self.average, 8) if self.average else 0,
+                    "cost": self.cost if self.cost else 0,
+                    "filled": self.filled,
+                    "is_open": self.cg_is_open,
+                    "order_date": self.order_date.strftime(DATETIME_PRINT_FORMAT)
+                    if self.order_date
+                    else None,
+                    "order_timestamp": int(
+                        self.order_date.replace(tzinfo=timezone.utc).timestamp() * 1000
+                    )
+                    if self.order_date
+                    else None,
+                    "order_filled_date": self.order_filled_date.strftime(DATETIME_PRINT_FORMAT)
+                    if self.order_filled_date
+                    else None,
+                    "order_type": self.order_type,
+                    "price": self.price,
+                    "remaining": self.remaining,
+                }
+            )
         return resp
 
-    def close_bt_order(self, close_date: datetime, trade: 'LocalTrade'):
+    def close_bt_order(self, close_date: datetime, trade: "LocalTrade"):
         self.order_filled_date = close_date
         self.filled = self.amount
         self.remaining = 0
-        self.status = 'closed'
+        self.status = "closed"
         self.cg_is_open = False
-        if (self.cg_order_side == trade.entry_side
-                and len(trade.select_filled_orders(trade.entry_side)) == 1):
+        if (
+            self.cg_order_side == trade.entry_side
+            and len(trade.select_filled_orders(trade.entry_side)) == 1
+        ):
             trade.open_rate = self.price
             trade.recalc_open_trade_value()
             trade.adjust_stop_loss(trade.open_rate, trade.stop_loss_pct, refresh=True)
 
     @staticmethod
-    def update_orders(orders: List['Order'], order: Dict[str, Any]):
+    def update_orders(orders: List["Order"], order: Dict[str, Any]):
         """
         Get all non-closed orders - useful when trying to batch-update orders
         """
@@ -195,7 +232,7 @@ class Order(_DECL_BASE):
             logger.warning(f"{order} is not a valid response object.")
             return
 
-        filtered_orders = [o for o in orders if o.order_id == order.get('id')]
+        filtered_orders = [o for o in orders if o.order_id == order.get("id")]
         if filtered_orders:
             oobj = filtered_orders[0]
             oobj.update_from_ccxt_object(order)
@@ -204,59 +241,64 @@ class Order(_DECL_BASE):
             logger.warning(f"Did not find order for {order}.")
 
     @staticmethod
-    def parse_from_ccxt_object(order: Dict[str, Any], pair: str, side: str) -> 'Order':
+    def parse_from_ccxt_object(order: Dict[str, Any], pair: str, side: str) -> "Order":
         """
         Parse an order from a ccxt object and return a new order Object.
         """
-        o = Order(order_id=str(order['id']), cg_order_side=side, cg_pair=pair)
+        o = Order(order_id=str(order["id"]), cg_order_side=side, cg_pair=pair)
 
         o.update_from_ccxt_object(order)
         return o
 
     @staticmethod
-    def get_open_orders() -> List['Order']:
+    def get_open_orders() -> List["Order"]:
         """
         Retrieve open orders from the database
         :return: List of open orders
         """
-        return Order.query.filter(Order.cg_is_open.is_(True)).all()
+        return Order.query.filter(
+            Order.bot_id == __id__, Order.dry_run.is_(_dry_run()), Order.cg_is_open.is_(True)
+        ).all()
 
     @staticmethod
-    def order_by_id(order_id: str) -> Optional['Order']:
+    def order_by_id(order_id: str) -> Optional["Order"]:
         """
         Retrieve order based on order_id
         :return: Order or None
         """
-        return Order.query.filter(Order.order_id == order_id).first()
+        return Order.query.filter(
+            Order.bot_id == __id__, Order.dry_run.is_(_dry_run()), Order.order_id == order_id
+        ).first()
 
 
-class LocalTrade():
+class LocalTrade:
     """
     Trade database model.
     Used in backtesting - must be aligned to Trade model!
 
     """
+
     use_db: bool = False
     # Trades container for backtesting
-    trades: List['LocalTrade'] = []
-    trades_open: List['LocalTrade'] = []
+    trades: List["LocalTrade"] = []
+    trades_open: List["LocalTrade"] = []
     total_profit: float = 0
 
     id: int = 0
 
     orders: List[Order] = []
 
-    exchange: str = ''
-    pair: str = ''
-    base_currency: str = ''
-    stake_currency: str = ''
+    exchange: str = ""
+    pair: str = ""
+    base_currency: str = ""
+    stake_currency: str = ""
     is_open: bool = True
     fee_open: float = 0.0
     fee_open_cost: Optional[float] = None
-    fee_open_currency: str = ''
+    fee_open_currency: str = ""
     fee_close: float = 0.0
     fee_close_cost: Optional[float] = None
-    fee_close_currency: str = ''
+    fee_close_currency: str = ""
     open_rate: float = 0.0
     open_rate_requested: Optional[float] = None
     # open_trade_value - calculated via _calc_open_trade_value
@@ -287,9 +329,9 @@ class LocalTrade():
     max_rate: float = 0.0
     # Lowest price reached
     min_rate: float = 0.0
-    exit_reason: str = ''
-    exit_order_status: str = ''
-    strategy: str = ''
+    exit_reason: str = ""
+    exit_order_status: str = ""
+    strategy: str = ""
     enter_tag: Optional[str] = None
     timeframe: Optional[int] = None
 
@@ -317,14 +359,14 @@ class LocalTrade():
     @property
     def has_no_leverage(self) -> bool:
         """Returns true if this is a non-leverage, non-short trade"""
-        return ((self.leverage == 1.0 or self.leverage is None) and not self.is_short)
+        return (self.leverage == 1.0 or self.leverage is None) and not self.is_short
 
     @property
     def borrowed(self) -> float:
         """
-            The amount of currency borrowed from the exchange for leverage trades
-            If a long trade, the amount is in base currency
-            If a short trade, the amount is in the other currency being traded
+        The amount of currency borrowed from the exchange for leverage trades
+        If a long trade, the amount is in base currency
+        If a short trade, the amount is in the other currency being traded
         """
         if self.has_no_leverage:
             return 0.0
@@ -343,7 +385,7 @@ class LocalTrade():
 
     @property
     def enter_side(self) -> str:
-        """ DEPRECATED, please use entry_side instead"""
+        """DEPRECATED, please use entry_side instead"""
         # TODO: Please remove me after 2022.5
         return self.entry_side
 
@@ -374,9 +416,9 @@ class LocalTrade():
         Compatibility layer for asset - which can be empty for old trades.
         """
         try:
-            return self.base_currency or self.pair.split('/')[0]
+            return self.base_currency or self.pair.split("/")[0]
         except IndexError:
-            return ''
+            return ""
 
     @property
     def safe_quote_currency(self) -> str:
@@ -384,9 +426,9 @@ class LocalTrade():
         Compatibility layer for asset - which can be empty for old trades.
         """
         try:
-            return self.stake_currency or self.pair.split('/')[1].split(':')[0]
+            return self.stake_currency or self.pair.split("/")[1].split(":")[0]
         except IndexError:
-            return ''
+            return ""
 
     def __init__(self, **kwargs):
         for key in kwargs:
@@ -394,15 +436,16 @@ class LocalTrade():
         self.recalc_open_trade_value()
         if self.trading_mode == TradingMode.MARGIN and self.interest_rate is None:
             raise OperationalException(
-                f"{self.trading_mode.value} trading requires param interest_rate on trades")
+                f"{self.trading_mode.value} trading requires param interest_rate on trades"
+            )
 
     def __repr__(self):
-        open_since = self.open_date.strftime(DATETIME_PRINT_FORMAT) if self.is_open else 'closed'
+        open_since = self.open_date.strftime(DATETIME_PRINT_FORMAT) if self.is_open else "closed"
 
         return (
-            f'Trade(id={self.id}, pair={self.pair}, amount={self.amount:.8f}, '
-            f'is_short={self.is_short or False}, leverage={self.leverage or 1.0}, '
-            f'open_rate={self.open_rate:.8f}, open_since={open_since})'
+            f"Trade(id={self.id}, pair={self.pair}, amount={self.amount:.8f}, "
+            f"is_short={self.is_short or False}, leverage={self.leverage or 1.0}, "
+            f"open_rate={self.open_rate:.8f}, open_since={open_since})"
         )
 
     def to_json(self, minified: bool = False) -> Dict[str, Any]:
@@ -410,79 +453,88 @@ class LocalTrade():
         orders = [order.to_json(self.entry_side, minified) for order in filled_orders]
 
         return {
-            'trade_id': self.id,
-            'pair': self.pair,
-            'base_currency': self.safe_base_currency,
-            'quote_currency': self.safe_quote_currency,
-            'is_open': self.is_open,
-            'exchange': self.exchange,
-            'amount': round(self.amount, 8),
-            'amount_requested': round(self.amount_requested, 8) if self.amount_requested else None,
-            'stake_amount': round(self.stake_amount, 8),
-            'strategy': self.strategy,
-            'buy_tag': self.enter_tag,
-            'enter_tag': self.enter_tag,
-            'timeframe': self.timeframe,
-
-            'fee_open': self.fee_open,
-            'fee_open_cost': self.fee_open_cost,
-            'fee_open_currency': self.fee_open_currency,
-            'fee_close': self.fee_close,
-            'fee_close_cost': self.fee_close_cost,
-            'fee_close_currency': self.fee_close_currency,
-
-            'open_date': self.open_date.strftime(DATETIME_PRINT_FORMAT),
-            'open_timestamp': int(self.open_date.replace(tzinfo=timezone.utc).timestamp() * 1000),
-            'open_rate': self.open_rate,
-            'open_rate_requested': self.open_rate_requested,
-            'open_trade_value': round(self.open_trade_value, 8),
-
-            'close_date': (self.close_date.strftime(DATETIME_PRINT_FORMAT)
-                           if self.close_date else None),
-            'close_timestamp': int(self.close_date.replace(
-                tzinfo=timezone.utc).timestamp() * 1000) if self.close_date else None,
-            'close_rate': self.close_rate,
-            'close_rate_requested': self.close_rate_requested,
-            'close_profit': self.close_profit,  # Deprecated
-            'close_profit_pct': round(self.close_profit * 100, 2) if self.close_profit else None,
-            'close_profit_abs': self.close_profit_abs,  # Deprecated
-
-            'trade_duration_s': (int((self.close_date_utc - self.open_date_utc).total_seconds())
-                                 if self.close_date else None),
-            'trade_duration': (int((self.close_date_utc - self.open_date_utc).total_seconds() // 60)
-                               if self.close_date else None),
-
-            'profit_ratio': self.close_profit,
-            'profit_pct': round(self.close_profit * 100, 2) if self.close_profit else None,
-            'profit_abs': self.close_profit_abs,
-
-            'sell_reason': self.exit_reason,  # Deprecated
-            'exit_reason': self.exit_reason,
-            'exit_order_status': self.exit_order_status,
-            'stop_loss_abs': self.stop_loss,
-            'stop_loss_ratio': self.stop_loss_pct if self.stop_loss_pct else None,
-            'stop_loss_pct': (self.stop_loss_pct * 100) if self.stop_loss_pct else None,
-            'stoploss_order_id': self.stoploss_order_id,
-            'stoploss_last_update': (self.stoploss_last_update.strftime(DATETIME_PRINT_FORMAT)
-                                     if self.stoploss_last_update else None),
-            'stoploss_last_update_timestamp': int(self.stoploss_last_update.replace(
-                tzinfo=timezone.utc).timestamp() * 1000) if self.stoploss_last_update else None,
-            'initial_stop_loss_abs': self.initial_stop_loss,
-            'initial_stop_loss_ratio': (self.initial_stop_loss_pct
-                                        if self.initial_stop_loss_pct else None),
-            'initial_stop_loss_pct': (self.initial_stop_loss_pct * 100
-                                      if self.initial_stop_loss_pct else None),
-            'min_rate': self.min_rate,
-            'max_rate': self.max_rate,
-
-            'leverage': self.leverage,
-            'interest_rate': self.interest_rate,
-            'liquidation_price': self.liquidation_price,
-            'is_short': self.is_short,
-            'trading_mode': self.trading_mode,
-            'funding_fees': self.funding_fees,
-            'open_order_id': self.open_order_id,
-            'orders': orders,
+            "trade_id": self.id,
+            "pair": self.pair,
+            "base_currency": self.safe_base_currency,
+            "quote_currency": self.safe_quote_currency,
+            "is_open": self.is_open,
+            "exchange": self.exchange,
+            "amount": round(self.amount, 8),
+            "amount_requested": round(self.amount_requested, 8) if self.amount_requested else None,
+            "stake_amount": round(self.stake_amount, 8),
+            "strategy": self.strategy,
+            "buy_tag": self.enter_tag,
+            "enter_tag": self.enter_tag,
+            "timeframe": self.timeframe,
+            "fee_open": self.fee_open,
+            "fee_open_cost": self.fee_open_cost,
+            "fee_open_currency": self.fee_open_currency,
+            "fee_close": self.fee_close,
+            "fee_close_cost": self.fee_close_cost,
+            "fee_close_currency": self.fee_close_currency,
+            "open_date": self.open_date.strftime(DATETIME_PRINT_FORMAT),
+            "open_timestamp": int(self.open_date.replace(tzinfo=timezone.utc).timestamp() * 1000),
+            "open_rate": self.open_rate,
+            "open_rate_requested": self.open_rate_requested,
+            "open_trade_value": round(self.open_trade_value, 8),
+            "close_date": (
+                self.close_date.strftime(DATETIME_PRINT_FORMAT) if self.close_date else None
+            ),
+            "close_timestamp": int(self.close_date.replace(tzinfo=timezone.utc).timestamp() * 1000)
+            if self.close_date
+            else None,
+            "close_rate": self.close_rate,
+            "close_rate_requested": self.close_rate_requested,
+            "close_profit": self.close_profit,  # Deprecated
+            "close_profit_pct": round(self.close_profit * 100, 2) if self.close_profit else None,
+            "close_profit_abs": self.close_profit_abs,  # Deprecated
+            "trade_duration_s": (
+                int((self.close_date_utc - self.open_date_utc).total_seconds())
+                if self.close_date
+                else None
+            ),
+            "trade_duration": (
+                int((self.close_date_utc - self.open_date_utc).total_seconds() // 60)
+                if self.close_date
+                else None
+            ),
+            "profit_ratio": self.close_profit,
+            "profit_pct": round(self.close_profit * 100, 2) if self.close_profit else None,
+            "profit_abs": self.close_profit_abs,
+            "sell_reason": self.exit_reason,  # Deprecated
+            "exit_reason": self.exit_reason,
+            "exit_order_status": self.exit_order_status,
+            "stop_loss_abs": self.stop_loss,
+            "stop_loss_ratio": self.stop_loss_pct if self.stop_loss_pct else None,
+            "stop_loss_pct": (self.stop_loss_pct * 100) if self.stop_loss_pct else None,
+            "stoploss_order_id": self.stoploss_order_id,
+            "stoploss_last_update": (
+                self.stoploss_last_update.strftime(DATETIME_PRINT_FORMAT)
+                if self.stoploss_last_update
+                else None
+            ),
+            "stoploss_last_update_timestamp": int(
+                self.stoploss_last_update.replace(tzinfo=timezone.utc).timestamp() * 1000
+            )
+            if self.stoploss_last_update
+            else None,
+            "initial_stop_loss_abs": self.initial_stop_loss,
+            "initial_stop_loss_ratio": (
+                self.initial_stop_loss_pct if self.initial_stop_loss_pct else None
+            ),
+            "initial_stop_loss_pct": (
+                self.initial_stop_loss_pct * 100 if self.initial_stop_loss_pct else None
+            ),
+            "min_rate": self.min_rate,
+            "max_rate": self.max_rate,
+            "leverage": self.leverage,
+            "interest_rate": self.interest_rate,
+            "liquidation_price": self.liquidation_price,
+            "is_short": self.is_short,
+            "trading_mode": self.trading_mode,
+            "funding_fees": self.funding_fees,
+            "open_order_id": self.open_order_id,
+            "orders": orders,
         }
 
     @staticmethod
@@ -530,8 +582,9 @@ class LocalTrade():
         self.stop_loss_pct = -1 * abs(percent)
         self.stoploss_last_update = datetime.utcnow()
 
-    def adjust_stop_loss(self, current_price: float, stoploss: float,
-                         initial: bool = False, refresh: bool = False) -> None:
+    def adjust_stop_loss(
+        self, current_price: float, stoploss: float, initial: bool = False, refresh: bool = False
+    ) -> None:
         """
         This adjusts the stop loss to it's most recently observed setting
         :param current_price: Current rate the asset is traded
@@ -583,7 +636,8 @@ class LocalTrade():
             f"initial_stop_loss={self.initial_stop_loss:.8f}, "
             f"stop_loss={self.stop_loss:.8f}. "
             f"Trailing stoploss saved us: "
-            f"{float(self.stop_loss) - float(self.initial_stop_loss):.8f}.")
+            f"{float(self.stop_loss) - float(self.initial_stop_loss):.8f}."
+        )
 
     def update_trade(self, order: Order) -> None:
         """
@@ -593,10 +647,10 @@ class LocalTrade():
         """
 
         # Ignore open and cancelled orders
-        if order.status == 'open' or order.safe_price is None:
+        if order.status == "open" or order.safe_price is None:
             return
 
-        logger.info(f'Updating trade (id={self.id}) ...')
+        logger.info(f"Updating trade (id={self.id}) ...")
 
         if order.cg_order_side == self.entry_side:
             # Update open rate and actual amount
@@ -604,24 +658,24 @@ class LocalTrade():
             self.amount = order.safe_amount_after_fee
             if self.is_open:
                 payment = "SELL" if self.is_short else "BUY"
-                logger.info(f'{order.order_type.upper()}_{payment} has been fulfilled for {self}.')
+                logger.info(f"{order.order_type.upper()}_{payment} has been fulfilled for {self}.")
             self.open_order_id = None
             self.recalc_trade_from_orders()
         elif order.cg_order_side == self.exit_side:
             if self.is_open:
                 payment = "BUY" if self.is_short else "SELL"
                 # * On margin shorts, you buy a little bit more than the amount (amount + interest)
-                logger.info(f'{order.order_type.upper()}_{payment} has been fulfilled for {self}.')
+                logger.info(f"{order.order_type.upper()}_{payment} has been fulfilled for {self}.")
             self.close(order.safe_price)
-        elif order.cg_order_side == 'stoploss':
+        elif order.cg_order_side == "stoploss":
             self.stoploss_order_id = None
             self.close_rate_requested = self.stop_loss
             self.exit_reason = ExitType.STOPLOSS_ON_EXCHANGE.value
             if self.is_open:
-                logger.info(f'{order.order_type.upper()} is hit for {self}.')
+                logger.info(f"{order.order_type.upper()} is hit for {self}.")
             self.close(order.safe_price)
         else:
-            raise ValueError(f'Unknown order type: {order.order_type}')
+            raise ValueError(f"Unknown order type: {order.order_type}")
         Trade.commit()
 
     def close(self, rate: float, *, show_msg: bool = True) -> None:
@@ -634,16 +688,17 @@ class LocalTrade():
         self.close_profit = self.calc_profit_ratio(rate)
         self.close_profit_abs = self.calc_profit(rate)
         self.is_open = False
-        self.exit_order_status = 'closed'
+        self.exit_order_status = "closed"
         self.open_order_id = None
         if show_msg:
             logger.info(
-                'Marking %s as closed as the trade is fulfilled and found no open orders for it.',
-                self
+                "Marking %s as closed as the trade is fulfilled and found no open orders for it.",
+                self,
             )
 
-    def update_fee(self, fee_cost: float, fee_currency: Optional[str], fee_rate: Optional[float],
-                   side: str) -> None:
+    def update_fee(
+        self, fee_cost: float, fee_currency: Optional[str], fee_rate: Optional[float], side: str
+    ) -> None:
         """
         Update Fee parameters. Only acts once per side
         """
@@ -745,7 +800,7 @@ class LocalTrade():
         if trading_mode == TradingMode.SPOT:
             return float(self._calc_base_close(amount, rate, self.fee_close))
 
-        elif (trading_mode == TradingMode.MARGIN):
+        elif trading_mode == TradingMode.MARGIN:
 
             total_interest = self.calculate_interest()
 
@@ -756,7 +811,7 @@ class LocalTrade():
                 # Currency already owned for longs, no need to purchase
                 return float(self._calc_base_close(amount, rate, self.fee_close) - total_interest)
 
-        elif (trading_mode == TradingMode.FUTURES):
+        elif trading_mode == TradingMode.FUTURES:
             funding_fees = self.funding_fees or 0.0
             # Positive funding_fees -> Trade has gained from fees.
             # Negative funding_fees -> Trade had to pay the fees.
@@ -766,7 +821,8 @@ class LocalTrade():
                 return float(self._calc_base_close(amount, rate, self.fee_close)) + funding_fees
         else:
             raise OperationalException(
-                f"{self.trading_mode.value} trading is not yet available using coingro")
+                f"{self.trading_mode.value} trading is not yet available using coingro"
+            )
 
     def calc_profit(self, rate: float) -> float:
         """
@@ -790,11 +846,11 @@ class LocalTrade():
         """
         close_trade_value = self.calc_close_trade_value(rate)
 
-        short_close_zero = (self.is_short and close_trade_value == 0.0)
-        long_close_zero = (not self.is_short and self.open_trade_value == 0.0)
+        short_close_zero = self.is_short and close_trade_value == 0.0
+        long_close_zero = not self.is_short and self.open_trade_value == 0.0
         leverage = self.leverage or 1.0
 
-        if (short_close_zero or long_close_zero):
+        if short_close_zero or long_close_zero:
             return 0.0
         else:
             if self.is_short:
@@ -809,9 +865,11 @@ class LocalTrade():
         total_amount = 0.0
         total_stake = 0.0
         for o in self.orders:
-            if (o.cg_is_open or
-                    (o.cg_order_side != self.entry_side) or
-                    (o.status not in NON_OPEN_EXCHANGE_STATES)):
+            if (
+                o.cg_is_open
+                or (o.cg_order_side != self.entry_side)
+                or (o.status not in NON_OPEN_EXCHANGE_STATES)
+            ):
                 continue
 
             tmp_amount = o.safe_amount_after_fee
@@ -840,8 +898,9 @@ class LocalTrade():
                 return o
         return None
 
-    def select_order(self, order_side: Optional[str] = None,
-                     is_open: Optional[bool] = None) -> Optional[Order]:
+    def select_order(
+        self, order_side: Optional[str] = None, is_open: Optional[bool] = None
+    ) -> Optional[Order]:
         """
         Finds latest order for this orderside and status
         :param order_side: cg_order_side of the order (either 'buy', 'sell' or 'stoploss')
@@ -858,31 +917,37 @@ class LocalTrade():
         else:
             return None
 
-    def select_filled_orders(self, order_side: Optional[str] = None) -> List['Order']:
+    def select_filled_orders(self, order_side: Optional[str] = None) -> List["Order"]:
         """
         Finds filled orders for this orderside.
         :param order_side: Side of the order (either 'buy', 'sell', or None)
         :return: array of Order objects
         """
-        return [o for o in self.orders if ((o.cg_order_side == order_side) or (order_side is None))
-                and o.cg_is_open is False and
-                (o.filled or 0) > 0 and
-                o.status in NON_OPEN_EXCHANGE_STATES]
+        return [
+            o
+            for o in self.orders
+            if ((o.cg_order_side == order_side) or (order_side is None))
+            and o.cg_is_open is False
+            and (o.filled or 0) > 0
+            and o.status in NON_OPEN_EXCHANGE_STATES
+        ]
 
-    def select_filled_or_open_orders(self) -> List['Order']:
+    def select_filled_or_open_orders(self) -> List["Order"]:
         """
         Finds filled or open orders
         :param order_side: Side of the order (either 'buy', 'sell', or None)
         :return: array of Order objects
         """
-        return [o for o in self.orders if
-                (
-                    o.cg_is_open is False
-                    and (o.filled or 0) > 0
-                    and o.status in NON_OPEN_EXCHANGE_STATES
-                    )
-                or (o.cg_is_open is True and o.status is not None)
-                ]
+        return [
+            o
+            for o in self.orders
+            if (
+                o.cg_is_open is False
+                and (o.filled or 0) > 0
+                and o.status in NON_OPEN_EXCHANGE_STATES
+            )
+            or (o.cg_is_open is True and o.status is not None)
+        ]
 
     @property
     def nr_of_successful_entries(self) -> int:
@@ -909,7 +974,7 @@ class LocalTrade():
         :return: int count of buy orders that have been filled for this trade.
         """
 
-        return len(self.select_filled_orders('buy'))
+        return len(self.select_filled_orders("buy"))
 
     @property
     def nr_of_successful_sells(self) -> int:
@@ -918,17 +983,21 @@ class LocalTrade():
         WARNING: Please use nr_of_successful_exits for short support.
         :return: int count of sell orders that have been filled for this trade.
         """
-        return len(self.select_filled_orders('sell'))
+        return len(self.select_filled_orders("sell"))
 
     @property
     def sell_reason(self) -> str:
-        """ DEPRECATED! Please use exit_reason instead."""
+        """DEPRECATED! Please use exit_reason instead."""
         return self.exit_reason
 
     @staticmethod
-    def get_trades_proxy(*, pair: str = None, is_open: bool = None,
-                         open_date: datetime = None, close_date: datetime = None,
-                         ) -> List['LocalTrade']:
+    def get_trades_proxy(
+        *,
+        pair: Optional[str] = None,
+        is_open: Optional[bool] = None,
+        open_date: Optional[datetime] = None,
+        close_date: Optional[datetime] = None,
+    ) -> List["LocalTrade"]:
         """
         Helper function to query Trades.
         Returns a List of trades, filtered on the parameters given.
@@ -954,8 +1023,9 @@ class LocalTrade():
         if open_date:
             sel_trades = [trade for trade in sel_trades if trade.open_date > open_date]
         if close_date:
-            sel_trades = [trade for trade in sel_trades if trade.close_date
-                          and trade.close_date > close_date]
+            sel_trades = [
+                trade for trade in sel_trades if trade.close_date and trade.close_date > close_date
+            ]
 
         return sel_trades
 
@@ -988,8 +1058,10 @@ class LocalTrade():
             logger.info("Found open trade: %s", trade)
 
             # skip case if trailing-stop changed the stoploss already.
-            if (trade.stop_loss == trade.initial_stop_loss
-                    and trade.initial_stop_loss_pct != desired_stoploss):
+            if (
+                trade.stop_loss == trade.initial_stop_loss
+                and trade.initial_stop_loss_pct != desired_stoploss
+            ):
                 # Stoploss value got changed
 
                 logger.info(f"Stoploss for {trade} needs adjustment...")
@@ -1007,11 +1079,14 @@ class Trade(_DECL_BASE, LocalTrade):
 
     Note: Fields must be aligned with LocalTrade class
     """
-    __tablename__ = f"{__id__}-trades"
+
+    __tablename__ = "trades"
 
     use_db: bool = True
 
     id = Column(Integer, primary_key=True)
+    bot_id = Column(String(255), nullable=False, default=__id__, index=True)
+    dry_run = Column(Boolean, nullable=False, default=_dry_run, index=True)
 
     orders = relationship("Order", order_by="Order.id", cascade="all, delete-orphan", lazy="joined")
 
@@ -1092,11 +1167,15 @@ class Trade(_DECL_BASE, LocalTrade):
         Trade.query.session.commit()
 
     @staticmethod
-    def get_trades_proxy(*, pair: str = None, is_open: bool = None,
-                         open_date: datetime = None, close_date: datetime = None,
-                         ) -> List['LocalTrade']:
+    def get_trades_proxy(
+        *,
+        pair: Optional[str] = None,
+        is_open: Optional[bool] = None,
+        open_date: Optional[datetime] = None,
+        close_date: Optional[datetime] = None,
+    ) -> List["LocalTrade"]:
         """
-        Helper function to query Trades.j
+        Helper function to query Trades.
         Returns a List of trades, filtered on the parameters given.
         In live mode, converts the filter to a database query and returns all rows
         In Backtest mode, uses filters on Trade.trades to get the result.
@@ -1116,9 +1195,7 @@ class Trade(_DECL_BASE, LocalTrade):
             return Trade.get_trades(trade_filter).all()
         else:
             return LocalTrade.get_trades_proxy(
-                pair=pair, is_open=is_open,
-                open_date=open_date,
-                close_date=close_date
+                pair=pair, is_open=is_open, open_date=open_date, close_date=close_date
             )
 
     @staticmethod
@@ -1133,13 +1210,14 @@ class Trade(_DECL_BASE, LocalTrade):
         :return: unsorted query object
         """
         if not Trade.use_db:
-            raise NotImplementedError('`Trade.get_trades()` not supported in backtesting mode.')
-        if trade_filter is not None:
+            raise NotImplementedError("`Trade.get_trades()` not supported in backtesting mode.")
+        if trade_filter is None:
+            trade_filter = []
+        else:
             if not isinstance(trade_filter, list):
                 trade_filter = [trade_filter]
-            this_query = Trade.query.filter(*trade_filter)
-        else:
-            this_query = Trade.query
+        trade_filter = [Trade.bot_id == __id__, Trade.dry_run.is_(_dry_run())] + trade_filter
+        this_query = Trade.query.filter(*trade_filter)
         if not include_orders:
             # Don't load order relations
             # Consider using noload or raiseload instead of lazyload
@@ -1147,7 +1225,7 @@ class Trade(_DECL_BASE, LocalTrade):
         return this_query
 
     @staticmethod
-    def get_open_order_trades() -> List['Trade']:
+    def get_open_order_trades() -> List["Trade"]:
         """
         Returns all open trades
         NOTE: Not supported in Backtesting.
@@ -1160,10 +1238,13 @@ class Trade(_DECL_BASE, LocalTrade):
         Returns all open trades which don't have open fees set correctly
         NOTE: Not supported in Backtesting.
         """
-        return Trade.get_trades([Trade.fee_open_currency.is_(None),
-                                 Trade.orders.any(),
-                                 Trade.is_open.is_(True),
-                                 ]).all()
+        return Trade.get_trades(
+            [
+                Trade.fee_open_currency.is_(None),
+                Trade.orders.any(),
+                Trade.is_open.is_(True),
+            ]
+        ).all()
 
     @staticmethod
     def get_closed_trades_without_assigned_fees():
@@ -1171,22 +1252,30 @@ class Trade(_DECL_BASE, LocalTrade):
         Returns all closed trades which don't have fees set correctly
         NOTE: Not supported in Backtesting.
         """
-        return Trade.get_trades([Trade.fee_close_currency.is_(None),
-                                 Trade.orders.any(),
-                                 Trade.is_open.is_(False),
-                                 ]).all()
+        return Trade.get_trades(
+            [
+                Trade.fee_close_currency.is_(None),
+                Trade.orders.any(),
+                Trade.is_open.is_(False),
+            ]
+        ).all()
 
     @staticmethod
     def get_total_closed_profit() -> float:
         """
         Retrieves total realized profit
         """
+        filters = [Trade.bot_id == __id__, Trade.dry_run.is_(_dry_run()), Trade.is_open.is_(False)]
         if Trade.use_db:
-            total_profit = Trade.query.with_entities(
-                func.sum(Trade.close_profit_abs)).filter(Trade.is_open.is_(False)).scalar()
+            total_profit = (
+                Trade.query.with_entities(func.sum(Trade.close_profit_abs))
+                .filter(*filters)
+                .scalar()
+            )
         else:
             total_profit = sum(
-                t.close_profit_abs for t in LocalTrade.get_trades_proxy(is_open=False))
+                t.close_profit_abs for t in LocalTrade.get_trades_proxy(is_open=False)
+            )
         return total_profit or 0
 
     @staticmethod
@@ -1195,12 +1284,15 @@ class Trade(_DECL_BASE, LocalTrade):
         Calculates total invested amount in open trades
         in stake currency
         """
+        filters = [Trade.bot_id == __id__, Trade.dry_run.is_(_dry_run()), Trade.is_open.is_(True)]
         if Trade.use_db:
-            total_open_stake_amount = Trade.query.with_entities(
-                func.sum(Trade.stake_amount)).filter(Trade.is_open.is_(True)).scalar()
+            total_open_stake_amount = (
+                Trade.query.with_entities(func.sum(Trade.stake_amount)).filter(*filters).scalar()
+            )
         else:
             total_open_stake_amount = sum(
-                t.stake_amount for t in LocalTrade.get_trades_proxy(is_open=True))
+                t.stake_amount for t in LocalTrade.get_trades_proxy(is_open=True)
+            )
         return total_open_stake_amount or 0
 
     @staticmethod
@@ -1209,27 +1301,30 @@ class Trade(_DECL_BASE, LocalTrade):
         Returns List of dicts containing all Trades, including profit and trade count
         NOTE: Not supported in Backtesting.
         """
-        filters = [Trade.is_open.is_(False)]
+        filters = [Trade.bot_id == __id__, Trade.dry_run.is_(_dry_run()), Trade.is_open.is_(False)]
         if minutes:
             start_date = datetime.now(timezone.utc) - timedelta(minutes=minutes)
             filters.append(Trade.close_date >= start_date)
-        pair_rates = Trade.query.with_entities(
-            Trade.pair,
-            func.sum(Trade.close_profit).label('profit_sum'),
-            func.sum(Trade.close_profit_abs).label('profit_sum_abs'),
-            func.count(Trade.pair).label('count')
-        ).filter(*filters)\
-            .group_by(Trade.pair) \
-            .order_by(desc('profit_sum_abs')) \
+        pair_rates = (
+            Trade.query.with_entities(
+                Trade.pair,
+                func.sum(Trade.close_profit).label("profit_sum"),
+                func.sum(Trade.close_profit_abs).label("profit_sum_abs"),
+                func.count(Trade.pair).label("count"),
+            )
+            .filter(*filters)
+            .group_by(Trade.pair)
+            .order_by(desc("profit_sum_abs"))
             .all()
+        )
         return [
             {
-                'pair': pair,
-                'profit_ratio': profit,
-                'profit': round(profit * 100, 2),  # Compatibility mode
-                'profit_pct': round(profit * 100, 2),
-                'profit_abs': profit_abs,
-                'count': count
+                "pair": pair,
+                "profit_ratio": profit,
+                "profit": round(profit * 100, 2),  # Compatibility mode
+                "profit_pct": round(profit * 100, 2),
+                "profit_abs": profit_abs,
+                "count": count,
             }
             for pair, profit, profit_abs, count in pair_rates
         ]
@@ -1242,27 +1337,30 @@ class Trade(_DECL_BASE, LocalTrade):
         NOTE: Not supported in Backtesting.
         """
 
-        filters = [Trade.is_open.is_(False)]
-        if(pair is not None):
+        filters = [Trade.bot_id == __id__, Trade.dry_run.is_(_dry_run()), Trade.is_open.is_(False)]
+        if pair is not None:
             filters.append(Trade.pair == pair)
 
-        enter_tag_perf = Trade.query.with_entities(
-            Trade.enter_tag,
-            func.sum(Trade.close_profit).label('profit_sum'),
-            func.sum(Trade.close_profit_abs).label('profit_sum_abs'),
-            func.count(Trade.pair).label('count')
-        ).filter(*filters)\
-            .group_by(Trade.enter_tag) \
-            .order_by(desc('profit_sum_abs')) \
+        enter_tag_perf = (
+            Trade.query.with_entities(
+                Trade.enter_tag,
+                func.sum(Trade.close_profit).label("profit_sum"),
+                func.sum(Trade.close_profit_abs).label("profit_sum_abs"),
+                func.count(Trade.pair).label("count"),
+            )
+            .filter(*filters)
+            .group_by(Trade.enter_tag)
+            .order_by(desc("profit_sum_abs"))
             .all()
+        )
 
         return [
             {
-                'enter_tag': enter_tag if enter_tag is not None else "Other",
-                'profit_ratio': profit,
-                'profit_pct': round(profit * 100, 2),
-                'profit_abs': profit_abs,
-                'count': count
+                "enter_tag": enter_tag if enter_tag is not None else "Other",
+                "profit_ratio": profit,
+                "profit_pct": round(profit * 100, 2),
+                "profit_abs": profit_abs,
+                "count": count,
             }
             for enter_tag, profit, profit_abs, count in enter_tag_perf
         ]
@@ -1275,27 +1373,30 @@ class Trade(_DECL_BASE, LocalTrade):
         NOTE: Not supported in Backtesting.
         """
 
-        filters = [Trade.is_open.is_(False)]
-        if(pair is not None):
+        filters = [Trade.bot_id == __id__, Trade.dry_run.is_(_dry_run()), Trade.is_open.is_(False)]
+        if pair is not None:
             filters.append(Trade.pair == pair)
 
-        sell_tag_perf = Trade.query.with_entities(
-            Trade.exit_reason,
-            func.sum(Trade.close_profit).label('profit_sum'),
-            func.sum(Trade.close_profit_abs).label('profit_sum_abs'),
-            func.count(Trade.pair).label('count')
-        ).filter(*filters)\
-            .group_by(Trade.exit_reason) \
-            .order_by(desc('profit_sum_abs')) \
+        sell_tag_perf = (
+            Trade.query.with_entities(
+                Trade.exit_reason,
+                func.sum(Trade.close_profit).label("profit_sum"),
+                func.sum(Trade.close_profit_abs).label("profit_sum_abs"),
+                func.count(Trade.pair).label("count"),
+            )
+            .filter(*filters)
+            .group_by(Trade.exit_reason)
+            .order_by(desc("profit_sum_abs"))
             .all()
+        )
 
         return [
             {
-                'exit_reason': exit_reason if exit_reason is not None else "Other",
-                'profit_ratio': profit,
-                'profit_pct': round(profit * 100, 2),
-                'profit_abs': profit_abs,
-                'count': count
+                "exit_reason": exit_reason if exit_reason is not None else "Other",
+                "profit_ratio": profit,
+                "profit_pct": round(profit * 100, 2),
+                "profit_abs": profit_abs,
+                "count": count,
             }
             for exit_reason, profit, profit_abs, count in sell_tag_perf
         ]
@@ -1308,45 +1409,53 @@ class Trade(_DECL_BASE, LocalTrade):
         NOTE: Not supported in Backtesting.
         """
 
-        filters = [Trade.is_open.is_(False)]
-        if(pair is not None):
+        filters = [Trade.bot_id == __id__, Trade.dry_run.is_(_dry_run()), Trade.is_open.is_(False)]
+        if pair is not None:
             filters.append(Trade.pair == pair)
 
-        mix_tag_perf = Trade.query.with_entities(
-            Trade.id,
-            Trade.enter_tag,
-            Trade.exit_reason,
-            func.sum(Trade.close_profit).label('profit_sum'),
-            func.sum(Trade.close_profit_abs).label('profit_sum_abs'),
-            func.count(Trade.pair).label('count')
-        ).filter(*filters)\
-            .group_by(Trade.id) \
-            .order_by(desc('profit_sum_abs')) \
+        mix_tag_perf = (
+            Trade.query.with_entities(
+                Trade.id,
+                Trade.enter_tag,
+                Trade.exit_reason,
+                func.sum(Trade.close_profit).label("profit_sum"),
+                func.sum(Trade.close_profit_abs).label("profit_sum_abs"),
+                func.count(Trade.pair).label("count"),
+            )
+            .filter(*filters)
+            .group_by(Trade.id)
+            .order_by(desc("profit_sum_abs"))
             .all()
+        )
 
         return_list: List[Dict] = []
         for id, enter_tag, exit_reason, profit, profit_abs, count in mix_tag_perf:
             enter_tag = enter_tag if enter_tag is not None else "Other"
             exit_reason = exit_reason if exit_reason is not None else "Other"
 
-            if(exit_reason is not None and enter_tag is not None):
+            if exit_reason is not None and enter_tag is not None:
                 mix_tag = enter_tag + " " + exit_reason
                 i = 0
                 if not any(item["mix_tag"] == mix_tag for item in return_list):
-                    return_list.append({'mix_tag': mix_tag,
-                                        'profit': profit,
-                                        'profit_pct': round(profit * 100, 2),
-                                        'profit_abs': profit_abs,
-                                        'count': count})
+                    return_list.append(
+                        {
+                            "mix_tag": mix_tag,
+                            "profit": profit,
+                            "profit_pct": round(profit * 100, 2),
+                            "profit_abs": profit_abs,
+                            "count": count,
+                        }
+                    )
                 else:
                     while i < len(return_list):
                         if return_list[i]["mix_tag"] == mix_tag:
                             return_list[i] = {
-                                'mix_tag': mix_tag,
-                                'profit': profit + return_list[i]["profit"],
-                                'profit_pct': round(profit + return_list[i]["profit"] * 100, 2),
-                                'profit_abs': profit_abs + return_list[i]["profit_abs"],
-                                'count': 1 + return_list[i]["count"]}
+                                "mix_tag": mix_tag,
+                                "profit": profit + return_list[i]["profit"],
+                                "profit_pct": round(profit + return_list[i]["profit"] * 100, 2),
+                                "profit_abs": profit_abs + return_list[i]["profit_abs"],
+                                "count": 1 + return_list[i]["count"],
+                            }
                         i += 1
 
         return return_list
@@ -1358,11 +1467,18 @@ class Trade(_DECL_BASE, LocalTrade):
         NOTE: Not supported in Backtesting.
         :returns: Tuple containing (pair, profit_sum)
         """
-        best_pair = Trade.query.with_entities(
-            Trade.pair, func.sum(Trade.close_profit).label('profit_sum')
-        ).filter(Trade.is_open.is_(False) & (Trade.close_date >= start_date)) \
-            .group_by(Trade.pair) \
-            .order_by(desc('profit_sum')).first()
+        filters = [
+            Trade.bot_id == __id__,
+            Trade.dry_run.is_(_dry_run()),
+            Trade.is_open.is_(False) & (Trade.close_date >= start_date),
+        ]
+        best_pair = (
+            Trade.query.with_entities(Trade.pair, func.sum(Trade.close_profit).label("profit_sum"))
+            .filter(*filters)
+            .group_by(Trade.pair)
+            .order_by(desc("profit_sum"))
+            .first()
+        )
         return best_pair
 
     @staticmethod
@@ -1372,10 +1488,15 @@ class Trade(_DECL_BASE, LocalTrade):
         NOTE: Not supported in Backtesting.
         :returns: Tuple containing (pair, profit_sum)
         """
-        trading_volume = Order.query.with_entities(
-            func.sum(Order.cost).label('volume')
-        ).filter(
+        filters = [
+            Order.bot_id == __id__,
+            Order.dry_run.is_(_dry_run()),
             Order.order_filled_date >= start_date,
-            Order.status == 'closed'
-        ).scalar()
+            Order.status == "closed",
+        ]
+        trading_volume = (
+            Order.query.with_entities(func.sum(Order.cost).label("volume"))
+            .filter(*filters)
+            .scalar()
+        )
         return trading_volume

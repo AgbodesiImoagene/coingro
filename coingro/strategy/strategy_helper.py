@@ -3,10 +3,15 @@ import pandas as pd
 from coingro.exchange import timeframe_to_minutes
 
 
-def merge_informative_pair(dataframe: pd.DataFrame, informative: pd.DataFrame,
-                           timeframe: str, timeframe_inf: str, ffill: bool = True,
-                           append_timeframe: bool = True,
-                           date_column: str = 'date') -> pd.DataFrame:
+def merge_informative_pair(
+    dataframe: pd.DataFrame,
+    informative: pd.DataFrame,
+    timeframe: str,
+    timeframe_inf: str,
+    ffill: bool = True,
+    append_timeframe: bool = True,
+    date_column: str = "date",
+) -> pd.DataFrame:
     """
     Correctly merge informative samples to the original dataframe, avoiding lookahead bias.
 
@@ -36,22 +41,25 @@ def merge_informative_pair(dataframe: pd.DataFrame, informative: pd.DataFrame,
     minutes = timeframe_to_minutes(timeframe)
     if minutes == minutes_inf:
         # No need to forwardshift if the timeframes are identical
-        informative['date_merge'] = informative[date_column]
+        informative["date_merge"] = informative[date_column]
     elif minutes < minutes_inf:
         # Subtract "small" timeframe so merging is not delayed by 1 small candle
         # Detailed explanation in https://github.com/freqtrade/freqtrade/issues/4073
-        informative['date_merge'] = (
-            informative[date_column] + pd.to_timedelta(minutes_inf, 'm') -
-            pd.to_timedelta(minutes, 'm')
+        informative["date_merge"] = (
+            informative[date_column]
+            + pd.to_timedelta(minutes_inf, "m")
+            - pd.to_timedelta(minutes, "m")
         )
     else:
-        raise ValueError("Tried to merge a faster timeframe to a slower timeframe."
-                         "This would create new rows, and can throw off your regular indicators.")
+        raise ValueError(
+            "Tried to merge a faster timeframe to a slower timeframe."
+            "This would create new rows, and can throw off your regular indicators."
+        )
 
     # Rename columns to be unique
-    date_merge = 'date_merge'
+    date_merge = "date_merge"
     if append_timeframe:
-        date_merge = f'date_merge_{timeframe_inf}'
+        date_merge = f"date_merge_{timeframe_inf}"
         informative.columns = [f"{col}_{timeframe_inf}" for col in informative.columns]
 
     # Combine the 2 dataframes
@@ -59,11 +67,18 @@ def merge_informative_pair(dataframe: pd.DataFrame, informative: pd.DataFrame,
     if ffill:
         # https://pandas.pydata.org/docs/user_guide/merging.html#timeseries-friendly-merging
         # merge_ordered - ffill method is 2.5x faster than seperate ffill()
-        dataframe = pd.merge_ordered(dataframe, informative, fill_method="ffill", left_on='date',
-                                     right_on=date_merge, how='left')
+        dataframe = pd.merge_ordered(
+            dataframe,
+            informative,
+            fill_method="ffill",
+            left_on="date",
+            right_on=date_merge,
+            how="left",
+        )
     else:
-        dataframe = pd.merge(dataframe, informative, left_on='date',
-                             right_on=date_merge, how='left')
+        dataframe = pd.merge(
+            dataframe, informative, left_on="date", right_on=date_merge, how="left"
+        )
     dataframe = dataframe.drop(date_merge, axis=1)
 
     # if ffill:
@@ -73,9 +88,7 @@ def merge_informative_pair(dataframe: pd.DataFrame, informative: pd.DataFrame,
 
 
 def stoploss_from_open(
-    open_relative_stop: float,
-    current_profit: float,
-    is_short: bool = False
+    open_relative_stop: float, current_profit: float, is_short: bool = False
 ) -> float:
     """
 

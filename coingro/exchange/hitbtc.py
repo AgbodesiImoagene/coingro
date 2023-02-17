@@ -3,7 +3,6 @@ from typing import Dict
 
 from coingro.exchange import Exchange
 
-
 logger = logging.getLogger(__name__)
 
 
@@ -17,7 +16,4 @@ class Hitbtc(Exchange):
     may still not work as expected.
     """
 
-    _cg_has: Dict = {
-        "ohlcv_candle_limit": 1000,
-        "ohlcv_params": {"sort": "DESC"}
-    }
+    _cg_has: Dict = {"ohlcv_candle_limit": 1000, "ohlcv_params": {"sort": "DESC"}}

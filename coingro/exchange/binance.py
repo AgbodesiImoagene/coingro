@@ -14,7 +14,6 @@ from coingro.exchange import Exchange
 from coingro.exchange.common import retrier
 from coingro.misc import deep_merge_dicts
 
-
 logger = logging.getLogger(__name__)
 
 
@@ -23,13 +22,13 @@ class Binance(Exchange):
     _cg_has: Dict = {
         "stoploss_on_exchange": True,
         "stoploss_order_types": {"limit": "stop_loss_limit"},
-        "order_time_in_force": ['gtc', 'fok', 'ioc'],
+        "order_time_in_force": ["gtc", "fok", "ioc"],
         "time_in_force_parameter": "timeInForce",
         "ohlcv_candle_limit": 1000,
         "trades_pagination": "id",
         "trades_pagination_arg": "fromId",
         "l2_limit_range": [5, 10, 20, 50, 100, 500, 1000],
-        "ccxt_futures_name": "future"
+        "ccxt_futures_name": "future",
     }
     _cg_has_futures: Dict = {
         "stoploss_order_types": {"limit": "stop"},
@@ -50,17 +49,15 @@ class Binance(Exchange):
         :param side: "buy" or "sell"
         """
 
-        ordertype = 'stop' if self.trading_mode == TradingMode.FUTURES else 'stop_loss_limit'
+        ordertype = "stop" if self.trading_mode == TradingMode.FUTURES else "stop_loss_limit"
 
-        return (
-            order.get('stopPrice', None) is None
-            or (
-                order['type'] == ordertype
-                and (
-                    (side == "sell" and stop_loss > float(order['stopPrice'])) or
-                    (side == "buy" and stop_loss < float(order['stopPrice']))
-                )
-            ))
+        return order.get("stopPrice", None) is None or (
+            order["type"] == ordertype
+            and (
+                (side == "sell" and stop_loss > float(order["stopPrice"]))
+                or (side == "buy" and stop_loss < float(order["stopPrice"]))
+            )
+        )
 
     def get_tickers(self, symbols: Optional[List[str]] = None, cached: bool = False) -> Dict:
         tickers = super().get_tickers(symbols=symbols, cached=cached)
@@ -76,7 +73,7 @@ class Binance(Exchange):
         self,
         leverage: float,
         pair: Optional[str] = None,
-        trading_mode: Optional[TradingMode] = None
+        trading_mode: Optional[TradingMode] = None,
     ):
         """
         Set's the leverage before making a trade, in order to not
@@ -84,7 +81,7 @@ class Binance(Exchange):
         """
         trading_mode = trading_mode or self.trading_mode
 
-        if self._config['dry_run'] or trading_mode != TradingMode.FUTURES:
+        if self._config["dry_run"] or trading_mode != TradingMode.FUTURES:
             return
 
         try:
@@ -93,15 +90,21 @@ class Binance(Exchange):
             raise DDosProtection(e) from e
         except (ccxt.NetworkError, ccxt.ExchangeError) as e:
             raise TemporaryError(
-                f'Could not set leverage due to {e.__class__.__name__}. Message: {e}') from e
+                f"Could not set leverage due to {e.__class__.__name__}. Message: {e}"
+            ) from e
         except ccxt.BaseError as e:
             raise OperationalException(e) from e
 
-    async def _async_get_historic_ohlcv(self, pair: str, timeframe: str,
-                                        since_ms: int, candle_type: CandleType,
-                                        is_new_pair: bool = False, raise_: bool = False,
-                                        until_ms: Optional[int] = None
-                                        ) -> Tuple[str, str, str, List]:
+    async def _async_get_historic_ohlcv(
+        self,
+        pair: str,
+        timeframe: str,
+        since_ms: int,
+        candle_type: CandleType,
+        is_new_pair: bool = False,
+        raise_: bool = False,
+        until_ms: Optional[int] = None,
+    ) -> Tuple[str, str, str, List]:
         """
         Overwrite to introduce "fast new pair" functionality by detecting the pair's listing date
         Does not work for other exchanges, which don't return the earliest data when called with "0"
@@ -112,8 +115,10 @@ class Binance(Exchange):
             if x and x[3] and x[3][0] and x[3][0][0] > since_ms:
                 # Set starting date to first available candle.
                 since_ms = x[3][0][0]
-                logger.info(f"Candle-data for {pair} available starting with "
-                            f"{arrow.get(since_ms // 1000).isoformat()}.")
+                logger.info(
+                    f"Candle-data for {pair} available starting with "
+                    f"{arrow.get(since_ms // 1000).isoformat()}."
+                )
 
         return await super()._async_get_historic_ohlcv(
             pair=pair,
@@ -135,7 +140,7 @@ class Binance(Exchange):
     def dry_run_liquidation_price(
         self,
         pair: str,
-        open_rate: float,   # Entry price of position
+        open_rate: float,  # Entry price of position
         is_short: bool,
         position: float,  # Absolute value of position size
         wallet_balance: float,  # Or margin balance
@@ -172,7 +177,7 @@ class Binance(Exchange):
         # maintenance_amt: (CUM) Maintenance Amount of position
         mm_ratio, maintenance_amt = self.get_maintenance_ratio_and_amt(pair, position)
 
-        if (maintenance_amt is None):
+        if maintenance_amt is None:
             raise OperationalException(
                 "Parameter maintenance_amt is required by Binance.liquidation_price"
                 f"for {self.trading_mode.value}"
@@ -180,24 +185,18 @@ class Binance(Exchange):
 
         if self.trading_mode == TradingMode.FUTURES:
             return (
-                (
-                    (wallet_balance + cross_vars + maintenance_amt) -
-                    (side_1 * position * open_rate)
-                ) / (
-                    (position * mm_ratio) - (side_1 * position)
-                )
-            )
+                (wallet_balance + cross_vars + maintenance_amt) - (side_1 * position * open_rate)
+            ) / ((position * mm_ratio) - (side_1 * position))
         else:
             raise OperationalException(
-                "Coingro only supports isolated futures for leverage trading")
+                "Coingro only supports isolated futures for leverage trading"
+            )
 
     @retrier
     def load_leverage_tiers(self) -> Dict[str, List[Dict]]:
         if self.trading_mode == TradingMode.FUTURES:
-            if self._config['dry_run']:
-                leverage_tiers_path = (
-                    Path(__file__).parent / 'binance_leverage_tiers.json'
-                )
+            if self._config["dry_run"]:
+                leverage_tiers_path = Path(__file__).parent / "binance_leverage_tiers.json"
                 with open(leverage_tiers_path) as json_file:
                     return json.load(json_file)
             else:
@@ -206,8 +205,10 @@ class Binance(Exchange):
                 except ccxt.DDoSProtection as e:
                     raise DDosProtection(e) from e
                 except (ccxt.NetworkError, ccxt.ExchangeError) as e:
-                    raise TemporaryError(f'Could not fetch leverage amounts due to'
-                                         f'{e.__class__.__name__}. Message: {e}') from e
+                    raise TemporaryError(
+                        f"Could not fetch leverage amounts due to"
+                        f"{e.__class__.__name__}. Message: {e}"
+                    ) from e
                 except ccxt.BaseError as e:
                     raise OperationalException(e) from e
         else:

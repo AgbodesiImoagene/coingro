@@ -11,10 +11,13 @@ from coingro.plugins.pairlistmanager import PairListManager
 from tests.conftest import get_patched_exchange
 
 
-@pytest.mark.parametrize('candle_type', [
-    'mark',
-    '',
-])
+@pytest.mark.parametrize(
+    "candle_type",
+    [
+        "mark",
+        "",
+    ],
+)
 def test_dp_ohlcv(mocker, default_conf, ohlcv_history, candle_type):
     default_conf["runmode"] = RunMode.DRY_RUN
     timeframe = default_conf["timeframe"]
@@ -33,11 +36,9 @@ def test_dp_ohlcv(mocker, default_conf, ohlcv_history, candle_type):
     assert dp.ohlcv("NONESENSE/AAA", timeframe, candle_type=candletype).empty
 
     # Test with and without parameter
-    assert dp.ohlcv(
-        "UNITTEST/BTC",
-        timeframe,
-        candle_type=candletype
-    ).equals(dp.ohlcv("UNITTEST/BTC", candle_type=candle_type))
+    assert dp.ohlcv("UNITTEST/BTC", timeframe, candle_type=candletype).equals(
+        dp.ohlcv("UNITTEST/BTC", candle_type=candle_type)
+    )
 
     default_conf["runmode"] = RunMode.LIVE
     dp = DataProvider(default_conf, exchange)
@@ -86,11 +87,14 @@ def test_historic_ohlcv_dataformat(mocker, default_conf, ohlcv_history):
     jsonloadmock.assert_not_called()
 
 
-@pytest.mark.parametrize('candle_type', [
-    'mark',
-    'futures',
-    '',
-])
+@pytest.mark.parametrize(
+    "candle_type",
+    [
+        "mark",
+        "futures",
+        "",
+    ],
+)
 def test_get_pair_dataframe(mocker, default_conf, ohlcv_history, candle_type):
     default_conf["runmode"] = RunMode.DRY_RUN
     timeframe = default_conf["timeframe"]
@@ -101,26 +105,33 @@ def test_get_pair_dataframe(mocker, default_conf, ohlcv_history, candle_type):
 
     dp = DataProvider(default_conf, exchange)
     assert dp.runmode == RunMode.DRY_RUN
-    assert ohlcv_history.equals(dp.get_pair_dataframe(
-        "UNITTEST/BTC", timeframe, candle_type=candle_type))
-    assert ohlcv_history.equals(dp.get_pair_dataframe(
-        "UNITTEST/BTC", timeframe, candle_type=candletype))
-    assert isinstance(dp.get_pair_dataframe(
-        "UNITTEST/BTC", timeframe, candle_type=candle_type), DataFrame)
-    assert dp.get_pair_dataframe("UNITTEST/BTC", timeframe,
-                                 candle_type=candle_type) is not ohlcv_history
+    assert ohlcv_history.equals(
+        dp.get_pair_dataframe("UNITTEST/BTC", timeframe, candle_type=candle_type)
+    )
+    assert ohlcv_history.equals(
+        dp.get_pair_dataframe("UNITTEST/BTC", timeframe, candle_type=candletype)
+    )
+    assert isinstance(
+        dp.get_pair_dataframe("UNITTEST/BTC", timeframe, candle_type=candle_type), DataFrame
+    )
+    assert (
+        dp.get_pair_dataframe("UNITTEST/BTC", timeframe, candle_type=candle_type)
+        is not ohlcv_history
+    )
     assert not dp.get_pair_dataframe("UNITTEST/BTC", timeframe, candle_type=candle_type).empty
     assert dp.get_pair_dataframe("NONESENSE/AAA", timeframe, candle_type=candle_type).empty
 
     # Test with and without parameter
-    assert dp.get_pair_dataframe("UNITTEST/BTC", timeframe, candle_type=candle_type)\
-        .equals(dp.get_pair_dataframe("UNITTEST/BTC", candle_type=candle_type))
+    assert dp.get_pair_dataframe("UNITTEST/BTC", timeframe, candle_type=candle_type).equals(
+        dp.get_pair_dataframe("UNITTEST/BTC", candle_type=candle_type)
+    )
 
     default_conf["runmode"] = RunMode.LIVE
     dp = DataProvider(default_conf, exchange)
     assert dp.runmode == RunMode.LIVE
-    assert isinstance(dp.get_pair_dataframe(
-        "UNITTEST/BTC", timeframe, candle_type=candle_type), DataFrame)
+    assert isinstance(
+        dp.get_pair_dataframe("UNITTEST/BTC", timeframe, candle_type=candle_type), DataFrame
+    )
     assert dp.get_pair_dataframe("NONESENSE/AAA", timeframe, candle_type=candle_type).empty
 
     historymock = MagicMock(return_value=ohlcv_history)
@@ -128,8 +139,9 @@ def test_get_pair_dataframe(mocker, default_conf, ohlcv_history, candle_type):
     default_conf["runmode"] = RunMode.BACKTEST
     dp = DataProvider(default_conf, exchange)
     assert dp.runmode == RunMode.BACKTEST
-    assert isinstance(dp.get_pair_dataframe(
-        "UNITTEST/BTC", timeframe, candle_type=candle_type), DataFrame)
+    assert isinstance(
+        dp.get_pair_dataframe("UNITTEST/BTC", timeframe, candle_type=candle_type), DataFrame
+    )
     # assert dp.get_pair_dataframe("NONESENSE/AAA", timeframe).empty
 
 
@@ -141,7 +153,10 @@ def test_available_pairs(mocker, default_conf, ohlcv_history):
 
     dp = DataProvider(default_conf, exchange)
     assert len(dp.available_pairs) == 2
-    assert dp.available_pairs == [("XRP/BTC", timeframe), ("UNITTEST/BTC", timeframe), ]
+    assert dp.available_pairs == [
+        ("XRP/BTC", timeframe),
+        ("UNITTEST/BTC", timeframe),
+    ]
 
 
 def test_refresh(mocker, default_conf, ohlcv_history):
@@ -176,14 +191,14 @@ def test_orderbook(mocker, default_conf, order_book_l2):
     exchange = get_patched_exchange(mocker, default_conf, api_mock=api_mock)
 
     dp = DataProvider(default_conf, exchange)
-    res = dp.orderbook('ETH/BTC', 5)
+    res = dp.orderbook("ETH/BTC", 5)
     assert order_book_l2.call_count == 1
-    assert order_book_l2.call_args_list[0][0][0] == 'ETH/BTC'
+    assert order_book_l2.call_args_list[0][0][0] == "ETH/BTC"
     assert order_book_l2.call_args_list[0][0][1] >= 5
 
     assert type(res) is dict
-    assert 'bids' in res
-    assert 'asks' in res
+    assert "bids" in res
+    assert "asks" in res
 
 
 def test_market(mocker, default_conf, markets):
@@ -192,41 +207,41 @@ def test_market(mocker, default_conf, markets):
     exchange = get_patched_exchange(mocker, default_conf, api_mock=api_mock)
 
     dp = DataProvider(default_conf, exchange)
-    res = dp.market('ETH/BTC')
+    res = dp.market("ETH/BTC")
 
     assert type(res) is dict
-    assert 'symbol' in res
-    assert res['symbol'] == 'ETH/BTC'
+    assert "symbol" in res
+    assert res["symbol"] == "ETH/BTC"
 
-    res = dp.market('UNITTEST/BTC')
+    res = dp.market("UNITTEST/BTC")
     assert res is None
 
 
 def test_ticker(mocker, default_conf, tickers):
-    ticker_mock = MagicMock(return_value=tickers()['ETH/BTC'])
+    ticker_mock = MagicMock(return_value=tickers()["ETH/BTC"])
     mocker.patch("coingro.exchange.Exchange.fetch_ticker", ticker_mock)
     exchange = get_patched_exchange(mocker, default_conf)
     dp = DataProvider(default_conf, exchange)
-    res = dp.ticker('ETH/BTC')
+    res = dp.ticker("ETH/BTC")
     assert type(res) is dict
-    assert 'symbol' in res
-    assert res['symbol'] == 'ETH/BTC'
+    assert "symbol" in res
+    assert res["symbol"] == "ETH/BTC"
 
-    ticker_mock = MagicMock(side_effect=ExchangeError('Pair not found'))
+    ticker_mock = MagicMock(side_effect=ExchangeError("Pair not found"))
     mocker.patch("coingro.exchange.Exchange.fetch_ticker", ticker_mock)
     exchange = get_patched_exchange(mocker, default_conf)
     dp = DataProvider(default_conf, exchange)
-    res = dp.ticker('UNITTEST/BTC')
+    res = dp.ticker("UNITTEST/BTC")
     assert res == {}
 
 
 def test_current_whitelist(mocker, default_conf, tickers):
     # patch default conf to volumepairlist
-    default_conf['pairlists'][0] = {'method': 'VolumePairList', "number_assets": 5}
+    default_conf["pairlists"][0] = {"method": "VolumePairList", "number_assets": 5}
 
-    mocker.patch.multiple('coingro.exchange.Exchange',
-                          exchange_has=MagicMock(return_value=True),
-                          get_tickers=tickers)
+    mocker.patch.multiple(
+        "coingro.exchange.Exchange", exchange_has=MagicMock(return_value=True), get_tickers=tickers
+    )
     exchange = get_patched_exchange(mocker, default_conf)
 
     pairlist = PairListManager(exchange, default_conf)
@@ -298,16 +313,16 @@ def test_no_exchange_mode(default_conf):
         dp.refresh([()])
 
     with pytest.raises(OperationalException, match=message):
-        dp.ohlcv('XRP/USDT', '5m', '')
+        dp.ohlcv("XRP/USDT", "5m", "")
 
     with pytest.raises(OperationalException, match=message):
-        dp.market('XRP/USDT')
+        dp.market("XRP/USDT")
 
     with pytest.raises(OperationalException, match=message):
-        dp.ticker('XRP/USDT')
+        dp.ticker("XRP/USDT")
 
     with pytest.raises(OperationalException, match=message):
-        dp.orderbook('XRP/USDT', 20)
+        dp.orderbook("XRP/USDT", 20)
 
     with pytest.raises(OperationalException, match=message):
         dp.available_pairs()

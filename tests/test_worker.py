@@ -9,25 +9,25 @@ from tests.conftest import get_patched_worker, log_has, log_has_re
 
 
 def test_worker_state(mocker, default_conf, markets) -> None:
-    mocker.patch('coingro.exchange.Exchange.markets', PropertyMock(return_value=markets))
+    mocker.patch("coingro.exchange.Exchange.markets", PropertyMock(return_value=markets))
     worker = get_patched_worker(mocker, default_conf)
     assert worker.coingro.state is State.RUNNING
 
-    default_conf.pop('initial_state')
+    default_conf.pop("initial_state")
     worker = Worker(args=None, config=default_conf)
     assert worker.coingro.state is State.STOPPED
 
 
 def test_worker_running(mocker, default_conf, caplog) -> None:
     mock_throttle = MagicMock()
-    mocker.patch('coingro.worker.Worker._throttle', mock_throttle)
-    mocker.patch('coingro.persistence.Trade.stoploss_reinitialization', MagicMock())
+    mocker.patch("coingro.worker.Worker._throttle", mock_throttle)
+    mocker.patch("coingro.persistence.Trade.stoploss_reinitialization", MagicMock())
 
     worker = get_patched_worker(mocker, default_conf)
 
     state = worker._worker(old_state=None)
     assert state is State.RUNNING
-    assert log_has('Changing state to: RUNNING', caplog)
+    assert log_has("Changing state to: RUNNING", caplog)
     assert mock_throttle.call_count == 1
     # Check strategy is loaded, and received a dataprovider object
     assert worker.coingro.strategy
@@ -37,13 +37,13 @@ def test_worker_running(mocker, default_conf, caplog) -> None:
 
 def test_worker_stopped(mocker, default_conf, caplog) -> None:
     mock_throttle = MagicMock()
-    mocker.patch('coingro.worker.Worker._throttle', mock_throttle)
+    mocker.patch("coingro.worker.Worker._throttle", mock_throttle)
 
     worker = get_patched_worker(mocker, default_conf)
     worker.coingro.state = State.STOPPED
     state = worker._worker(old_state=State.RUNNING)
     assert state is State.STOPPED
-    assert log_has('Changing state from RUNNING to: STOPPED', caplog)
+    assert log_has("Changing state from RUNNING to: STOPPED", caplog)
     assert mock_throttle.call_count == 1
 
 
@@ -83,7 +83,7 @@ def test_worker_heartbeat_running(default_conf, mocker, caplog):
     message = r"Bot heartbeat\. PID=.*state='RUNNING'"
 
     mock_throttle = MagicMock()
-    mocker.patch('coingro.worker.Worker._throttle', mock_throttle)
+    mocker.patch("coingro.worker.Worker._throttle", mock_throttle)
     worker = get_patched_worker(mocker, default_conf)
 
     worker.coingro.state = State.RUNNING
@@ -106,7 +106,7 @@ def test_worker_heartbeat_stopped(default_conf, mocker, caplog):
     message = r"Bot heartbeat\. PID=.*state='STOPPED'"
 
     mock_throttle = MagicMock()
-    mocker.patch('coingro.worker.Worker._throttle', mock_throttle)
+    mocker.patch("coingro.worker.Worker._throttle", mock_throttle)
     worker = get_patched_worker(mocker, default_conf)
 
     worker.coingro.state = State.STOPPED

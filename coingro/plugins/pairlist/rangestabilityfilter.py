@@ -14,31 +14,36 @@ from coingro.exceptions import OperationalException
 from coingro.misc import plural
 from coingro.plugins.pairlist.IPairList import IPairList
 
-
 logger = logging.getLogger(__name__)
 
 
 class RangeStabilityFilter(IPairList):
-
-    def __init__(self, exchange, pairlistmanager,
-                 config: Dict[str, Any], pairlistconfig: Dict[str, Any],
-                 pairlist_pos: int) -> None:
+    def __init__(
+        self,
+        exchange,
+        pairlistmanager,
+        config: Dict[str, Any],
+        pairlistconfig: Dict[str, Any],
+        pairlist_pos: int,
+    ) -> None:
         super().__init__(exchange, pairlistmanager, config, pairlistconfig, pairlist_pos)
 
-        self._days = pairlistconfig.get('lookback_days', 10)
-        self._min_rate_of_change = pairlistconfig.get('min_rate_of_change', 0.01)
-        self._max_rate_of_change = pairlistconfig.get('max_rate_of_change')
-        self._refresh_period = pairlistconfig.get('refresh_period', 1440)
-        self._def_candletype = self._config['candle_type_def']
+        self._days = pairlistconfig.get("lookback_days", 10)
+        self._min_rate_of_change = pairlistconfig.get("min_rate_of_change", 0.01)
+        self._max_rate_of_change = pairlistconfig.get("max_rate_of_change")
+        self._refresh_period = pairlistconfig.get("refresh_period", 1440)
+        self._def_candletype = self._config["candle_type_def"]
 
         self._pair_cache: TTLCache = TTLCache(maxsize=1000, ttl=self._refresh_period)
 
-        candle_limit = exchange.ohlcv_candle_limit('1d', self._config['candle_type_def'])
+        candle_limit = exchange.ohlcv_candle_limit("1d", self._config["candle_type_def"])
         if self._days < 1:
             raise OperationalException("RangeStabilityFilter requires lookback_days to be >= 1")
         if self._days > candle_limit:
-            raise OperationalException("RangeStabilityFilter requires lookback_days to not "
-                                       f"exceed exchange max request size ({candle_limit})")
+            raise OperationalException(
+                "RangeStabilityFilter requires lookback_days to not "
+                f"exceed exchange max request size ({candle_limit})"
+            )
 
     @property
     def needstickers(self) -> bool:
@@ -55,10 +60,12 @@ class RangeStabilityFilter(IPairList):
         """
         max_rate_desc = ""
         if self._max_rate_of_change:
-            max_rate_desc = (f" and above {self._max_rate_of_change}")
-        return (f"{self.name} - Filtering pairs with rate of change below "
-                f"{self._min_rate_of_change}{max_rate_desc} over the "
-                f"last {plural(self._days, 'day')}.")
+            max_rate_desc = f" and above {self._max_rate_of_change}"
+        return (
+            f"{self.name} - Filtering pairs with rate of change below "
+            f"{self._min_rate_of_change}{max_rate_desc} over the "
+            f"last {plural(self._days, 'day')}."
+        )
 
     def filter_pairlist(self, pairlist: List[str], tickers: Dict) -> List[str]:
         """
@@ -68,22 +75,24 @@ class RangeStabilityFilter(IPairList):
         :return: new allowlist
         """
         needed_pairs: ListPairsWithTimeframes = [
-            (p, '1d', self._def_candletype) for p in pairlist if p not in self._pair_cache]
+            (p, "1d", self._def_candletype) for p in pairlist if p not in self._pair_cache
+        ]
 
-        since_ms = (arrow.utcnow()
-                         .floor('day')
-                         .shift(days=-self._days - 1)
-                         .int_timestamp) * 1000
+        since_ms = (arrow.utcnow().floor("day").shift(days=-self._days - 1).int_timestamp) * 1000
         # Get all candles
         candles = {}
         if needed_pairs:
-            candles = self._exchange.refresh_latest_ohlcv(needed_pairs, since_ms=since_ms,
-                                                          cache=False)
+            candles = self._exchange.refresh_latest_ohlcv(
+                needed_pairs, since_ms=since_ms, cache=False
+            )
 
         if self._enabled:
             for p in deepcopy(pairlist):
-                daily_candles = candles[(p, '1d', self._def_candletype)] if (
-                    p, '1d', self._def_candletype) in candles else None
+                daily_candles = (
+                    candles[(p, "1d", self._def_candletype)]
+                    if (p, "1d", self._def_candletype) in candles
+                    else None
+                )
                 if not self._validate_pair_loc(p, daily_candles):
                     pairlist.remove(p)
         return pairlist
@@ -102,16 +111,18 @@ class RangeStabilityFilter(IPairList):
 
         result = False
         if daily_candles is not None and not daily_candles.empty:
-            highest_high = daily_candles['high'].max()
-            lowest_low = daily_candles['low'].min()
+            highest_high = daily_candles["high"].max()
+            lowest_low = daily_candles["low"].min()
             pct_change = ((highest_high - lowest_low) / lowest_low) if lowest_low > 0 else 0
             if pct_change >= self._min_rate_of_change:
                 result = True
             else:
-                self.log_once(f"Removed {pair} from whitelist, because rate of change "
-                              f"over {self._days} {plural(self._days, 'day')} is {pct_change:.3f}, "
-                              f"which is below the threshold of {self._min_rate_of_change}.",
-                              logger.info)
+                self.log_once(
+                    f"Removed {pair} from whitelist, because rate of change "
+                    f"over {self._days} {plural(self._days, 'day')} is {pct_change:.3f}, "
+                    f"which is below the threshold of {self._min_rate_of_change}.",
+                    logger.info,
+                )
                 result = False
             if self._max_rate_of_change:
                 if pct_change <= self._max_rate_of_change:
@@ -121,7 +132,8 @@ class RangeStabilityFilter(IPairList):
                         f"Removed {pair} from whitelist, because rate of change "
                         f"over {self._days} {plural(self._days, 'day')} is {pct_change:.3f}, "
                         f"which is above the threshold of {self._max_rate_of_change}.",
-                        logger.info)
+                        logger.info,
+                    )
                     result = False
             self._pair_cache[pair] = result
         else:

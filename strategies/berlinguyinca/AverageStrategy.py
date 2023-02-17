@@ -5,7 +5,6 @@ from pandas import DataFrame
 import coingro.vendor.qtpylib.indicators as qtpylib
 from coingro.strategy import IntParameter, IStrategy
 
-
 # --------------------------------
 
 
@@ -21,16 +20,14 @@ class AverageStrategy(IStrategy):
 
     # Minimal ROI designed for the strategy.
     # This attribute will be overridden if the config file contains "minimal_roi"
-    minimal_roi = {
-        "0": 0.5
-    }
+    minimal_roi = {"0": 0.5}
 
     # Optimal stoploss designed for the strategy
     # This attribute will be overridden if the config file contains "stoploss"
     stoploss = -0.2
 
     # Optimal timeframe for the strategy
-    timeframe = '4h'
+    timeframe = "4h"
 
     buy_range_short = IntParameter(5, 20, default=8)
     buy_range_long = IntParameter(20, 120, default=21)
@@ -39,7 +36,7 @@ class AverageStrategy(IStrategy):
 
         # Combine all ranges ... to avoid duplicate calculation
         for val in list(set(list(self.buy_range_short.range) + list(self.buy_range_long.range))):
-            dataframe[f'ema{val}'] = ta.EMA(dataframe, timeperiod=val)
+            dataframe[f"ema{val}"] = ta.EMA(dataframe, timeperiod=val)
 
         return dataframe
 
@@ -52,12 +49,13 @@ class AverageStrategy(IStrategy):
         dataframe.loc[
             (
                 qtpylib.crossed_above(
-                    dataframe[f'ema{self.buy_range_short.value}'],
-                    dataframe[f'ema{self.buy_range_long.value}']
-                ) &
-                (dataframe['volume'] > 0)
+                    dataframe[f"ema{self.buy_range_short.value}"],
+                    dataframe[f"ema{self.buy_range_long.value}"],
+                )
+                & (dataframe["volume"] > 0)
             ),
-            'buy'] = 1
+            "buy",
+        ] = 1
 
         return dataframe
 
@@ -70,10 +68,11 @@ class AverageStrategy(IStrategy):
         dataframe.loc[
             (
                 qtpylib.crossed_above(
-                    dataframe[f'ema{self.buy_range_long.value}'],
-                    dataframe[f'ema{self.buy_range_short.value}']
-                    ) &
-                (dataframe['volume'] > 0)
+                    dataframe[f"ema{self.buy_range_long.value}"],
+                    dataframe[f"ema{self.buy_range_short.value}"],
+                )
+                & (dataframe["volume"] > 0)
             ),
-            'sell'] = 1
+            "sell",
+        ] = 1
         return dataframe

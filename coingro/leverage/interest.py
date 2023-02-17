@@ -3,18 +3,12 @@ from math import ceil
 
 from coingro.exceptions import OperationalException
 
-
 one = Decimal(1.0)
 four = Decimal(4.0)
 twenty_four = Decimal(24.0)
 
 
-def interest(
-    exchange_name: str,
-    borrowed: Decimal,
-    rate: Decimal,
-    hours: Decimal
-) -> Decimal:
+def interest(exchange_name: str, borrowed: Decimal, rate: Decimal, hours: Decimal) -> Decimal:
     """
     Equation to calculate interest on margin trades
 

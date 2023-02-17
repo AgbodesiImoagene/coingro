@@ -474,7 +474,7 @@ class ROI(BaseModel):
 
 
 class StakeAmountOptions(str, Enum):
-    unlimited = 'unlimited'
+    unlimited = "unlimited"
 
 
 class UpdateExchangePayload(BaseModel):

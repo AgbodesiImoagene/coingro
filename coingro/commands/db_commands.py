@@ -6,7 +6,6 @@ from sqlalchemy import func
 from coingro.configuration.config_setup import setup_utils_configuration
 from coingro.enums.runmode import RunMode
 
-
 logger = logging.getLogger(__name__)
 
 
@@ -19,9 +18,9 @@ def start_convert_db(args: Dict[str, Any]) -> None:
 
     config = setup_utils_configuration(args, RunMode.UTIL_NO_EXCHANGE)
 
-    init_db(config['db_url'], config['dry_run'])
+    init_db(config["db_url"], config["dry_run"])
     session_target = Trade._session
-    init_db(config['db_url_from'], config['dry_run'])
+    init_db(config["db_url_from"], config["dry_run"])
     logger.info("Starting db migration.")
 
     trade_count = 0
@@ -47,9 +46,11 @@ def start_convert_db(args: Dict[str, Any]) -> None:
     max_order_id = session_target.query(func.max(Order.id)).scalar()
     max_pairlock_id = session_target.query(func.max(PairLock.id)).scalar()
 
-    set_sequence_ids(session_target.get_bind(),
-                     trade_id=max_trade_id,
-                     order_id=max_order_id,
-                     pairlock_id=max_pairlock_id)
+    set_sequence_ids(
+        session_target.get_bind(),
+        trade_id=max_trade_id,
+        order_id=max_order_id,
+        pairlock_id=max_pairlock_id,
+    )
 
     logger.info(f"Migrated {trade_count} Trades, and {pairlock_count} Pairlocks.")

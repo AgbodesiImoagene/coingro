@@ -13,11 +13,14 @@ import sdnotify
 from coingro import __env__, __version__
 from coingro.coingrobot import CoingroBot
 from coingro.configuration import Configuration
-from coingro.constants import (DEFAULT_CONFIG_SAVE, PROCESS_THROTTLE_SECS, RETRY_TIMEOUT,
-                               USERPATH_CONFIG)
+from coingro.constants import (
+    DEFAULT_CONFIG_SAVE,
+    PROCESS_THROTTLE_SECS,
+    RETRY_TIMEOUT,
+    USERPATH_CONFIG,
+)
 from coingro.enums import State
 from coingro.exceptions import ExchangeError, OperationalException, TemporaryError
-
 
 logger = logging.getLogger(__name__)
 
@@ -27,7 +30,7 @@ class Worker:
     Coingrobot worker class
     """
 
-    def __init__(self, args: Dict[str, Any], config: Dict[str, Any] = None) -> None:
+    def __init__(self, args: Dict[str, Any], config: Optional[Dict[str, Any]] = None) -> None:
         """
         Init all variables and objects the bot needs to work
         """
@@ -39,8 +42,9 @@ class Worker:
 
         self._args = self._args if self._args else {}
         self._config = self._config if self._config else {}
-        cfgsavefile = Path(self._config.get('user_data_dir', '')) / USERPATH_CONFIG \
-            / DEFAULT_CONFIG_SAVE
+        cfgsavefile = (
+            Path(self._config.get("user_data_dir", "")) / USERPATH_CONFIG / DEFAULT_CONFIG_SAVE
+        )
         self._args["config_save"] = [str(cfgsavefile)]
 
         self.last_throttle_start_time: float = 0
@@ -60,13 +64,15 @@ class Worker:
         # Init the instance of the bot
         self.coingro = CoingroBot(self._config)
 
-        internals_config = self._config.get('internals', {})
-        self._throttle_secs = internals_config.get('process_throttle_secs',
-                                                   PROCESS_THROTTLE_SECS)
-        self._heartbeat_interval = internals_config.get('heartbeat_interval', 60)
+        internals_config = self._config.get("internals", {})
+        self._throttle_secs = internals_config.get("process_throttle_secs", PROCESS_THROTTLE_SECS)
+        self._heartbeat_interval = internals_config.get("heartbeat_interval", 60)
 
-        self._sd_notify = sdnotify.SystemdNotifier() if \
-            self._config.get('internals', {}).get('sd_notify', False) else None
+        self._sd_notify = (
+            sdnotify.SystemdNotifier()
+            if self._config.get("internals", {}).get("sd_notify", False)
+            else None
+        )
 
     def _notify(self, message: str) -> None:
         """
@@ -96,10 +102,11 @@ class Worker:
         if state != old_state:
 
             if old_state != State.RELOAD_CONFIG:
-                self.coingro.notify_status(f'{state.name.lower()}')
+                self.coingro.notify_status(f"{state.name.lower()}")
 
             logger.info(
-                f"Changing state{f' from {old_state.name}' if old_state else ''} to: {state.name}")
+                f"Changing state{f' from {old_state.name}' if old_state else ''} to: {state.name}"
+            )
             if state == State.RUNNING:
                 self.coingro.startup()
 
@@ -127,10 +134,11 @@ class Worker:
             if (now - self._heartbeat_msg) > self._heartbeat_interval:
                 version = __version__
                 strategy_version = self.coingro.strategy.version()
-                if (strategy_version is not None):
-                    version += ', strategy_version: ' + strategy_version
-                logger.info(f"Bot heartbeat. PID={getpid()}, "
-                            f"version='{version}', state='{state.name}'")
+                if strategy_version is not None:
+                    version += ", strategy_version: " + strategy_version
+                logger.info(
+                    f"Bot heartbeat. PID={getpid()}, " f"version='{version}', state='{state.name}'"
+                )
                 self._heartbeat_msg = now
 
         return state
@@ -148,8 +156,10 @@ class Worker:
         result = func(*args, **kwargs)
         time_passed = time.time() - self.last_throttle_start_time
         sleep_duration = max(throttle_secs - time_passed, 0.0)
-        logger.debug(f"Throttling with '{func.__name__}()': sleep for {sleep_duration:.2f} s, "
-                     f"last iteration took {time_passed:.2f} s.")
+        logger.debug(
+            f"Throttling with '{func.__name__}()': sleep for {sleep_duration:.2f} s, "
+            f"last iteration took {time_passed:.2f} s."
+        )
         time.sleep(sleep_duration)
         return result
 
@@ -163,13 +173,13 @@ class Worker:
             logger.warning(f"Error: {error}, retrying in {RETRY_TIMEOUT} seconds...")
             time.sleep(RETRY_TIMEOUT)
         except (OperationalException, ExchangeError) as error:
-            if isinstance(error, OperationalException) or __env__ == 'docker':
+            if isinstance(error, OperationalException) or __env__ == "docker":
                 tb = traceback.format_exc()
-                hint = 'Issue `/start` if you think it is safe to restart.'
+                hint = "Issue `/start` if you think it is safe to restart."
 
-                self.coingro.notify_status(f'{type(error).__name__}:\n```\n{tb}```{hint}')
+                self.coingro.notify_status(f"{type(error).__name__}:\n```\n{tb}```{hint}")
 
-                logger.exception(f'{type(error).__name__}. Stopping trader ...')
+                logger.exception(f"{type(error).__name__}. Stopping trader ...")
                 self.coingro.state = State.STOPPED
 
     def _reconfigure(self) -> None:
@@ -186,7 +196,7 @@ class Worker:
         # Load and validate config and create new instance of the bot
         self._init(True)
 
-        self.coingro.notify_status('config reloaded')
+        self.coingro.notify_status("config reloaded")
 
         # Tell systemd that we completed reconfiguration
         self._notify("READY=1")
@@ -196,5 +206,5 @@ class Worker:
         self._notify("STOPPING=1")
 
         if self.coingro:
-            self.coingro.notify_status('process died')
+            self.coingro.notify_status("process died")
             self.coingro.cleanup()

@@ -8,7 +8,6 @@ from typing import Dict
 from coingro.plugins.protections import IProtection
 from coingro.resolvers import IResolver
 
-
 logger = logging.getLogger(__name__)
 
 
@@ -16,10 +15,11 @@ class ProtectionResolver(IResolver):
     """
     This class contains all the logic to load custom PairList class
     """
+
     object_type = IProtection
     object_type_str = "Protection"
     user_subdir = None
-    initial_search_path = Path(__file__).parent.parent.joinpath('plugins/protections').resolve()
+    initial_search_path = Path(__file__).parent.parent.joinpath("plugins/protections").resolve()
 
     @staticmethod
     def load_protection(protection_name: str, config: Dict, protection_config: Dict) -> IProtection:
@@ -30,8 +30,11 @@ class ProtectionResolver(IResolver):
         :param protection_config: Configuration dedicated to this pairlist
         :return: initialized Protection class
         """
-        return ProtectionResolver.load_object(protection_name, config,
-                                              kwargs={'config': config,
-                                                      'protection_config': protection_config,
-                                                      },
-                                              )
+        return ProtectionResolver.load_object(
+            protection_name,
+            config,
+            kwargs={
+                "config": config,
+                "protection_config": protection_config,
+            },
+        )

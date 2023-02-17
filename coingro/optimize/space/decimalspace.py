@@ -3,9 +3,17 @@ from skopt.space import Integer
 
 
 class SKDecimal(Integer):
-
-    def __init__(self, low, high, decimals=3, prior="uniform", base=10, transform=None,
-                 name=None, dtype=np.int64):
+    def __init__(
+        self,
+        low,
+        high,
+        decimals=3,
+        prior="uniform",
+        base=10,
+        transform=None,
+        name=None,
+        dtype=np.int64,
+    ):
         self.decimals = decimals
 
         self.pow_dot_one = pow(0.1, self.decimals)
@@ -21,7 +29,8 @@ class SKDecimal(Integer):
 
     def __repr__(self):
         return "Decimal(low={}, high={}, decimals={}, prior='{}', transform='{}')".format(
-            self.low_orig, self.high_orig, self.decimals, self.prior, self.transform_)
+            self.low_orig, self.high_orig, self.decimals, self.prior, self.transform_
+        )
 
     def __contains__(self, point):
         if isinstance(point, list):

@@ -6,7 +6,6 @@ from typing import Any, Dict, Optional
 from coingro.constants import USER_DATA_FILES
 from coingro.exceptions import OperationalException
 
-
 logger = logging.getLogger(__name__)
 
 
@@ -15,12 +14,12 @@ def create_datadir(config: Dict[str, Any], datadir: Optional[str] = None) -> Pat
     folder = Path(datadir) if datadir else Path(f"{config['user_data_dir']}/data")
     if not datadir:
         # set datadir
-        exchange_name = config.get('exchange', {}).get('name', '').lower()
+        exchange_name = config.get("exchange", {}).get("name", "").lower()
         folder = folder.joinpath(exchange_name)
 
     if not folder.is_dir():
         folder.mkdir(parents=True)
-        logger.info(f'Created data directory: {datadir}')
+        logger.info(f"Created data directory: {datadir}")
     return folder
 
 
@@ -30,11 +29,14 @@ def chown_user_directory(directory: Path) -> None:
     Only applies when running in docker!
     """
     import coingro
-    if coingro.__env__ == 'docker':
+
+    if coingro.__env__ == "docker":
         try:
             import subprocess
+
             subprocess.check_output(
-                ['sudo', 'chown', '-R', 'cguser:', str(directory.resolve())])  # nosec
+                ["sudo", "chown", "-R", "cguser:", str(directory.resolve())]
+            )  # nosec
         except Exception:
             logger.warning(f"Could not chown {directory}")
 
@@ -49,18 +51,28 @@ def create_userdata_dir(directory: str, create_dir: bool = False) -> Path:
     :param create_dir: Create directory if it does not exist.
     :return: Path object containing the directory
     """
-    sub_dirs = ["backtest_results", "config", "data", "hyperopts", "hyperopt_results", "logs",
-                "notebooks", "plot", "strategies", ]
+    sub_dirs = [
+        "backtest_results",
+        "config",
+        "data",
+        "hyperopts",
+        "hyperopt_results",
+        "logs",
+        "notebooks",
+        "plot",
+        "strategies",
+    ]
     folder = Path(directory)
     chown_user_directory(folder)
     if not folder.is_dir():
         if create_dir:
             folder.mkdir(parents=True)
-            logger.info(f'Created user-data directory: {folder}')
+            logger.info(f"Created user-data directory: {folder}")
         else:
             raise OperationalException(
                 f"Directory `{folder}` does not exist. "
-                "Please use `coingro create-userdir` to create a user directory")
+                "Please use `coingro create-userdir` to create a user directory"
+            )
 
     # Create required subdirectories
     for f in sub_dirs:

@@ -22,8 +22,7 @@ class MaxDrawDownRelativeHyperOptLoss(IHyperOptLoss):
     """
 
     @staticmethod
-    def hyperopt_loss_function(results: DataFrame, config: Dict,
-                               *args, **kwargs) -> float:
+    def hyperopt_loss_function(results: DataFrame, config: Dict, *args, **kwargs) -> float:
 
         """
         Objective function.
@@ -31,15 +30,13 @@ class MaxDrawDownRelativeHyperOptLoss(IHyperOptLoss):
         Uses profit ratio weighted max_drawdown when drawdown is available.
         Otherwise directly optimizes profit ratio.
         """
-        total_profit = results['profit_abs'].sum()
+        total_profit = results["profit_abs"].sum()
         try:
             drawdown_df = calculate_underwater(
-                results,
-                value_col='profit_abs',
-                starting_balance=config['dry_run_wallet']
+                results, value_col="profit_abs", starting_balance=config["dry_run_wallet"]
             )
-            max_drawdown = abs(min(drawdown_df['drawdown']))
-            relative_drawdown = max(drawdown_df['drawdown_relative'])
+            max_drawdown = abs(min(drawdown_df["drawdown"]))
+            relative_drawdown = max(drawdown_df["drawdown_relative"])
             if max_drawdown == 0:
                 return -total_profit
             return -total_profit / max_drawdown / relative_drawdown

@@ -3,7 +3,7 @@ PairList manager class
 """
 import logging
 from functools import partial
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 from cachetools import TTLCache, cached
 
@@ -15,27 +15,25 @@ from coingro.plugins.pairlist.IPairList import IPairList
 from coingro.plugins.pairlist.pairlist_helpers import expand_pairlist
 from coingro.resolvers import PairListResolver
 
-
 logger = logging.getLogger(__name__)
 
 
 class PairListManager(LoggingMixin):
-
     def __init__(self, exchange, config: dict) -> None:
         self._exchange = exchange
         self._config = config
-        self._whitelist = self._config['exchange'].get('pair_whitelist')
-        self._blacklist = self._config['exchange'].get('pair_blacklist', [])
+        self._whitelist = self._config["exchange"].get("pair_whitelist")
+        self._blacklist = self._config["exchange"].get("pair_blacklist", [])
         self._pairlist_handlers: List[IPairList] = []
         self._tickers_needed = False
-        for pairlist_handler_config in self._config.get('pairlists', []):
+        for pairlist_handler_config in self._config.get("pairlists", []):
             pairlist_handler = PairListResolver.load_pairlist(
-                pairlist_handler_config['method'],
+                pairlist_handler_config["method"],
                 exchange=exchange,
                 pairlistmanager=self,
                 config=config,
                 pairlistconfig=pairlist_handler_config,
-                pairlist_pos=len(self._pairlist_handlers)
+                pairlist_pos=len(self._pairlist_handlers),
             )
             self._tickers_needed |= pairlist_handler.needstickers
             self._pairlist_handlers.append(pairlist_handler)
@@ -43,7 +41,7 @@ class PairListManager(LoggingMixin):
         if not self._pairlist_handlers:
             raise OperationalException("No Pairlist Handlers defined")
 
-        refresh_period = config.get('pairlist_refresh_period', 3600)
+        refresh_period = config.get("pairlist_refresh_period", 3600)
         LoggingMixin.__init__(self, logger, refresh_period)
 
     @property
@@ -120,8 +118,9 @@ class PairListManager(LoggingMixin):
                 pairlist.remove(pair)
         return pairlist
 
-    def verify_whitelist(self, pairlist: List[str], logmethod,
-                         keep_invalid: bool = False) -> List[str]:
+    def verify_whitelist(
+        self, pairlist: List[str], logmethod, keep_invalid: bool = False
+    ) -> List[str]:
         """
         Verify and remove items from pairlist - returning a filtered pairlist.
         Logs a warning or info depending on `aswarning`.
@@ -139,14 +138,17 @@ class PairListManager(LoggingMixin):
             return []
         return whitelist
 
-    def create_pair_list(self, pairs: List[str], timeframe: str = None) -> ListPairsWithTimeframes:
+    def create_pair_list(
+        self, pairs: List[str], timeframe: Optional[str] = None
+    ) -> ListPairsWithTimeframes:
         """
         Create list of pair tuples with (pair, timeframe)
         """
         return [
             (
                 pair,
-                timeframe or self._config['timeframe'],
-                self._config.get('candle_type_def', CandleType.SPOT)
-            ) for pair in pairs
+                timeframe or self._config["timeframe"],
+                self._config.get("candle_type_def", CandleType.SPOT),
+            )
+            for pair in pairs
         ]

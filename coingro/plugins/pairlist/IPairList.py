@@ -10,15 +10,18 @@ from coingro.exceptions import OperationalException
 from coingro.exchange import Exchange, market_is_active
 from coingro.mixins import LoggingMixin
 
-
 logger = logging.getLogger(__name__)
 
 
 class IPairList(LoggingMixin, ABC):
-
-    def __init__(self, exchange: Exchange, pairlistmanager,
-                 config: Dict[str, Any], pairlistconfig: Dict[str, Any],
-                 pairlist_pos: int) -> None:
+    def __init__(
+        self,
+        exchange: Exchange,
+        pairlistmanager,
+        config: Dict[str, Any],
+        pairlistconfig: Dict[str, Any],
+        pairlist_pos: int,
+    ) -> None:
         """
         :param exchange: Exchange instance
         :param pairlistmanager: Instantiated Pairlist manager
@@ -33,7 +36,7 @@ class IPairList(LoggingMixin, ABC):
         self._config = config
         self._pairlistconfig = pairlistconfig
         self._pairlist_pos = pairlist_pos
-        self.refresh_period = self._pairlistconfig.get('refresh_period', 1800)
+        self.refresh_period = self._pairlistconfig.get("refresh_period", 1800)
         self._last_refresh = 0
         LoggingMixin.__init__(self, logger, self.refresh_period)
 
@@ -87,8 +90,10 @@ class IPairList(LoggingMixin, ABC):
         :param tickers: Tickers (from exchange.get_tickers()). May be cached.
         :return: List of pairs
         """
-        raise OperationalException("This Pairlist Handler should not be used "
-                                   "at the first position in the list of Pairlist Handlers.")
+        raise OperationalException(
+            "This Pairlist Handler should not be used "
+            "at the first position in the list of Pairlist Handlers."
+        )
 
     def filter_pairlist(self, pairlist: List[str], tickers: Dict) -> List[str]:
         """
@@ -123,8 +128,9 @@ class IPairList(LoggingMixin, ABC):
         """
         return self._pairlistmanager.verify_blacklist(pairlist, logmethod)
 
-    def verify_whitelist(self, pairlist: List[str], logmethod,
-                         keep_invalid: bool = False) -> List[str]:
+    def verify_whitelist(
+        self, pairlist: List[str], logmethod, keep_invalid: bool = False
+    ) -> List[str]:
         """
         Proxy method to verify_whitelist for easy access for child classes.
         :param pairlist: Pairlist to validate
@@ -144,26 +150,33 @@ class IPairList(LoggingMixin, ABC):
         markets = self._exchange.markets
         if not markets:
             raise OperationalException(
-                'Markets not loaded. Make sure that exchange is initialized correctly.')
+                "Markets not loaded. Make sure that exchange is initialized correctly."
+            )
 
         sanitized_whitelist: List[str] = []
         for pair in pairlist:
             # pair is not in the generated dynamic market or has the wrong stake currency
             if pair not in markets:
-                self.log_once(f"Pair {pair} is not compatible with exchange "
-                              f"{self._exchange.name}. Removing it from whitelist..",
-                              logger.warning)
+                self.log_once(
+                    f"Pair {pair} is not compatible with exchange "
+                    f"{self._exchange.name}. Removing it from whitelist..",
+                    logger.warning,
+                )
                 continue
 
             if not self._exchange.market_is_tradable(markets[pair]):
-                self.log_once(f"Pair {pair} is not tradable with Coingro."
-                              "Removing it from whitelist..", logger.warning)
+                self.log_once(
+                    f"Pair {pair} is not tradable with Coingro." "Removing it from whitelist..",
+                    logger.warning,
+                )
                 continue
 
-            if self._exchange.get_pair_quote_currency(pair) != self._config['stake_currency']:
-                self.log_once(f"Pair {pair} is not compatible with your stake currency "
-                              f"{self._config['stake_currency']}. Removing it from whitelist..",
-                              logger.warning)
+            if self._exchange.get_pair_quote_currency(pair) != self._config["stake_currency"]:
+                self.log_once(
+                    f"Pair {pair} is not compatible with your stake currency "
+                    f"{self._config['stake_currency']}. Removing it from whitelist..",
+                    logger.warning,
+                )
                 continue
 
             # Check if market is active
