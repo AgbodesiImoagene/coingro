@@ -4,6 +4,7 @@ from logging import Formatter
 from logging.handlers import BufferingHandler, RotatingFileHandler, SysLogHandler
 from typing import Any, Dict
 
+from coingro import __env__, __id__
 from coingro.constants import USERPATH_LOGS
 from coingro.exceptions import OperationalException
 
@@ -23,7 +24,11 @@ class CGBufferingHandler(BufferingHandler):
 
 
 logger = logging.getLogger(__name__)
-LOGFORMAT = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+LOGFORMAT = (
+    f"%(asctime)s - {__id__} - %(name)s - %(levelname)s - %(message)s"
+    if __env__ == "docker"
+    else "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+)
 
 # Initialize bufferhandler - will be used for /log endpoints
 bufferHandler = CGBufferingHandler(1000)
