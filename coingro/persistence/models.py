@@ -50,7 +50,7 @@ def ping_connection(connection, branch):
         connection.should_close_with_result = False
 
         try:
-            connection.scalar(select([1]))
+            connection.scalar(select(1))
             commit = getattr(connection, "commit", None)
             if callable(commit):
                 connection.commit()
