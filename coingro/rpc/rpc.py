@@ -1282,7 +1282,7 @@ class RPC:
 
                 RPC._validate_config(config, validate_exchange=True)
 
-                save_to_config_file(deepcopy(tempconf))
+                save_to_config_file(tempconf)
             except Exception as e:
                 raise RPCException(str(e)) from e
 
@@ -1328,6 +1328,30 @@ class RPC:
                 "status": "Successfully updated config. "
                 "Reload config for changes to take effect."
             }
+        else:
+            return {"status": "No changes detected."}
+
+    def _rpc_update_settings(self, **kwargs) -> Dict[str, Any]:
+        if kwargs:
+            name = kwargs.get("name")
+            if name and name.lower() not in SUPPORTED_EXCHANGES:
+                raise RPCException(f"{name} is not a supported exchange.")
+
+            try:
+                config = RPC._update_exchange(self._load_saved_config(), kwargs)
+                config = RPC._update_strategy(config, kwargs)
+                config = RPC._update_general_settings(config, kwargs)
+                tempconf = deepcopy(config)
+
+                RPC._validate_config(config, validate_exchange=True)
+
+                save_to_config_file(tempconf)
+
+                self._coingro.state = State.RELOAD_CONFIG
+            except Exception as e:
+                raise RPCException(str(e)) from e
+
+            return {"status": "Successfully updated config. "}
         else:
             return {"status": "No changes detected."}
 

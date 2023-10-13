@@ -46,6 +46,7 @@ from coingro.rpc.api_server.api_schemas import (
     SysInfo,
     TimeUnitProfit,
     TradesSummaryResponse,
+    UpdateAllSettingsPayload,
     UpdateExchangePayload,
     UpdateSettingsPayload,
     UpdateStrategyPayload,
@@ -324,7 +325,6 @@ def list_strategies(config=Depends(get_config)):
 
 @router.get("/strategy/{strategy}", response_model=StrategyResponse, tags=["strategy"])
 def get_strategy(strategy: str, config=Depends(get_config)):
-
     config_ = deepcopy(config)
     from coingro.resolvers.strategy_resolver import StrategyResolver
 
@@ -348,7 +348,6 @@ def list_available_pairs(
     candletype: Optional[CandleType] = None,
     config=Depends(get_config),
 ):
-
     dh = get_datahandler(config["datadir"], config.get("dataformat_ohlcv"))
     trading_mode: TradingMode = config.get("trading_mode", TradingMode.SPOT)
     pair_interval = dh.ohlcv_get_available_data(config["datadir"], trading_mode)
@@ -420,6 +419,12 @@ def update_strategy(payload: UpdateStrategyPayload, rpc: RPC = Depends(get_rpc))
 def update_general_settings(payload: UpdateSettingsPayload, rpc: RPC = Depends(get_rpc)):
     kwargs = payload.dict(exclude_none=True)
     return rpc._rpc_update_general_settings(**kwargs)
+
+
+@router.post("/all_settings", response_model=StatusMsg, tags=["botcontrol", "setup"])
+def update_settings(payload: UpdateAllSettingsPayload, rpc: RPC = Depends(get_rpc)):
+    kwargs = payload.dict(exclude_none=True)
+    return rpc._rpc_update_settings(**kwargs)
 
 
 @router.post("/reset_original_config", response_model=StatusMsg, tags=["botcontrol"])

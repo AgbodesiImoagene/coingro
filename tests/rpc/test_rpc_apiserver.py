@@ -1232,7 +1232,7 @@ def test_api_force_entry(botclient, mocker, fee, endpoint):
     mocker.patch("coingro.rpc.RPC._rpc_force_entry", fbuy_mock)
     rc = client_post(client, f"{BASE_URI}/{endpoint}", data='{"pair": "ETH/BTC"}')
     assert_response(rc)
-    assert rc.json() == {"status": "Error entering long trade for pair ETH/BTC."}
+    assert rc.json() == {"status": "Error entering SignalDirection.LONG trade for pair ETH/BTC."}
 
     # Test creating trade
     fbuy_mock = MagicMock(
@@ -1985,6 +1985,22 @@ def test_update_settings(botclient, mocker, default_conf):
     assert rc.json() == {
         "status": "Successfully updated config. " "Reload config for changes to take effect."
     }
+
+
+def test_update_all_settings(botclient, mocker, default_conf):
+    cgbot, client = botclient
+    mock_conf = MagicMock(return_value=default_conf)
+    mocker.patch("coingro.rpc.rpc.Configuration.from_files", mock_conf)
+    mocker.patch("coingro.rpc.RPC._validate_config", MagicMock())
+    mocker.patch("coingro.rpc.rpc.save_to_config_file", MagicMock())
+
+    rc = client_post(
+        client,
+        f"{BASE_URI}/all_settings",
+        data='{"max_open_trades": 1, "name": "binance", "strategy": "SampleStrategy"}',
+    )
+    assert_response(rc)
+    assert rc.json() == {"status": "Successfully updated config. "}
 
 
 def test_reset_original_config(botclient, mocker):

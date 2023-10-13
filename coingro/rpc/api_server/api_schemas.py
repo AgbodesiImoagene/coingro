@@ -507,6 +507,30 @@ class UpdateSettingsPayload(BaseModel):
     dry_run_wallet: Optional[confloat(ge=0)]  # type: ignore
 
 
+class UpdateAllSettingsPayload(BaseModel):
+    bot_name: Optional[str]
+    max_open_trades: Optional[conint(ge=-1)]  # type: ignore
+    stake_currency: Optional[str]
+    stake_amount: Optional[Union[confloat(ge=0.0001), StakeAmountOptions]]  # type: ignore
+    tradable_balance_ratio: Optional[confloat(le=1, ge=0)]  # type: ignore
+    fiat_display_currency: Optional[str]
+    available_capital: Optional[confloat(ge=0)]  # type: ignore
+    dry_run_wallet: Optional[confloat(ge=0)]  # type: ignore
+    dry_run: Optional[bool]
+    name: Optional[str]
+    key: Optional[str]
+    secret: Optional[str]
+    password: Optional[str]
+    uid: Optional[str]
+    strategy: Optional[str]
+    minimal_roi: Optional[conlist(item_type=ROI, min_items=1)]  # type: ignore
+    stoploss: Optional[confloat(lt=0, ge=-1)]  # type: ignore
+    trailing_stop: Optional[bool]
+    trailing_stop_positive: Optional[confloat(le=1, ge=0)]  # type: ignore
+    trailing_stop_positive_offset: Optional[confloat(le=1, ge=0)]  # type: ignore
+    trailing_only_offset_is_reached: Optional[bool]
+
+
 class TradesSummaryResponse(BaseModel):
     daily: Daily
     weekly: Daily
