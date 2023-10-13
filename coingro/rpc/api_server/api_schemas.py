@@ -2,7 +2,7 @@ from datetime import date, datetime
 from enum import Enum
 from typing import Any, Dict, List, Optional, Union
 
-from pydantic import BaseModel, confloat, conint, conlist
+from pydantic import BaseModel, RootModel, confloat, conint, conlist
 
 from coingro.constants import DATETIME_PRINT_FORMAT
 from coingro.enums import OrderTypeValues, SignalDirection, TimeUnit, TradingMode
@@ -292,8 +292,8 @@ class TradeResponse(BaseModel):
     total_trades: int
 
 
-class ForceEnterResponse(BaseModel):
-    __root__: Union[TradeSchema, StatusMsg]
+class ForceEnterResponse(RootModel):
+    root: Union[TradeSchema, StatusMsg]
 
 
 class LockModel(BaseModel):
@@ -367,8 +367,8 @@ class PlotConfig_(BaseModel):
     subplots: Dict[str, Any]
 
 
-class PlotConfig(BaseModel):
-    __root__: Union[PlotConfig_, Dict]
+class PlotConfig(RootModel):
+    root: Union[PlotConfig_, Dict]
 
 
 class StrategyListResponse(BaseModel):
