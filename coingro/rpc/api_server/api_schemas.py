@@ -488,7 +488,7 @@ class UpdateExchangePayload(BaseModel):
 
 class UpdateStrategyPayload(BaseModel):
     strategy: Optional[str]
-    minimal_roi: Optional[conlist(item_type=ROI, min_items=1)]  # type: ignore
+    minimal_roi: Optional[conlist(item_type=ROI, min_length=1)]  # type: ignore
     stoploss: Optional[confloat(lt=0, ge=-1)]  # type: ignore
     trailing_stop: Optional[bool]
     trailing_stop_positive: Optional[confloat(le=1, ge=0)]  # type: ignore
@@ -523,7 +523,7 @@ class UpdateAllSettingsPayload(BaseModel):
     password: Optional[str]
     uid: Optional[str]
     strategy: Optional[str]
-    minimal_roi: Optional[conlist(item_type=ROI, min_items=1)]  # type: ignore
+    minimal_roi: Optional[conlist(item_type=ROI, min_length=1)]  # type: ignore
     stoploss: Optional[confloat(lt=0, ge=-1)]  # type: ignore
     trailing_stop: Optional[bool]
     trailing_stop_positive: Optional[confloat(le=1, ge=0)]  # type: ignore
